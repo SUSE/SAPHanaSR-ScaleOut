@@ -132,7 +132,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.149.1.13</version>
+<version>0.149.1.16</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -786,7 +786,7 @@ function check_for_primary() {
 function analyze_hana_sync_statusNEW()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
-    local rc=-1 srRc=0 all_nodes_other_side="" local n=""
+    local rc=-1 srRc=0 all_nodes_other_side="" local n="" master_lpt=""
     FULL_SR_STATUS=$(su - $sidadm -c "python $DIR_EXECUTABLE/python_support/systemReplicationStatus.py" 2>/dev/null); srRc=$?
     #
     # TODO: PRIO9: Here we might also need to filter additional sites (if multi tier should be supported)
@@ -810,10 +810,14 @@ function analyze_hana_sync_statusNEW()
        done
        rc=1;
     fi
-    super_ocf_log info "FLOW $FUNCNAME PRIM"
+    super_ocf_log info "FLOW $FUNCNAME PRIM+LPA"
+    # TODO: PRIO2: Check id we should set local (different) LPTs or one from the master for all
+    #       site nodes or only for all site masters (master1, master2, master3)
+    master_lpt=$(lpa_get_lpt ${HOSTNAME})
     for n in $all_nodes_local_site; do
         super_ocf_log info "ACT site=$sr_name, seting PRIM for node <$n>"
         set_hana_attribute "$n" "PRIM" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+        lpa_set_lpt "$master_lpt" "$n"
     done
     
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
@@ -1324,6 +1328,7 @@ function lpa_set_lpt() {
     local lpt=$1
     local clpt=-1
     local node=${2:-${HOSTNAME}}
+    super_ocf_log info "FLOW $FUNCNAME (set_hana_attribute ${node} \"$lpt\" ${LPA_ATTR[@]})"
     set_hana_attribute ${node} "$lpt" ${LPA_ATTR[@]}; crm_rc=$?
     clpt=$(lpa_get_lpt $HOSTNAME)
     if [ "$lpt" != "$clpt" ]; then
@@ -1946,7 +1951,7 @@ function saphana_monitor_clone() {
         my_role=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_ROLES[@]})
         my_sync=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
         scoring_crm_master "$my_role" "$my_sync"
-        # TODO: PRIO1: Check when we can start to monitor the local instance!!
+        # TODO: PRIO1: Check when we can start to monitor the local instance!! ==> instance restart
         case "$nState" in
             DEMOTED ) rc=$OCF_SUCCESS;;
             PROMOTED ) rc=$OCF_RUNNING_MASTER;;
