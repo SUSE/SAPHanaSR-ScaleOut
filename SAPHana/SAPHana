@@ -132,7 +132,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.148.6</version>
+<version>0.149.1.7</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -329,10 +329,9 @@ function is_clone() {
        # yes it is a clone config - check, if its configured well
        #
         if [ "$OCF_RESKEY_CRM_meta_clone_node_max" -ne 1 ] || \
-            [ "$OCF_RESKEY_CRM_meta_clone_max" -ne 2 ] || \
             [ "$OCF_RESKEY_CRM_meta_master_node_max" -ne 1 ] || \
             [ "$OCF_RESKEY_CRM_meta_master_max" -ne 1 ]; then
-                super_ocf_log err "ACT: Clone options misconfigured. (expect: clone_max=2,clone_node_max=1,master_node_max=1,master_max=1)"
+                super_ocf_log err "ACT: Clone options misconfigured. (expect: clone_node_max=1,master_node_max=1,master_max=1)"
                 exit $OCF_ERR_CONFIGURED
         fi
         rc=0;
@@ -440,7 +439,7 @@ scoring_crm_master()
     local roles="$1"
     local sync="$2"
     local skip=0
-    local myScore=-1
+    local myScore=-22 # TODO: PRIO3: Change back to -1 later
     for scan in "${SCORING_TABLE_PREFERRED_SITE_TAKEOVER[@]}"; do
         if [ $skip -eq 0 ]; then
             read rolePatt syncPatt score <<< $scan
@@ -528,20 +527,19 @@ function saphana_init() {
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
     SCORING_TABLE_PREFERRED_SITE_TAKEOVER=(
-       "[234]*:P:[^:]*:master .*     150"
-       "[015-9]*:P:[^:]*:master .*    90"
-       "[0-9]*:P:[^:]*:slave  .*      60"
-       "[0-9]*:P:[^:]*:\?     .*       0"
-       "[0-9]*:P:[^:]*:-      .*       0"
-       "[234]*:S:[^:]*:master SOK    100"
-       "[015-9]*:S:[^:]*:master SOK   80"
-       "[0-9]*:S:[^:]*:master SFAIL  -INFINITY"
-       "[0-9]*:S:[^:]*:slave  SOK     10"
-       "[0-9]*:S:[^:]*:slave  SFAIL  -INFINITY"
-       "[0-9]*:S:[^:]*:\?     .*    0"
-       "[0-9]*:S:[^:]*:-      .*    0"
-       ".*                    .*   -1"
+       "[234]:P:master[123]:master     .*     150"  
+       "[015]:P:master[123]:           .*      90"
+       "[0-9]:P:master[123]:*:standby  .*      60"
+       "[0-9]:P:slave:                 .*       0"
+       "[234]:S:master[123]:master     SOK    100"
+       "[015]:S:master[123]:           SOK     80"
+       "[0-9]:S:master[123]:*:standby  SFAIL  -INFINITY"
+       "[0-9]:S:slave:                 SOK     10"
+       "[0-9]:S:slave:                 SFAIL  -INFINITY"
+       "[0-9]:S:                       .*     -INFINITY"
+       ".*                             .*     -INFINITY"
     )
+# TODO: PRIO2: Change back to -2
     SCORING_TABLE_PREFERRED_LOCAL_RESTART=(
        "[0-9]*:P:[^:]*:master .*  150"
        "[0-9]*:P:[^:]*:slave  .*  140"
@@ -904,7 +902,7 @@ function saphana_start() {
     # TODO: ASK: PRIO5: For SCALE-OUT - do we need to use an other call like StartSystem? Or better to use the HDB command?
     #
     if [ $rc -eq $OCF_SUCCESS ]; then
-        output=$($SAPCONTROL -nr $InstanceNr -function Start)
+        output=$($SAPCONTROL -nr $InstanceNr -function StartSystem)
         rc=$?
         super_ocf_log info "ACT: Starting SAPHANA Instance $SID-$InstanceName: $output"
     fi
@@ -940,6 +938,7 @@ function saphana_stop() {
   local rc=0
   check_sapstartsrv; rc=$?
   if [ $rc -eq $OCF_SUCCESS ]; then
+    ## TODO: PRIO 1: Only stop System, if I am the last master!
     output=$($SAPCONTROL -nr $InstanceNr -function Stop)
     rc=$?
     super_ocf_log info "ACT: Stopping SAP Instance $SID-$InstanceName: $output"
@@ -1456,6 +1455,27 @@ function lpa_check_lpt_status() {
     return $rc    
 }
 
+# function: is_master_nameserver
+# rc:       0: yes its the master nameserver
+#           1: else
+function is_master_nameserver()
+{
+    local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr="" 
+    nRole=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
+    read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+    case "$nNsCurr" in
+        master )
+           rc=0
+           ;;
+        * )
+           rc=1
+           ;;
+    esac
+    super_ocf_log info "ACT is_master_nameserver  rc=$rc"
+    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    return $rc
+}
+
 #
 # function: saphana_start_clone - start a hana clone instance
 # params:   -
@@ -1467,20 +1487,25 @@ function saphana_start_clone() {
 	local primary_status sync_attr score_master rc=$OCF_NOT_RUNNING
     local sqlrc;
     local chkusr;
-    # TODO: PRIO4: remove check_secstore_users later
-    check_secstore_users SLEHALOC; chkusr=$?
-    if [ $chkusr -ne 0 ]; then
-         super_ocf_log err  "ACT: Secure store users are missing (see best practice manual how to setup the users)"
-         rc=$OCF_ERR_CONFIGURED
-    else
-        set_hana_attribute ${HOSTNAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
-        check_for_primary; primary_status=$?
-        if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
-            saphana_start_primary; rc=$?
-        else 
-            saphana_start_secondary; rc=$?
-            lpa_set_lpt  30
-        fi 
+    if is_master_nameserver; then
+        # TODO: PRIO4: remove check_secstore_users later
+        check_secstore_users SLEHALOC; chkusr=$?
+        if [ $chkusr -ne 0 ]; then
+             super_ocf_log err  "ACT: Secure store users are missing (see best practice manual how to setup the users)"
+             rc=$OCF_ERR_CONFIGURED
+        else
+            set_hana_attribute ${HOSTNAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+            check_for_primary; primary_status=$?
+            if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
+                saphana_start_primary; rc=$?
+            else 
+                saphana_start_secondary; rc=$?
+                lpa_set_lpt  30
+            fi 
+        fi
+    else 
+        set_hana_attribute ${HOSTNAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}    
+        rc=$OCF_SUCCESS;
     fi
     return $rc
 }
@@ -1496,11 +1521,15 @@ function saphana_stop_clone() {
     local rc=0
     local primary_status="x"
     set_hana_attribute ${HOSTNAME} "UNDEFINED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
-    check_for_primary; primary_status=$?
-    if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
-        lpa_set_lpt  10
-    fi 
-    saphana_stop; rc=$?
+    #if is_master_nameserver; then
+        check_for_primary; primary_status=$?
+        if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
+            lpa_set_lpt  10
+        fi 
+        saphana_stop; rc=$?
+    #else
+    #    rc=$OCF_SUCCESS;
+    #fi
     return $rc
 }
 
@@ -1830,6 +1859,7 @@ function saphana_monitor_clone() {
 	local rc=$OCF_ERR_GENERIC
 	local promoted=0
     local init_attribute=0
+    local nState=""
 
     my_role=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_ROLES[@]})
     my_sync=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
@@ -1840,23 +1870,37 @@ function saphana_monitor_clone() {
 	else
 		super_ocf_log debug "DBG: REGULAR MONITOR"
 	fi
-	#
-	# First check, if we are PRIMARY or SECONDARY
-	# 
-	check_for_primary; primary_status=$?
-    if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
-        saphana_monitor_primary; rc=$?
-    else
-        if [ $primary_status -eq $HANA_STATE_SECONDARY  ]; then
-            saphana_monitor_secondary; rc=$?
+    if is_master_nameserver; then
+        #
+        # First check, if we are PRIMARY or SECONDARY
+        # 
+        check_for_primary; primary_status=$?
+        if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
+            saphana_monitor_primary; rc=$?
         else
-            #
-            # OK, we are neither HANA PRIMARY nor HANA SECONDARY
-            #
-            super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
-            # TODO: PRIO2: Or only set_crm_master -INFINITY ?
-            rc=$OCF_ERR_GENERIC
+            if [ $primary_status -eq $HANA_STATE_SECONDARY  ]; then
+                saphana_monitor_secondary; rc=$?
+            else
+                #
+                # OK, we are neither HANA PRIMARY nor HANA SECONDARY
+                #
+                super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
+                # TODO: PRIO2: Or only set_crm_master -INFINITY ?
+                rc=$OCF_ERR_GENERIC
+            fi
         fi
+    else
+        nState=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
+        my_role=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_ROLES[@]})
+        my_sync=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+        scoring_crm_master "$my_role" "$my_sync"
+        # TODO: PRIO1: Check when we can start to monitor the local instance!!
+        case "$nState" in
+            DEMOTED ) rc=$OCF_SUCCESS;;
+            PROMOTED ) rc=$OCF_RUNNING_MASTER;;
+            UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+            * ) rc=$OCF_NOT_RUNNING;;
+        esac
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
