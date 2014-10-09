@@ -123,7 +123,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.149.1</version>
+    <version>0.149.7.4</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -514,6 +514,66 @@ function sht_stop() {
   return $rc
 }
 
+# function: master_walk - find master node(s)
+# params:   -
+# globals:  srmode(r), 
+function master_walk() {
+   local active_master="" master1="" master2="" master3=""
+   local nSite="" nRole=""
+   #
+   # 2:S:master1:slave:worker:standby  MAINZ
+   # 4:P:master1:master:worker:master  KOELN   
+   # 4:P:master2:slave:worker:slave    KOELN   
+   # 4:P:slave:slave:worker:slave      KOELN
+   super_ocf_log info "ACT master walk"
+   case "$srmode" in
+      primary | sync | syncmem | async )
+          # walk over all known cluster nodes 
+          super_ocf_log info "DBG master walk for $srmode"
+          for node in $(crm_node  -l | awk '{print $2}'); do
+              nSite=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_SITE[@]})              
+              if [ "$site" = "$nSite" ]; then
+                 # node of same site found
+                 nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
+                 read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+                 super_ocf_log info "DBG site $site $nNsConf:$nNsCurr"
+                 case "$nNsConf:$nNsCurr" in
+                    master1:master  ) master1=$node; active_master=$node
+                 super_ocf_log info "DBG site $site match master1:master"
+                                    ;;
+                    master2:master  ) master2=$node; active_master=$node
+                 super_ocf_log info "DBG site $site match master2:master"
+                                    ;;
+                    master3:master  ) master3=$node; active_master=$node
+                 super_ocf_log info "DBG site $site match master3:master"
+                                    ;;
+                    master1:*       ) master1=$node; 
+                 super_ocf_log info "DBG site $site match master1:STAR"
+                                    ;;
+                    master2:*       ) master2=$node;
+                 super_ocf_log info "DBG site $site match master2:STAR"
+                                    ;;
+                    master3:*       ) master3=$node;
+                 super_ocf_log info "DBG site $site match master3:STAR"
+                                    ;;
+                    * )
+                 super_ocf_log info "DBG site $site NO match"
+                                    ;;
+
+                 esac
+                 super_ocf_log info "DBG $site: $nRole"
+              fi
+          done
+          if [ -z "$active_master" ]; then
+             read best_cold_master rest <<<$master1 $master2 $master3
+          fi
+          super_ocf_log info "ACT ===> priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
+          ;;
+      * )
+          return 1
+          ;;
+   esac
+}
 
 #
 # function: sht_monitor - monitor a hana topology instance
@@ -525,6 +585,7 @@ function sht_monitor() {
   super_ocf_log info "FLOW $FUNCNAME ($*)"
   local rc=0
 
+  master_walk
   if [ -f /var/lib/SAPHana/SAPTopologyON ]; then
      rc=$OCF_SUCCESS
   else
