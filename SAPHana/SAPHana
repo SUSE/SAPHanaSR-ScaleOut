@@ -132,7 +132,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.149.1.7</version>
+<version>0.149.1.9</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -530,14 +530,14 @@ function saphana_init() {
        "[234]:P:master[123]:master     .*     150"  
        "[015]:P:master[123]:           .*      90"
        "[0-9]:P:master[123]:*:standby  .*      60"
-       "[0-9]:P:slave:                 .*       0"
+       "[0-9]:P:slave:                 .*     -90000"
        "[234]:S:master[123]:master     SOK    100"
        "[015]:S:master[123]:           SOK     80"
-       "[0-9]:S:master[123]:*:standby  SFAIL  -INFINITY"
-       "[0-9]:S:slave:                 SOK     10"
-       "[0-9]:S:slave:                 SFAIL  -INFINITY"
-       "[0-9]:S:                       .*     -INFINITY"
-       ".*                             .*     -INFINITY"
+       "[0-9]:S:master[123]:*:standby  SFAIL  -90100"
+       "[0-9]:S:slave:                 SOK    -90150"
+       "[0-9]:S:slave:                 SFAIL  -90200"
+       "[0-9]:S:                       .*     -90400"
+       ".*                             .*     -99999"
     )
 # TODO: PRIO2: Change back to -2
     SCORING_TABLE_PREFERRED_LOCAL_RESTART=(
