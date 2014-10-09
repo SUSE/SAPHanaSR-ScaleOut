@@ -132,7 +132,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.149.1.9</version>
+<version>0.149.1.13</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -528,16 +528,17 @@ function saphana_init() {
     #
     SCORING_TABLE_PREFERRED_SITE_TAKEOVER=(
        "[234]:P:master[123]:master     .*     150"  
+       "[234]:P:master[123]:slave      .*      90"
        "[015]:P:master[123]:           .*      90"
        "[0-9]:P:master[123]:*:standby  .*      60"
-       "[0-9]:P:slave:                 .*     -90000"
+       "[0-9]:P:slave:                 .*     -10000"
        "[234]:S:master[123]:master     SOK    100"
        "[015]:S:master[123]:           SOK     80"
-       "[0-9]:S:master[123]:*:standby  SFAIL  -90100"
-       "[0-9]:S:slave:                 SOK    -90150"
-       "[0-9]:S:slave:                 SFAIL  -90200"
-       "[0-9]:S:                       .*     -90400"
-       ".*                             .*     -99999"
+       "[0-9]:S:master[123]:*:standby  SFAIL  -99000"
+       "[0-9]:S:slave:                 SOK    -10150"
+       "[0-9]:S:slave:                 SFAIL  -99010"
+       "[0-9]:S:                       .*     -10400"
+       ".*                             .*     -20000"
     )
 # TODO: PRIO2: Change back to -2
     SCORING_TABLE_PREFERRED_LOCAL_RESTART=(
@@ -771,7 +772,58 @@ function check_for_primary() {
     return $rc
 }
 
+# function: analyze_hana_sync_statusNEW
+# params:   -
+# globals:  DIR_EXECUTABLE(r), FULL_SR_STATUS(w)
 #
+# systemReplicationStatus.py return-codes:
+#    NoHSR        = 0
+#    Error        = 1
+#    Unkown       = 2
+#    Initializing = 3
+#    Syncing      = 4
+#    Active       = 5
+function analyze_hana_sync_statusNEW()
+{
+    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    local rc=-1 srRc=0 all_nodes_other_side="" local n=""
+    FULL_SR_STATUS=$(su - $sidadm -c "python $DIR_EXECUTABLE/python_support/systemReplicationStatus.py" 2>/dev/null); srRc=$?
+    #
+    # TODO: PRIO9: Here we might also need to filter additional sites (if multi tier should be supported)
+    #              Could we define, that we always control site ID 1 and site ID 2?
+    all_nodes_other_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $8}' site=$sr_name ); srRc=$?
+    all_nodes_local_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $2}' site=$sr_name ); srRc=$?
+    super_ocf_log info "DBG site=$sr_name, all_nodes_other_site=$all_nodes_other_site"
+    #super_ocf_log info "DBG FULL_SR_STATUS=$FULL_SR_STATUS"
+    if [ $srRc -eq 5 ]; then
+       super_ocf_log info "FLOW $FUNCNAME SOK"
+       for n in $all_nodes_other_site; do
+            super_ocf_log info "ACT site=$sr_name, seting SOK for node <$n>"
+            set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+       done
+       rc=0;
+    else 
+       super_ocf_log info "FLOW $FUNCNAME SFAIL"
+       for n in $all_nodes_other_site; do
+            super_ocf_log info "ACT site=$sr_name, seting SFAIL for node <$n>"
+            set_hana_attribute "$n" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+       done
+       rc=1;
+    fi
+    super_ocf_log info "FLOW $FUNCNAME PRIM"
+    for n in $all_nodes_local_site; do
+        super_ocf_log info "ACT site=$sr_name, seting PRIM for node <$n>"
+        set_hana_attribute "$n" "PRIM" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+    done
+    
+    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    return $rc
+}
+
+#
+####
+#### OLD HDBSQL STUFF FOR SPS6,7,8 AND SCALE-UP ONLY 
+####
 # function: analyze_hana_sync_status - query and check hana system replication status
 # params:   -
 # globals:  DIR_EXECUTABLE(r), remoteHost(r)
@@ -1612,7 +1664,7 @@ function saphana_monitor_primary()
                 ;;
         esac
     fi
-    get_hana_landscape_status; lss=$? 
+    FULL_LANDSCAPE_STATUS=$(get_hana_landscape_status); lss=$? 
     super_ocf_log debug "DBG: saphana_monitor_clone: get_hana_landscape_status=$lss"
     case "$lss" in
         0 ) # FATAL or ERROR 
@@ -1698,7 +1750,7 @@ function saphana_monitor_primary()
                     [12]:P:*:master:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status
                         ;;
                     [34]:P:*:master:*  ) # primary is up and should now be able to anser hdbsql query
-                        analyze_hana_sync_status
+                        analyze_hana_sync_statusNEW
                         ;;
                 esac
                 ## begin fix bnc#892466 - MGFH ########################
