@@ -123,7 +123,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.149.7.5</version>
+    <version>0.160.1.1</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -304,7 +304,7 @@ function is_clone() {
 # globals:  OCF_*(r), SID(w), sid(rw), sidadm(w), InstanceName(w), InstanceNr(w), 
 # globals:  meta_notify_master_uname(w), HANA_SR_TOLOPOGY(w), sr_name(w), remoteHost(w) 
 # globals:  ATTR_NAME_HANA_SYNC_STATUS(w), ATTR_NAME_HANA_PRIMARY_AT(w), ATTR_NAME_HANA_CLONE_STATE(w)
-# globals:  DIR_EXECUTABLE(w), SAPSTARTSRV(w), SAPCONTROL(w), DIR_PROFILE(w), SAPSTARTPROFILE(w), LD_LIBRARY_PATH(w), PATH(w)
+# globals:  DIR_EXECUTABLE(w), SAPSTARTSRV(w), SAPCONTROL(w), DIR_PROFILE(w), SAPSTARTPROFILE(w), LD_LIBRARY_PATH(w), PATH(w), nodelist(w)
 # sht_init : Define global variables with default values, if optional parameters are not set
 #
 #
@@ -314,6 +314,8 @@ function sht_init() {
     local myInstanceName=""
     local rc=$OCF_SUCCESS
     local hdbANSWER=""
+    local siteID
+    local siteNAME
     HOSTEXECNAME=saphostexec
     USRSAP=/usr/sap
     SAPSERVICE_PATH=${USRSAP}/sapservices
@@ -372,6 +374,10 @@ function sht_init() {
     #
     # figure-out all needed values from system replication status with ONE call
     # we need: mode=primary|sync|syncmem|...; site name=<site>; mapping/<me>=<site>/<node> (multiple lines)
+    case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
+       *openais* ) nodelist=$(crm_node -l | awk '/member/ {print $2}');;    
+       *cman*    ) nodelist=$(crm_node -l);; 
+    esac
     # hdbnsutil was a bit unstable in some tests so we recall the tool, if it fails to report the srmode
     for i in  1 2 3 4 5 6 7 8 9; do
         hdbANSWER=$(su - ${sidadm} -c "hdbnsutil -sr_state --sapcontrol=1" 2>/dev/null)
@@ -388,8 +394,17 @@ function sht_init() {
               ;;
         esac
     done
-    site=$(echo "$hdbANSWER" | awk -F= '/site name/ {print $2}')
-    MAPPING=$(echo "$hdbANSWER" | awk -F[=/] '$1 ~ "mapping" && $2 == myhost && $3 !~ site { print $4 }' site=$site myhost=$HOSTNAME)
+    siteID=$(echo "$hdbANSWER" | awk -F= '/site id/ {print $2}')
+    siteNAME=$(echo "$hdbANSWER" | awk -F= '/site name/ {print $2}')
+    site=$siteNAME:$siteID
+    srmode=$(echo "$hdbANSWER" | awk -F= '/mode/ {print $2}')
+    MAPPING=$(echo "$hdbANSWER" | awk -F[=/] '$1 ~ "mapping" && $3 !~ site { print $4 }' site=$siteNAME)
+    #
+    # filter all non-cluster mappings
+    #
+    hanaRemoteHost=$(for n1 in $nodelist; do for n2 in $MAPPING; do if [ "$n1" == "$n2" ]; then echo $n1; fi; done; done )
+        super_ocf_log info "DEC: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
+        super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
     super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING"
     super_ocf_log info "FLOW $FUNCNAME rc=$OCF_SUCCESS"
     return $OCF_SUCCESS
@@ -403,27 +418,36 @@ function sht_init() {
 function check_for_primary() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
-    super_ocf_log debug "DBG2: check_for_primary: srmode=$srmode"
-    super_ocf_log debug "DBG: check_for_primary: srmode=$srmode"
-    case "$srmode" in
-        primary ) 
-              super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_PRIMARY"
-              return $HANA_STATE_PRIMARY;;
-        syncmem | sync | async )
-              super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_SECONDARY"
-              return $HANA_STATE_SECONDARY;;
-        none ) # have seen that mode on second side BEFEORE we registered it as replica
+   # DONE: Change stderr location!!
+   #sidadm=lnxadm
+   #node_status=$(check_for_primary_single) 
+   node_status=$srmode
+   super_ocf_log debug "DBG2: check_for_primary: node_status=$node_status"
+   super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
+   for i in  1 2 3 4 5 6 7 8 9; do
+       case "$node_status" in
+           primary ) 
+                  super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_PRIMARY"
+                  return $HANA_STATE_PRIMARY;;
+           syncmem | sync | async )
+                  super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_SECONDARY"
+                  return $HANA_STATE_SECONDARY;;
+           none ) # have seen that mode on second side BEFEORE we registered it as replica
+                  # TODO: PRIO1: Should we set SFAIL?
+                  super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_STANDALONE"
+                  return $HANA_STATE_STANDALONE;;
+           * )   # TODO: PRIO2: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
               # TODO: PRIO1: Should we set SFAIL?
-              super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_STANDALONE"
-              return $HANA_STATE_STANDALONE;;
-        * )
-              # TODO: PRIO2: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
-              # TODO: PRIO1: Should we set SFAIL?
-              dump=$( echo $srmode | hexdump -C );
-              super_ocf_log err "ACT: check_for_primary:  we didn't expect srmode to be: <$srmode> DUMP: <$dump>"
-    esac;
-    super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_DEFECT"
-    return $HANA_STATE_DEFECT
+              dump=$( echo $node_status | hexdump -C );
+          super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
+                  node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
+                  node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
+                  super_ocf_log info "DEC: check_for_primary: loop=$i: node_status=$node_status"
+                  # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
+       esac;
+   done
+   super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_DEFECT"
+   return $HANA_STATE_DEFECT
 }
 
 
@@ -604,11 +628,11 @@ function sht_monitor() {
 # sht_status: Lightweight check of SAP instance only with OS tools
 #
 function sht_status() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
-    local rc=0
+  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  local rc=0
 
-    sht_monitor; rc=$?
-    return $rc
+  sht_monitor; rc=$?
+  return $rc
 }
 
 
@@ -653,7 +677,7 @@ function sht_start_clone() {
 #
 # function: sht_stop_clone - stop a hana clone instance
 # params:   -
-# globals:  HOSTNAME(r), HANA_STATE_*, ATTR_NAME_*
+# globals:  NODENAME(r), HANA_STATE_*, ATTR_NAME_*
 # sht_stop_clone
 #
 function sht_stop_clone() {
@@ -669,9 +693,9 @@ function sht_stop_clone() {
     else
         hanaPrim="-"
     fi
-    # remove set_hana_attribute "${HOSTNAME}" "1:$hanaPrim:-:-:-:-" ${ATTR_NAME_HANA_ROLES[@]}
+    # remove set_hana_attribute "${NODENAME}" "1:$hanaPrim:-:-:-:-" ${ATTR_NAME_HANA_ROLES[@]}
     # because in scale-out we need the ROLES attribute to tell us about the configured role
-    # set_hana_attribute "${HOSTNAME}" "1:$hanaPrim:-:-:-:-" ${ATTR_NAME_HANA_ROLES[@]} 
+    # set_hana_attribute "${NODENAME}" "1:$hanaPrim:-:-:-:-" ${ATTR_NAME_HANA_ROLES[@]} 
     sht_stop; rc=$?
     return $rc
 }
@@ -721,7 +745,7 @@ function sht_monitor_clone() {
         else
             hanaPrim="-"
             super_ocf_log warn "ACT: sht_monitor_clone: HANA_STATE_DEFECT"
-            rc=$OCF_ERR_CONFIGURE
+            rc=$OCF_ERR_CONFIGURED
         fi
     fi
     # DONE: PRIO1: ASK: Is the output format of ListInstances fix? Could we take that as an API?
@@ -731,28 +755,34 @@ function sht_monitor_clone() {
         | awk '$4 == SID && $6=NR { print $8 }' SID=$SID NR=$InstanceNr 2>/dev/null )
     super_ocf_log debug "DBG: ListInstances: $(/usr/sap/hostctrl/exe/saphostctrl -function ListInstances)"
     if [ -n "$vName" ]; then
-       set_hana_attribute ${HOSTNAME} "$vName" ${ATTR_NAME_HANA_VHOST[@]} 
+       set_hana_attribute ${NODENAME} "$vName" ${ATTR_NAME_HANA_VHOST[@]} 
     else
-       vName=$(get_hana_attribute ${HOSTNAME} ${ATTR_NAME_HANA_VHOST[@]})
+       vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]})
     fi
     hanaANSWER=$(su - $sidadm -c "python exe/python_support/landscapeHostConfiguration.py" 2>/dev/null); hanalrc="$?" 
     hanarole=$(echo "$hanaANSWER" | tr -d ' ' | awk -F'|' '$2 == host {  printf "%s:%s:%s:%s\n",$10,$11,$12,$13 }  ' host=${vName})
     #if [ -z "$MAPPING" ]; then
     #   super_ocf_log info "ACT: Did not find remote Host at this moment"
     #fi
-    hanaRemoteHost=$MAPPING
+    # FH TODO PRIO1: TRY TO GET RID OF "ATTR_NAME_HANA_REMOTEHOST"
     if [ -n "$hanaRemoteHost" ]; then
-        set_hana_attribute ${HOSTNAME} "$hanaRemoteHost" ${ATTR_NAME_HANA_REMOTEHOST[@]} 
+        set_hana_attribute ${NODENAME} "$hanaRemoteHost" ${ATTR_NAME_HANA_REMOTEHOST[@]} 
     fi
-    set_hana_attribute ${HOSTNAME} "$hanalrc:$hanaPrim:$hanarole" ${ATTR_NAME_HANA_ROLES[@]} 
+    set_hana_attribute ${NODENAME} "$hanalrc:$hanaPrim:$hanarole" ${ATTR_NAME_HANA_ROLES[@]} 
     if [ -n "$site" ]; then
-        set_hana_attribute ${HOSTNAME} "$site" ${ATTR_NAME_HANA_SITE[@]} 
+        set_hana_attribute ${NODENAME} "$site" ${ATTR_NAME_HANA_SITE[@]} 
     fi
+    set_hana_attribute ${NODENAME} "$vName" ${ATTR_NAME_HANA_VHOST[@]} 
     case "$hanaPrim" in
-        P ) ;;
-        S ) # only secondary may propargate its sync status
-        for n in $(crm_node -l | awk '/member/ {print $2}'); do
-            set_hana_attribute ${n} "$srmode" ${ATTR_NAME_HANA_SRMODE[@]}
+       P ) ;;
+       S ) # only secondary may propargate its sync status
+        case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
+           *openais* ) nodelist=$(crm_node -l | awk '/member/ {print $2}');;    
+           *cman*    ) nodelist=$(crm_node -l);; 
+        esac
+
+        for n in ${nodelist}; do
+           set_hana_attribute ${n} "$srmode" ${ATTR_NAME_HANA_SRMODE[@]}
         done
           ;;
     esac
@@ -764,7 +794,7 @@ function sht_monitor_clone() {
 #
 # function: sht_notify - notify action
 # params:   -
-# globals:  OCF_*(r), ACTION(r), CLACT(r), HOSTNAME(r)
+# globals:  OCF_*(r), ACTION(r), CLACT(r), NODENAME(r)
 # sht_notify: Handle master scoring - to make sure a slave gets the next master
 #
 function sht_notify() {
@@ -787,6 +817,7 @@ InstanceName=""
 InstanceNr=""
 DIR_EXECUTABLE=""
 SAPHanaFilter="${OCF_RESKEY_SAPHanaFilter:-ra-act-dec-lpa}"
+NODENAME=$(crm_node -n)
 
 if [ $# -ne 1 ]
 then
