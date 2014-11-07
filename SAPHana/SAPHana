@@ -287,16 +287,11 @@ function dequote()
 function remoteHost2remoteNode()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
-    local -a clusterNodes=()
     local cl=""
     local vHost=""
     local remoteHost="$1"
     local remoteNode=""
     local rc=1
-    case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in    
-       *openais* ) clusterNodes=($(crm_node -l | awk '$3 == "member" { if ($2 != me) { print $2 }}' me=${NODENAME}));;
-       *cman*    ) clusterNodes=($(crm_node -l | awk '{for (i=1; i<=NF; i++) { if ($i != me) { print $i }}}' me=${NODENAME}));;
-    esac
     for cl in ${otherNodes[@]}; do
         vHost=$(get_hana_attribute $cl  ${ATTR_NAME_HANA_VHOST[@]})
         if [ "$vHost" = "$remoteHost" ]; then # we found the correct node
@@ -568,6 +563,7 @@ function saphana_init() {
     super_ocf_log debug "DBG: DUPLICATE_PRIMARY_TIMEOUT=$DUPLICATE_PRIMARY_TIMEOUT"
     #
     # Determine list of other cluster nodes and store in otherNodes variable
+    otherNodes=()
     case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
        *openais* ) otherNodes=($(crm_node -l | awk '$3 == "member" { if ($2 != me) { print $2 }}' me=${NODENAME}));;
        *cman*    ) otherNodes=($(crm_node -l | awk '{for (i=1; i<=NF; i++) { if ($i != me) { print $i }}}' me=${NODENAME}));;
@@ -575,10 +571,6 @@ function saphana_init() {
 
     remoteHost=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_REMOTEHOST[@]});
     if [ -z "$remoteHost" ]; then
-       case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
-          *openais* ) remoteHosts=($(crm_node -l | awk '$3 == "member" { if ($2 != me) { print $2 }}' me=${NODENAME}));;
-          *cman*    ) remoteHosts=($(crm_node -l | awk '{for (i=1; i<=NF; i++) { if ($i != me) { print $i }}}' me=${NODENAME}));;
-       esac
        if [ ${#otherNodes[@]} -eq 1 ]; then # we are a 2 node cluster, lets assume the other is the remote-host
           remoteHost=${otherNodes[0]}
           remoteNode=$remoteHost
@@ -792,7 +784,7 @@ function check_for_primary() {
     return $rc
 }
 
-# function: analyze_hana_sync_statusNEW
+# function: analyze_hana_sync_statusSRS
 # params:   -
 # globals:  DIR_EXECUTABLE(r), FULL_SR_STATUS(w)
 #
@@ -803,7 +795,7 @@ function check_for_primary() {
 #    Initializing = 3
 #    Syncing      = 4
 #    Active       = 5
-function analyze_hana_sync_statusNEW()
+function analyze_hana_sync_statusSRS()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=-1 srRc=0 all_nodes_other_side="" local n="" master_lpt=""
@@ -848,15 +840,14 @@ function analyze_hana_sync_statusNEW()
 ####
 #### OLD HDBSQL STUFF FOR SPS6,7,8 AND SCALE-UP ONLY 
 ####
-# function: analyze_hana_sync_status - query and check hana system replication status
+# function: analyze_hana_sync_statusSQL - query and check hana system replication status
 # params:   -
 # globals:  DIR_EXECUTABLE(r), remoteHost(r)
 # get the HANA sync status
 # 
-function analyze_hana_sync_status()
+function analyze_hana_sync_statusSQL()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
-    local -a clusterNodes=()
     local cl=""
     local vHost=""
     local n=""
@@ -1629,6 +1620,7 @@ function saphana_start_clone() {
             fi
         fi
         set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}    
+        super_ocf_log err  "ACT: Secure store users are missing (see best practice manual how to setup the users)"
         rc=$OCF_SUCCESS;
     else
         set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
@@ -1829,13 +1821,16 @@ function saphana_monitor_primary()
                 my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
                 my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
                 case "$my_role" in 
-                    [12]:P:*:master:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status
+                    [12]:P:*:master:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status{SRS|SQL}
                         ;;
                     [34]:P:*:master:*  ) # primary is up and should now be able to anser hdbsql query
-                        analyze_hana_sync_statusNEW
+                        if [ -f $DIR_EXECUTABLE/python_support/systemReplicationStatus.py ]; then
+                            analyze_hana_sync_statusSRS
+                        else
+                            analyze_hana_sync_statusSQL
+                        fi
                         ;;
                 esac
-                ## begin fix bnc#892466 - MGFH ########################
                 rem_role=$(get_hana_attribute ${remoteHost} ${ATTR_NAME_HANA_ROLES[@]})
                 rem_clone_status=$(get_hana_attribute ${remoteHost} ${ATTR_NAME_HANA_CLONE_STATE[@]})
                 if [ "$promote_attr" = "DEMOTED" -a "$rem_clone_status" = "PROMOTED" ]; then
@@ -1851,7 +1846,6 @@ function saphana_monitor_primary()
                           ;;
                    esac
                 fi
-                ## end  fix bnc#892466 - MGFH ########################
                 scoring_crm_master "$my_role" "$my_sync"
             fi
             ;;
