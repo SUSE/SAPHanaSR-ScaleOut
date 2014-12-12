@@ -403,8 +403,8 @@ function sht_init() {
     # filter all non-cluster mappings
     #
     hanaRemoteHost=$(for n1 in $nodelist; do for n2 in $MAPPING; do if [ "$n1" == "$n2" ]; then echo $n1; fi; done; done )
-        super_ocf_log info "DEC: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
-        super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
+    super_ocf_log info "DEC: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
+    super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
     super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING"
     super_ocf_log info "FLOW $FUNCNAME rc=$OCF_SUCCESS"
     return $OCF_SUCCESS
@@ -418,14 +418,11 @@ function sht_init() {
 function check_for_primary() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
-   # DONE: Change stderr location!!
-   #sidadm=lnxadm
-   #node_status=$(check_for_primary_single) 
-   node_status=$srmode
-   super_ocf_log debug "DBG2: check_for_primary: node_status=$node_status"
-   super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
-   for i in  1 2 3 4 5 6 7 8 9; do
-       case "$node_status" in
+    node_status=$srmode
+    super_ocf_log debug "DBG2: check_for_primary: node_status=$node_status"
+    super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
+    for i in  1 2 3 4 5 6 7 8 9; do
+        case "$node_status" in
            primary ) 
                   super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_PRIMARY"
                   return $HANA_STATE_PRIMARY;;
@@ -436,14 +433,15 @@ function check_for_primary() {
                   # TODO: PRIO1: Should we set SFAIL?
                   super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_STANDALONE"
                   return $HANA_STATE_STANDALONE;;
-           * )   # TODO: PRIO2: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
+           * )
               # TODO: PRIO1: Should we set SFAIL?
+              # TODO: PRIO2: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
               dump=$( echo $node_status | hexdump -C );
-          super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
-                  node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
-                  node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
-                  super_ocf_log info "DEC: check_for_primary: loop=$i: node_status=$node_status"
-                  # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
+              super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP: <$dump>"
+              node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
+              node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
+              super_ocf_log info "DEC: check_for_primary: loop=$i: node_status=$node_status"
+              # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
        esac;
    done
    super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_DEFECT"
@@ -506,10 +504,10 @@ function sht_start() {
   local output=""
   local loopcount=0  
 
-  # TODO: PRIO3: move the string "/var/lib/SAPHana/SAPTopologyON" to a variable
+  # TODO: PRIO3: move the string "$HA_RSCTMP/SAPHana/SAPTopologyON" to a variable
   # TODO: PRIO3: move the file to the clusters tmp directory?
-  mkdir -p /var/lib/SAPHana
-  touch /var/lib/SAPHana/SAPTopologyON
+  mkdir -p $HA_RSCTMP/SAPHana
+  touch $HA_RSCTMP/SAPHana/SAPTopologyON
   if ! check_saphostagent; then
      start_saphostagent
   fi
@@ -531,7 +529,7 @@ function sht_stop() {
   local output=""
   local rc=0
 
-  rm /var/lib/SAPHana/SAPTopologyON
+  rm $HA_RSCTMP/SAPHana/SAPTopologyON
   rc=$OCF_SUCCESS
   
   super_ocf_log info "FLOW $FUNCNAME rc=$rc"
@@ -610,7 +608,7 @@ function sht_monitor() {
   local rc=0
 
   master_walk
-  if [ -f /var/lib/SAPHana/SAPTopologyON ]; then
+  if [ -f $HA_RSCTMP/SAPHana/SAPTopologyON ]; then
      rc=$OCF_SUCCESS
   else
      rc=$OCF_NOT_RUNNING
@@ -628,11 +626,11 @@ function sht_monitor() {
 # sht_status: Lightweight check of SAP instance only with OS tools
 #
 function sht_status() {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
-  local rc=0
+    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    local rc=0
 
-  sht_monitor; rc=$?
-  return $rc
+    sht_monitor; rc=$?
+    return $rc
 }
 
 
@@ -772,17 +770,11 @@ function sht_monitor_clone() {
     if [ -n "$site" ]; then
         set_hana_attribute ${NODENAME} "$site" ${ATTR_NAME_HANA_SITE[@]} 
     fi
-    set_hana_attribute ${NODENAME} "$vName" ${ATTR_NAME_HANA_VHOST[@]} 
     case "$hanaPrim" in
-       P ) ;;
-       S ) # only secondary may propargate its sync status
-        case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
-           *openais* ) nodelist=$(crm_node -l | awk '/member/ {print $2}');;    
-           *cman*    ) nodelist=$(crm_node -l);; 
-        esac
-
+        P ) ;;
+        S ) # only secondary may propargate its sync status
         for n in ${nodelist}; do
-           set_hana_attribute ${n} "$srmode" ${ATTR_NAME_HANA_SRMODE[@]}
+            set_hana_attribute ${n} "$srmode" ${ATTR_NAME_HANA_SRMODE[@]}
         done
           ;;
     esac
