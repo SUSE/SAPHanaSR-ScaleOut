@@ -123,7 +123,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.160.1.1</version>
+    <version>0.160.2.3</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -396,13 +396,13 @@ function sht_init() {
     done
     siteID=$(echo "$hdbANSWER" | awk -F= '/site id/ {print $2}')
     siteNAME=$(echo "$hdbANSWER" | awk -F= '/site name/ {print $2}')
-    site=$siteNAME:$siteID
+    site=$siteNAME
     srmode=$(echo "$hdbANSWER" | awk -F= '/mode/ {print $2}')
-    MAPPING=$(echo "$hdbANSWER" | awk -F[=/] '$1 ~ "mapping" && $3 !~ site { print $4 }' site=$siteNAME)
+    MAPPING=$(echo "$hdbANSWER" | awk -F[=/] '$1 ~ "mapping" && $2 == myhost && $3 !~ site { print $4 }' site=$site myhost=$HOSTNAME)
     #
     # filter all non-cluster mappings
     #
-    hanaRemoteHost=$(for n1 in $nodelist; do for n2 in $MAPPING; do if [ "$n1" == "$n2" ]; then echo $n1; fi; done; done )
+    hanaRemoteHost=$MAPPING
     super_ocf_log info "DEC: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
     super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
     super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING"
