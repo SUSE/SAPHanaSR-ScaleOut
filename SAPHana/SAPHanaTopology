@@ -375,6 +375,7 @@ function sht_init() {
     # figure-out all needed values from system replication status with ONE call
     # we need: mode=primary|sync|syncmem|...; site name=<site>; mapping/<me>=<site>/<node> (multiple lines)
     case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
+       *corosync* ) nodelist=$(crm_node -l | awk '{ print $2 }');;
        *openais* ) nodelist=$(crm_node -l | awk '/member/ {print $2}');;    
        *cman*    ) nodelist=$(crm_node -l);; 
     esac
