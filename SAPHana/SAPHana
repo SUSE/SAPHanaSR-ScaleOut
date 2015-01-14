@@ -132,7 +132,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.1.3</version>
+<version>0.160.2.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -567,6 +567,7 @@ function saphana_init() {
     # Determine list of other cluster nodes and store in otherNodes variable
     otherNodes=()
     case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
+       *corosync* ) otherNodes=($(crm_node -l | awk '{ if ($2 != me) { print $2 }}' me=${NODENAME}));;
        *openais* ) otherNodes=($(crm_node -l | awk '$3 == "member" { if ($2 != me) { print $2 }}' me=${NODENAME}));;
        *cman*    ) otherNodes=($(crm_node -l | awk '{for (i=1; i<=NF; i++) { if ($i != me) { print $i }}}' me=${NODENAME}));;
     esac
@@ -815,6 +816,7 @@ function analyze_hana_sync_statusSRS()
        for n in $all_nodes_other_site; do
             super_ocf_log info "ACT site=$sr_name, seting SOK for node <$n>"
             set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+            lpa_set_lpt 30 "$n"
        done
        rc=0;
     else 
@@ -822,6 +824,7 @@ function analyze_hana_sync_statusSRS()
        for n in $all_nodes_other_site; do
             super_ocf_log info "ACT site=$sr_name, seting SFAIL for node <$n>"
             set_hana_attribute "$n" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+            lpa_set_lpt 10 "$n"
        done
        rc=1;
     fi
@@ -1180,7 +1183,7 @@ function saphana_start_primary()
                             set_crm_master  0
                             saphana_start_secondary
                             rc=$?
-                            lpa_set_lpt  30
+                            lpa_set_lpt  10
                         else
                             super_ocf_log err "ACT: Register failed"
                             rc=$OCF_NOT_RUNNING
@@ -1327,7 +1330,7 @@ function saphana_start_secondary()
                rc=$OCF_SUCCSESS
            fi
        else
-               lpa_set_lpt  30
+               lpa_set_lpt  10
        fi
     else
        super_ocf_log info "ACT: wait_for_primary_master ==> WAITING"
@@ -1692,7 +1695,7 @@ function saphana_start_clone() {
                 saphana_start_primary; rc=$?
             else
                 saphana_start_secondary; rc=$?
-                lpa_set_lpt  30
+                lpa_set_lpt  10
             fi
         fi
     else
@@ -1702,7 +1705,7 @@ function saphana_start_clone() {
             saphana_start_primary; rc=$?
         else 
             saphana_start_secondary; rc=$?
-            lpa_set_lpt  30
+            lpa_set_lpt  10
         fi 
     fi
     return $rc
@@ -1844,7 +1847,9 @@ function saphana_monitor_primary()
                                  super_ocf_log info "DEC: PreferSiteTakeover selected so decrease promotion score here (and reset lpa)"
                                  set_crm_master 5
                                  if check_for_primary_master; then
-                                     lpa_set_lpt 20
+                                     for n in $all_nodes_local_site; do
+                                         lpa_set_lpt 20
+                                     done
                                  fi
                                  ;;
                             SFAIL )
@@ -2014,21 +2019,23 @@ function saphana_monitor_secondary()
             ;;
         2 | 3 | 4 ) # WARN INFO OK
             rc=$OCF_SUCCESS
-            lpa_set_lpt  30
             sync_attr=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
             super_ocf_log debug "DBG: sync_attr=$sync_attr"
             case "$sync_attr" in
                 "SOK"   ) # This is a possible node to promote, when primary is missing
+                    lpa_set_lpt  30
                     super_ocf_log info "DEC: secondary with sync status SOK ==> possible takeover node"
                     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
                     my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
                     scoring_crm_master "$my_role" "$my_sync"
                     ;;
                 "SFAIL" ) # This is currently NOT a possible node to promote
+                    lpa_set_lpt  10
                     super_ocf_log info "DEC: secondary with sync status FAILED ==> EXCLUDE as posible takeover node"
                     set_crm_master -INFINITY
                     ;;
                 "*" )     # Unknown sync status
+                    lpa_set_lpt  10
                     super_ocf_log info "DEC: secondary with sync status UKNOWN/UNDEFINED ==> EXCLUDE as posible takeover node"
                     set_crm_master -INFINITY
                     ;;
@@ -2106,7 +2113,9 @@ function saphana_monitor_clone() {
            if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
                 local placeholder=1
            elif [ $primary_status -eq $HANA_STATE_SECONDARY  ]; then
-                lpa_set_lpt  30
+##### FH BAUSTELLE
+                $remove_this_line=1
+                #lpa_set_lpt  30
            else
                 super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
            fi
