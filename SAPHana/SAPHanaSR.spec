@@ -20,9 +20,9 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.148
+Version:        0.160
 Release:        <RELEASE1>
-Url:        http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
+Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 #Release:      1
 Source0:        SAPHana
 Source1:        SAPHanaTopology
@@ -34,6 +34,7 @@ Source6:        SAPHanaSR.xml
 Source7:        90-SAPHanaSR.xml
 Source8:        ocf_suse_SAPHana.7
 Source9:        ocf_suse_SAPHanaTopology.7
+Source10:       SAPHanaSR-monitor
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 Requires:       pacemaker > 1.1.1
@@ -77,6 +78,7 @@ cp %{S:6} .
 cp %{S:7} .
 cp %{S:8} .
 cp %{S:9} .
+cp %{S:10} .
 gzip ocf_suse_SAPHana.7
 gzip ocf_suse_SAPHanaTopology.7
 
@@ -96,6 +98,7 @@ install -m 0444 LICENSE         %{buildroot}/%{_docdir}/%{name}
 install -m 0444 README          %{buildroot}/%{_docdir}/%{name}
 install -m 0444 SAPHanaSR-Setup-Guide.pdf %{buildroot}/%{_docdir}/%{name}
 install -m 0555 show_SAPHanaSR_attributes %{buildroot}/usr/share/%{name}/tests
+install -m 0555 SAPHanaSR-monitor %{buildroot}/usr/share/%{name}/tests
 install -m 0444 SAPHanaSR.xml   %{buildroot}/srv/www/hawk/config/wizard/templates
 install -m 0444 90-SAPHanaSR.xml  %{buildroot}/srv/www/hawk/config/wizard/workflows
 install -m 0444 ocf_suse_SAPHana.7.gz %{buildroot}/usr/share/man/man7
