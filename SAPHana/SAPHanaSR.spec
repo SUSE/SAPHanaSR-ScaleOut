@@ -15,7 +15,7 @@
 # Please submit bugfixes or comments via http://bugs.opensuse.org/
 #
 
-Name:           SAPHanaSR
+Name:           SAPHanaSR-ScaleOut
 License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
