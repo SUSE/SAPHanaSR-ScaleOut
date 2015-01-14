@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+
+git0160="/home/fabian/00_projects-SAP-ALLIANCE/00-SAP-HANA-HA/git/SAPHana"
+
+files=$(find * -maxdepth 0 \! -name binaries -type f)
+
+for file in $files; do
+    printf "file %s: " "$file"
+    fullFile=$(find $git0160 -type f -name $file)
+    if [ -n "$fullFile" ]; then
+       diff -q $fullFile $file 1>/dev/null 2>/dev/null && msg="OK" || msg="DIFF"
+    else
+       msg="missing upstream (git0160)"
+    fi
+    printf "%s\n" "$msg"
+done 
