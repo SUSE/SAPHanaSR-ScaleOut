@@ -132,7 +132,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.2.1</version>
+<version>0.160.2.5</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -539,12 +539,13 @@ function saphana_init() {
        "[0-9]:P:master[123]:*:standby  .*      60"
        "[0-9]:P:slave:                 .*     -10000"
        "[234]:S:master[123]:master     SOK    100"
+       "[234]:S:master[123]:slave      SOK     95"
        "[015]:S:master[123]:           SOK     80"
-       "[0-9]:S:master[123]:*:standby  SFAIL  -99000"
-       "[0-9]:S:slave:                 SOK    -10150"
-       "[0-9]:S:slave:                 SFAIL  -99010"
-       "[0-9]:S:                       .*     -10400"
-       ".*                             .*     -20000"
+       "[0-9]:S:master[123]:*:standby  SFAIL  -22100"
+       "[0-9]:S:slave:                 SOK    -12200"
+       "[0-9]:S:slave:                 SFAIL  -22200"
+       "[0-9]:S:                       .*     -32300"
+       ".*                             .*     -33333"
     )
 # TODO: PRIO2: Change back to -2
     SCORING_TABLE_PREFERRED_LOCAL_RESTART=(
@@ -633,6 +634,7 @@ function saphana_init() {
         export LD_LIBRARY_PATH
     fi
     PATH=${PATH}:${DIR_EXECUTABLE}; export PATH
+    master_walk
     super_ocf_log info "FLOW $FUNCNAME rc=$OCF_SUCCESS"
     #############################
     # TODO: PRIO9: To be able to call landscapeHostConfig.py without su (so as root)
@@ -766,12 +768,15 @@ function check_for_primary() {
        case "$node_status" in
            primary ) 
                   super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_PRIMARY"
+    super_ocf_log info "TST $FUNCNAME rc=HANA_STATE_PRIMARY"
                   return $HANA_STATE_PRIMARY;;
            syncmem | sync | async )
                   super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_SECONDARY"
+    super_ocf_log info "TST $FUNCNAME rc=HANA_STATE_SECONDARY"
                   return $HANA_STATE_SECONDARY;;
            none )     # have seen that mode on second side BEFEORE we registered it as replica
                   super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_STANDALONE"
+    super_ocf_log info "TST $FUNCNAME rc=HANA_STATE_STANDALONE"
                   return $HANA_STATE_STANDALONE;;
            * )
               super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: <$node_status>"
@@ -783,6 +788,7 @@ function check_for_primary() {
                   # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
        esac;
     done
+    super_ocf_log info "TST $FUNCNAME rc=$rc"
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
 }
@@ -804,12 +810,15 @@ function analyze_hana_sync_statusSRS()
     local rc=-1 srRc=0 all_nodes_other_side="" local n="" master_lpt=""
     FULL_SR_STATUS=$(su - $sidadm -c "python $DIR_EXECUTABLE/python_support/systemReplicationStatus.py" 2>/dev/null); srRc=$?
     super_ocf_log info "FLOW $FUNCNAME systemReplicationStatus.py -> $srRc"
+    super_ocf_log info "TST $FUNCNAME systemReplicationStatus.py -> $srRc"
     #
     # TODO: PRIO9: Here we might also need to filter additional sites (if multi tier should be supported)
     #              Could we define, that we always control site ID 1 and site ID 2?
-    all_nodes_other_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $8}' site=$sr_name ); 
-    all_nodes_local_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $2}' site=$sr_name );
+    all_nodes_other_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $8}' site=$sr_name | sort -u); 
+    all_nodes_local_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $2}' site=$sr_name | sort -u);
     super_ocf_log info "DBG site=$sr_name, all_nodes_other_site=$all_nodes_other_site"
+    super_ocf_log info "TST site=$sr_name, all_nodes_local_site=$all_nodes_local_site"
+    super_ocf_log info "TST site=$sr_name, all_nodes_other_site=$all_nodes_other_site"
     #super_ocf_log info "DBG FULL_SR_STATUS=$FULL_SR_STATUS"
     if [ $srRc -eq 15 ]; then
        super_ocf_log info "FLOW $FUNCNAME SOK"
@@ -832,10 +841,16 @@ function analyze_hana_sync_statusSRS()
     # TODO: PRIO2: Check id we should set local (different) LPTs or one from the master for all
     #       site nodes or only for all site masters (master1, master2, master3)
     master_lpt=$(lpa_get_lpt ${NODENAME})
-    for n in $all_nodes_local_site; do
-        super_ocf_log info "ACT site=$sr_name, seting PRIM for node <$n>"
-        set_hana_attribute "$n" "PRIM" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-        lpa_set_lpt "$master_lpt" "$n"
+    super_ocf_log info "TST PRIM+LPA (1)"
+    for n in ${otherNodes[@]}; do
+# BAUSTELLE
+        nSite=$(get_hana_attribute ${n} ${ATTR_NAME_HANA_SITE[@]})
+        if [ "$site" = "$nSite" ]; then
+            super_ocf_log info "TST PRIM+LPA for $n"
+            super_ocf_log info "ACT site=$sr_name, seting PRIM for node <$n>"
+            set_hana_attribute "$n" "PRIM" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+            lpa_set_lpt "$master_lpt" "$n"
+       fi
     done
     
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
@@ -930,7 +945,7 @@ super_ocf_log info "DEC: remoteNode=$remoteNode; HANA SYNC STATUS is: ${hana_syn
                 # DONE: PRIO1: We should NOT set SFAIL, if HDB is exactly broken now
                 #       When HDB breaks during monitor this could prevent a prositive remote failover
                 super_ocf_log warn "ACT: Was not able to fetch HANA SYNC STATUS - set sync status to SFAIL for ALL OTHER cluster hosts"
-                for n in $otherNodes; do
+                for n in ${otherNodes[@]}; do
                     set_hana_attribute "$n" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
                 done
                 ;;
@@ -1232,22 +1247,23 @@ check_for_primary_master()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=1
-    local ch ch_role
+    local clN clN_role
     #
     # get actual list of cluster members
     # 
     if [ -n "$otherNodes" ]; then
-        for ch in ${otherNodes[@]}; do
+        for clN in ${otherNodes[@]}; do
             if [ $rc -eq 1 ]; then
-                ch_role=$(get_hana_attribute ${ch} ${ATTR_NAME_HANA_ROLES[@]})
+                clN_role=$(get_hana_attribute ${clN} ${ATTR_NAME_HANA_ROLES[@]})
 # TODO: PRIO3: check if [0-9], [234] or [34] is correct
 # TODO: PRIO4: Do we need different checks like "any-primary-master" or "running-primary-master" ?
 #                grep '[0-9]*:P:[^:]*:master:' <<< $ch_role && rc=0
 #                grep '[34]:P:[^:]*:master:' <<< $ch_role && rc=0
 #               Match "Running+Available Primary" Master -> Match field 1: 3/4, 2: P, 4: master 
                 awk -F: 'BEGIN { rc=1 } 
-                         $1 ~ "[34]" && $2 ="P" && $4="master" { rc=0 } 
-                         END { exit rc }' <<< $ch_role  ; rc=$? 
+                         $1 ~ "[34]" && $2 == "P" && $4 == "master" { rc=0 } 
+                         END { exit rc }' <<< $clN_role  ; rc=$? 
+                if [ $rc -eq 0 ]; then  super_ocf_log info "TST check_for_primary_master found master: $clN : $clN_role "; fi
             fi
         done
     fi 
@@ -1571,6 +1587,7 @@ function lpa_init_lpt() {
 #    
 function lpa_check_lpt_status() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "TST $FUNCNAME ($*)"
     local rc=0
     local LPTloc=-1
     local LPTrem=-1
@@ -1593,11 +1610,12 @@ function lpa_check_lpt_status() {
             LPTloc=20                           # DEFAULT
         fi
     fi
-    for remHost in $otherNodes
+    for remHost in ${otherNodes[@]}
     do
         remSn_name=$(get_hana_attribute ${remHost} ${ATTR_NAME_HANA_SITE[@]})              
-        if [ "$sr_name" != "$nSite" ]; then
+        if [ "$sr_name" != "$remSn_name" ]; then
 ############### BAUSTELLE
+    super_ocf_log info "TST $FUNCNAME check remHost $remHost ("$sr_name" != "$remSn_name")"
 
             LPTrem=$(lpa_get_lpt $remHost); lparc=$?
             if [ $lparc -ne 0 ]; then
@@ -1634,16 +1652,86 @@ function lpa_check_lpt_status() {
         fi
     done
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "TST $FUNCNAME rc=$rc"
     return $rc    
 }
 
-# function: is_master_nameserver
+# function: master_walk - find master node(s)
 # params:   -
-# rc:       0: yes its the master nameserver
+# globals:  srmode(r), the_master(w)
+function master_walk() {
+    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "TST $FUNCNAME ($*)"
+   local active_master="" master1="" master2="" master3=""
+   local nSite="" nRole=""
+   local best_cold_master="" rest=""
+   #
+   # 2:S:master1:slave:worker:standby  MAINZ
+   # 4:P:master1:master:worker:master  KOELN   
+   # 4:P:master2:slave:worker:slave    KOELN   
+   # 4:P:slave:slave:worker:slave      KOELN
+   super_ocf_log info "ACT master walk"
+   super_ocf_log info "TST master walk"
+          # walk over all known cluster nodes 
+          super_ocf_log info "DBG master walk for $srmode"
+          for node in $(crm_node  -l | awk '{print $2}'); do
+super_ocf_log info "TST master walk node $node"
+              nSite=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_SITE[@]})
+              if [ "$site" = "$nSite" ]; then
+                 # node of same site found
+                 nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
+                 read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+                 super_ocf_log info "DBG site $site $nNsConf:$nNsCurr"
+                 case "$nNsConf:$nNsCurr" in
+                    master1:master  ) master1=$node; active_master=$node
+                 super_ocf_log info "DBG site $site match master1:master"
+                 super_ocf_log info "TST site $site match master1:master"
+                                    ;;
+                    master2:master  ) master2=$node; active_master=$node
+                 super_ocf_log info "DBG site $site match master2:master"
+                 super_ocf_log info "TST site $site match master2:master"
+                                    ;;
+                    master3:master  ) master3=$node; active_master=$node
+                 super_ocf_log info "DBG site $site match master3:master"
+                 super_ocf_log info "TST site $site match master3:master"
+                                    ;;
+                    master1:*       ) master1=$node;
+                 super_ocf_log info "TST site $site match master1:STAR"
+                                    ;;
+                    master2:*       ) master2=$node;
+                 super_ocf_log info "TST site $site match master2:STAR"
+                                    ;;
+                    master3:*       ) master3=$node;
+                 super_ocf_log info "TST site $site match master3:STAR"
+                                    ;;
+                    * )
+                 super_ocf_log info "TST site $site NO match"
+                                    ;;
+
+                 esac
+                 super_ocf_log info "DBG $site: $nRole"
+              fi
+          done
+          if [ -z "$active_master" ]; then
+             read best_cold_master rest <<<$master1 $master2 $master3
+             the_master=$best_cold_master
+          else 
+             the_master=$active_master
+          fi
+          super_ocf_log info "ACT ===> priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
+    super_ocf_log info "TST $FUNCNAME the_master=$the_master rc=X"
+   super_ocf_log info "ACT ===> master_walk: the_master=$the_master;"
+}
+
+
+# function: is_master_nameserver # TODO: PRIO9: still needed or replaces by is_the_master_nameserver
+# params:   -
+# rc:       0: yes its a master nameserver
 #           1: else
 # globals:  
 function is_master_nameserver()
 {
+    super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr="" 
     nRole=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
     read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
@@ -1664,6 +1752,23 @@ function is_master_nameserver()
     return $rc
 }
 
+# function: is_the_master_nameserver 
+# params:   -
+# rc:       0: yes its THE master nameserver
+#           1: else
+# globals: 
+function is_the_master_nameserver()
+{
+    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    local rc=1
+    if [ "$the_master" = "$NODENAME" ]; then
+        rc=0
+    fi
+    super_ocf_log info "TST $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    return $rc
+}
+
 #
 # function: saphana_start_clone - start a hana clone instance
 # params:   -
@@ -1680,7 +1785,7 @@ function saphana_start_clone() {
     if [ $chkusr -ne 0 ]; then
          check_secstore_users RHELHALOC; chkusr=$?
     fi
-    if is_master_nameserver; then
+    if is_the_master_nameserver; then
         # TODO: PRIO4: remove check_secstore_users later
         # TODO: PRIO9: removed hdbsql, so also temp. removed check_secstore_users
         #check_secstore_users SLEHALOC; chkusr=$?
@@ -1694,8 +1799,8 @@ function saphana_start_clone() {
             if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
                 saphana_start_primary; rc=$?
             else
-                saphana_start_secondary; rc=$?
                 lpa_set_lpt  10
+                saphana_start_secondary; rc=$?
             fi
         fi
     else
@@ -1704,8 +1809,8 @@ function saphana_start_clone() {
         if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
             saphana_start_primary; rc=$?
         else 
-            saphana_start_secondary; rc=$?
             lpa_set_lpt  10
+            saphana_start_secondary; rc=$?
         fi 
     fi
     return $rc
@@ -1751,6 +1856,8 @@ function saphana_monitor_primary()
     local lss
     local remoreSync=""
     local my_role=""
+    local node=""
+    local nodeSite=""
     #
     # OK, we are running/are configured as HANA PRIMARY
     #
@@ -1846,9 +1953,15 @@ function saphana_monitor_primary()
                             SOK )
                                  super_ocf_log info "DEC: PreferSiteTakeover selected so decrease promotion score here (and reset lpa)"
                                  set_crm_master 5
-                                 if check_for_primary_master; then
-                                     for n in $all_nodes_local_site; do
-                                         lpa_set_lpt 20
+                                 if is_the_master_nameserver; then
+                                     super_ocf_log info "TST: PreferSiteTakeover lpa_set_lpt 20"
+                                     lpa_set_lpt 20
+                                     for node in ${otherNodes[@]}; do
+                                         super_ocf_log info "TST: PreferSiteTakeover lpa_set_lpt 20 $node - $nodeSite = $site?"
+					 nodeSite=$(get_hana_attribute $node ${ATTR_NAME_HANA_SITE[@]})
+                                         if [ "$nodeSite" = "$site" ]; then
+                                             lpa_set_lpt 20 $node
+                                         fi
                                      done
                                  fi
                                  ;;
@@ -1917,9 +2030,9 @@ function saphana_monitor_primary()
                        [234]:P:* ) # dual primary, but other instance marked as PROMOTED by the cluster
                            lpa_check_lpt_status; again_lpa_rc=$?
                            if [ $again_lpa_rc -eq 2 ]; then
-                               super_ocf_log info "DEC: Dual primary detected, other instance is PROMOTED and lpa stalemate ==> local restart"                            
-                               lpa_set_lpt 10
-                               lpa_push_lpt 10
+                              super_ocf_log info "DEC: Dual primary detected, other instance is PROMOTED and lpa stalemate ==> local restart"                            
+                              lpa_set_lpt 10
+                              lpa_push_lpt 10
                               rc=$OCF_NOT_RUNNING
                            fi
                           ;;
@@ -2069,6 +2182,7 @@ function saphana_monitor_clone() {
     local promoted=0
     local init_attribute=0
     local nState=""
+    local primary_status=$HANA_STATE_DEFECT
 
     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
     my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
@@ -2079,7 +2193,7 @@ function saphana_monitor_clone() {
     else
         super_ocf_log debug "DBG: REGULAR MONITOR"
     fi
-    if is_master_nameserver; then
+    if is_the_master_nameserver; then
         #
         # First check, if we are PRIMARY or SECONDARY
         # 
@@ -2093,6 +2207,7 @@ function saphana_monitor_clone() {
                 # OK, we are neither HANA PRIMARY nor HANA SECONDARY
                 #
                 super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
+                super_ocf_log warn "TST: (1) saphana_monitor_clone: HANA_STATE_DEFECT"
                 # TODO: PRIO2: Or only set_crm_master -INFINITY ?
                 rc=$OCF_ERR_GENERIC
         fi
@@ -2118,6 +2233,7 @@ function saphana_monitor_clone() {
                 #lpa_set_lpt  30
            else
                 super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
+                super_ocf_log warn "TST: (2) saphana_monitor_clone: HANA_STATE_DEFECT"
            fi
         else
 	    case "$nState" in
@@ -2143,7 +2259,7 @@ function saphana_promote_clone() {
   super_ocf_log info "FLOW $FUNCNAME ($*)"
   local rc=$OCF_ERR_GENERIC;
   local hana_sync;
-  local primary_status;
+  local primary_status=$HANA_STATE_DEFECT;
   #
   # first check, if we WILL be PRIMARY (checking HANA status)
   #
