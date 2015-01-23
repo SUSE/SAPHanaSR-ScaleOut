@@ -378,7 +378,7 @@ function sht_init() {
     #                                 for node in ${otherNodes[@]}; do
     #                                     super_ocf_log info "TST: PreferSiteTakeover lpa_set_lpt 20 $node - $nodeSite = $site?"
 #					 nodeSite=$(get_hana_attribute $node ${ATTR_NAME_HANA_SITE[@]})
-                                         if [ "$nodeSite" = "$site" ]; then
+#                                         if [ "$nodeSite" = "$site" ]; then
  #                                            lpa_set_lpt 20 $node
   #                                       fi
     case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
