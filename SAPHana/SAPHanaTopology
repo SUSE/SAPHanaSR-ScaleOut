@@ -123,7 +123,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.160.2.3</version>
+    <version>0.160.2.4</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -374,6 +374,13 @@ function sht_init() {
     #
     # figure-out all needed values from system replication status with ONE call
     # we need: mode=primary|sync|syncmem|...; site name=<site>; mapping/<me>=<site>/<node> (multiple lines)
+    # TODO: PRIO 1: Check the following 6 lines
+    #                                 for node in ${otherNodes[@]}; do
+    #                                     super_ocf_log info "TST: PreferSiteTakeover lpa_set_lpt 20 $node - $nodeSite = $site?"
+#					 nodeSite=$(get_hana_attribute $node ${ATTR_NAME_HANA_SITE[@]})
+                                         if [ "$nodeSite" = "$site" ]; then
+ #                                            lpa_set_lpt 20 $node
+  #                                       fi
     case $(crm_attribute --type crm_config --name cluster-infrastructure -q) in
        *corosync* ) nodelist=$(crm_node -l | awk '{ print $2 }');;
        *openais* ) nodelist=$(crm_node -l | awk '/member/ {print $2}');;    
@@ -539,10 +546,11 @@ function sht_stop() {
 
 # function: master_walk - find master node(s)
 # params:   -
-# globals:  srmode(r), 
+# globals:  srmode(r), the_master(w)
 function master_walk() {
    local active_master="" master1="" master2="" master3=""
    local nSite="" nRole=""
+   local best_cold_master="" rest=""
    #
    # 2:S:master1:slave:worker:standby  MAINZ
    # 4:P:master1:master:worker:master  KOELN   
@@ -596,6 +604,8 @@ function master_walk() {
           return 1
           ;;
    esac
+   read the_master rest <<<$active_master $best_cold_master
+   super_ocf_log info "ACT ===> master_walk: the_master=$the_master; priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
 }
 
 #
