@@ -1712,7 +1712,7 @@ function master_walk() {
                     super_ocf_log info "DBG site $site match master3:master"
                     super_ocf_log info "TST site $site match master3:master"
                 ;;
-                *:down       )    
+                *:shtdown       )    
                     super_ocf_log info "TST site $site ignore node (down)"
                 ;;
                 master1:*       ) master1=$node;
