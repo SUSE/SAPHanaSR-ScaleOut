@@ -992,15 +992,17 @@ function register_hana_secondary()
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=2;
     local remoteInstance="";
-    remoteInstance=$InstanceNr
-    if ocf_is_true ${AUTOMATED_REGISTER}; then
-       super_ocf_log info "ACT: REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
+    if is_the_master_nameserver; then
+        remoteInstance=$InstanceNr
+        if ocf_is_true ${AUTOMATED_REGISTER}; then
+           super_ocf_log info "ACT: REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
                 backup_global_and_nameserver
-       su - $sidadm -c "hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"; rc=$?
+           su - $sidadm -c "hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"; rc=$?
                 backup_global_and_nameserver
-    else
-       super_ocf_log info "ACT: IGNORE REGISTER because AUTOMATED_REGISTER is set to FALSE"
-       rc=1
+        else
+           super_ocf_log info "ACT: IGNORE REGISTER because AUTOMATED_REGISTER is set to FALSE"
+           rc=1
+        fi
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc;
@@ -1677,69 +1679,72 @@ function lpa_check_lpt_status() {
 function master_walk() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     super_ocf_log info "TST $FUNCNAME ($*)"
-   local active_master="" master1="" master2="" master3=""
-   local nSite="" nRole=""
-   local best_cold_master="" rest=""
-   #
-   # 2:S:master1:slave:worker:standby  MAINZ
-   # 4:P:master1:master:worker:master  KOELN   
-   # 4:P:master2:slave:worker:slave    KOELN   
-   # 4:P:slave:slave:worker:slave      KOELN
-   super_ocf_log info "ACT master walk"
-   super_ocf_log info "TST master walk"
-          # walk over all known cluster nodes 
-          super_ocf_log info "DBG master walk for $srmode"
-          for node in $(crm_node  -l | awk '{print $2}'); do
-super_ocf_log info "TST master walk node $node"
-              nSite=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_SITE[@]})
-              if [ "$site" = "$nSite" ]; then
-                 # node of same site found
-                 nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
-                 read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
-                 super_ocf_log info "DBG site $site $nNsConf:$nNsCurr"
-                 case "$nNsConf:$nNsCurr" in
-                    master1:master  ) master1=$node; active_master=$node
-                 super_ocf_log info "DBG site $site match master1:master"
-                 super_ocf_log info "TST site $site match master1:master"
-                                    ;;
-                    master2:master  ) master2=$node; active_master=$node
-                 super_ocf_log info "DBG site $site match master2:master"
-                 super_ocf_log info "TST site $site match master2:master"
-                                    ;;
-                    master3:master  ) master3=$node; active_master=$node
-                 super_ocf_log info "DBG site $site match master3:master"
-                 super_ocf_log info "TST site $site match master3:master"
-                                    ;;
-                    master1:*       ) master1=$node;
-                 super_ocf_log info "TST site $site match master1:STAR"
-                                    ;;
-                    master2:*       ) master2=$node;
-                 super_ocf_log info "TST site $site match master2:STAR"
-                                    ;;
-                    master3:*       ) master3=$node;
-                 super_ocf_log info "TST site $site match master3:STAR"
-                                    ;;
-                    * )
-                 super_ocf_log info "TST site $site NO match"
-                                    ;;
+    local active_master="" master1="" master2="" master3=""
+    local nSite="" nRole=""
+    local best_cold_master="" rest=""
+    #
+    # 2:S:master1:slave:worker:standby  MAINZ
+    # 4:P:master1:master:worker:master  KOELN   
+    # 4:P:master2:slave:worker:slave    KOELN   
+    # 4:P:slave:slave:worker:slave      KOELN
+    super_ocf_log info "ACT master walk"
+    super_ocf_log info "TST master walk"
+    # walk over all known cluster nodes 
+    super_ocf_log info "DBG master walk for $srmode"
+    for node in $(crm_node  -l | awk '{print $2}'); do
+        super_ocf_log info "TST master walk node $node"
+        nSite=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_SITE[@]})
+        if [ "$site" = "$nSite" ]; then
+            # node of same site found
+            nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
+            read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+            super_ocf_log info "DBG site $site $nNsConf:$nNsCurr"
+            case "$nNsConf:$nNsCurr" in
+                master1:master  ) master1=$node; active_master=$node
+                    super_ocf_log info "DBG site $site match master1:master"
+                    super_ocf_log info "TST site $site match master1:master"
+                ;;
+                master2:master  ) master2=$node; active_master=$node
+                    super_ocf_log info "DBG site $site match master2:master"
+                    super_ocf_log info "TST site $site match master2:master"
+                ;;
+                master3:master  ) master3=$node; active_master=$node
+                    super_ocf_log info "DBG site $site match master3:master"
+                    super_ocf_log info "TST site $site match master3:master"
+                ;;
+                *:down       )    
+                    super_ocf_log info "TST site $site ignore node (down)"
+                ;;
+                master1:*       ) master1=$node;
+                    super_ocf_log info "TST site $site match master1:STAR"
+                ;;
+                master2:*       ) master2=$node;
+                    super_ocf_log info "TST site $site match master2:STAR"
+                ;;
+                master3:*       ) master3=$node;
+                    super_ocf_log info "TST site $site match master3:STAR"
+                ;;
+                * )
+                    super_ocf_log info "TST site $site NO match"
+                ;;
 
-                 esac
-                 super_ocf_log info "DBG $site: $nRole"
-              fi
-          done
-          if [ -z "$active_master" ]; then
-             read best_cold_master rest <<<$master1 $master2 $master3
-             the_master=$best_cold_master
-          else 
-             the_master=$active_master
-          fi
-          super_ocf_log info "ACT ===> priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
+            esac
+            super_ocf_log info "DBG $site: $nRole"
+        fi
+    done
+    if [ -z "$active_master" ]; then
+        read best_cold_master rest <<<$master1 $master2 $master3
+        the_master=$best_cold_master
+    else 
+        the_master=$active_master
+    fi
+    super_ocf_log info "ACT ===> priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
     super_ocf_log info "TST $FUNCNAME the_master=$the_master rc=X"
-   super_ocf_log info "ACT ===> master_walk: the_master=$the_master;"
+    super_ocf_log info "ACT ===> master_walk: the_master=$the_master;"
 }
 
 
-# function: is_master_nameserver # TODO: PRIO9: still needed or replaces by is_the_master_nameserver
+# function: is_master_nameserver # TODO: PRIO9: still needed or replaced by is_the_master_nameserver
 # params:   -
 # rc:       0: yes its a master nameserver
 #           1: else
