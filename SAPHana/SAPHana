@@ -120,6 +120,15 @@ EOF
     return $rc
 }
 
+function backup_global_and_nameserver() {
+    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    local rc=0
+    cp /hana/shared/LNX/global/hdb/custom/config/global.ini /hana/shared/LNX/global/hdb/custom/config/global.ini.$(date +"%s")
+    cp /hana/shared/LNX/global/hdb/custom/config/nameserver.ini /hana/shared/LNX/global/hdb/custom/config/nameserver.ini.$(date +"%s")
+    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    return $rc
+}
+
 #
 # function: saphana_meta_data - print resource agent meta-data for cluster
 # params:   -
@@ -132,7 +141,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.0</version>
+<version>0.160.3.2</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -353,7 +362,9 @@ function get_hana_attribute()
     local attr_node=$1
     local attr_name=$2
     local attr_store=${3:-reboot} # DONE: PRIO5 get this (optional) from parameter
-    crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q; rc=$?
+    date >> /var/log/fhATTRIBUTE
+    echo "crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> /var/log/fhATTRIBUTE
+    crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q 2>>/var/log/fhATTRIBUTE; rc=$?
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
 }
@@ -375,7 +386,9 @@ function set_hana_attribute()
     attr_old=$(get_hana_attribute $attr_node $attr_name $attr_store); get_rc=$?
     if [ "$attr_old" != "$attr_value" ]; then
         super_ocf_log debug "DBG: SET attribute $attr_name for node ${attr_node} to ${attr_value} former ($attr_old) get_rc=$get_rc "
-        crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store; rc=$?
+    date >> /var/log/fhATTRIBUTE
+        echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> /var/log/fhATTRIBUTE
+        crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store 2>>/var/log/fhATTRIBUTE; rc=$?
     else
         super_ocf_log debug "DBG: LET attribute $attr_name for node ${attr_node} still be ${attr_value}"
         rc=0
@@ -982,7 +995,9 @@ function register_hana_secondary()
     remoteInstance=$InstanceNr
     if ocf_is_true ${AUTOMATED_REGISTER}; then
        super_ocf_log info "ACT: REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
+                backup_global_and_nameserver
        su - $sidadm -c "hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"; rc=$?
+                backup_global_and_nameserver
     else
        super_ocf_log info "ACT: IGNORE REGISTER because AUTOMATED_REGISTER is set to FALSE"
        rc=1
@@ -2303,7 +2318,9 @@ function saphana_promote_clone() {
                 # lpa_set_lpt 20 $remoteNode
                 lpa_set_lpt $LPTloc
                 lpa_push_lpt $LPTloc
+                backup_global_and_nameserver
                 su - $sidadm -c "hdbnsutil -sr_takeover"
+                backup_global_and_nameserver
                 #
                 # now gain check, if we are primary NOW
                 #
