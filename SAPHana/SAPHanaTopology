@@ -707,7 +707,7 @@ function sht_stop_clone() {
     # because in scale-out we need the ROLES attribute to tell us about the configured role
     nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
     read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
-    set_hana_attribute "${NODENAME}" "1:$hanaPrim:$nNsConf:shtdown:shtdown:shtdown ${ATTR_NAME_HANA_ROLES[@]} 
+    set_hana_attribute "${NODENAME}" "1:$hanaPrim:$nNsConf:shtdown:shtdown:shtdown" ${ATTR_NAME_HANA_ROLES[@]} 
     sht_stop; rc=$?
     return $rc
 }
