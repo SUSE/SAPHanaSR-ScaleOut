@@ -132,7 +132,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.2.5</version>
+<version>0.160.3.0</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -1015,7 +1015,7 @@ function saphana_start() {
     check_sapstartsrv
     rc=$?
     #
-    # TODO: ASK: PRIO5: For SCALE-OUT - do we need to use an other call like StartSystem? Or better to use the HDB command?
+    # DONE: ASK: PRIO5: For SCALE-OUT - do we need to use an other call like StartSystem? Or better to use the HDB command?
     #
     if [ $rc -eq $OCF_SUCCESS ]; then
         output=$($SAPCONTROL -nr $InstanceNr -function StartSystem)
@@ -2209,7 +2209,24 @@ function saphana_monitor_clone() {
                 super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
                 super_ocf_log warn "TST: (1) saphana_monitor_clone: HANA_STATE_DEFECT"
                 # TODO: PRIO2: Or only set_crm_master -INFINITY ?
-                rc=$OCF_ERR_GENERIC
+# DONE: PRIO1: Baustelle - OCF_ERR_GENERIC ist recht fatal, falls hdbnsutil nur mal ein Problem hat
+#                rc=$OCF_ERR_GENERIC
+                nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
+                if saphana_check_local_instance; then
+                    case "$nState" in
+                        DEMOTED )   rc=$OCF_SUCCESS;;
+                        PROMOTED )  rc=$OCF_RUNNING_MASTER;;
+                        UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+                        * )         rc=$OCF_NOT_RUNNING;;
+                    esac
+                else
+	            case "$nState" in
+                        DEMOTED )   rc=$OCF_NOT_RUNNING;;
+                        PROMOTED )  rc=$OCF_NOT_RUNNING;; ## TODO: PRIO 3: FAILED_MASTER?
+                        UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+                        * )         rc=$OCF_NOT_RUNNING;;
+                    esac
+                fi
         fi
     else
         nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
