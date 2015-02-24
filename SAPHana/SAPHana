@@ -142,7 +142,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.10</version>
+<version>0.160.3.15</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -364,8 +364,16 @@ function get_hana_attribute()
     local attr_name=$2
     local attr_store=${3:-reboot} # DONE: PRIO5 get this (optional) from parameter
     date >> /var/log/fhATTRIBUTE
-    echo "crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> /var/log/fhATTRIBUTE
-    crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q 2>>/var/log/fhATTRIBUTE; rc=$?
+    case "$attr_store" in
+        reboot | forever )
+            echo "crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> /var/log/fhATTRIBUTE
+            crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q 2>>/var/log/fhATTRIBUTE; rc=$?
+            ;;
+        props )
+            echo "crm_attribute -N ${attr_node} -G -n \"$attr_name\" -t crm_config -q" >> /var/log/fhATTRIBUTE
+            crm_attribute -N ${attr_node} -G -n "$attr_name" -t crm_config -q 2>>/var/log/fhATTRIBUTE; rc=$?
+            ;;
+    esac
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
 }
@@ -388,8 +396,16 @@ function set_hana_attribute()
     if [ "$attr_old" != "$attr_value" ]; then
         super_ocf_log debug "DBG: SET attribute $attr_name for node ${attr_node} to ${attr_value} former ($attr_old) get_rc=$get_rc "
     date >> /var/log/fhATTRIBUTE
-        echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> /var/log/fhATTRIBUTE
-        crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store 2>>/var/log/fhATTRIBUTE; rc=$?
+        case "$attr_store" in 
+            reboot | forever )
+                echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> /var/log/fhATTRIBUTE
+                crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store 2>>/var/log/fhATTRIBUTE; rc=$?
+                ;;
+            props )
+                echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -t crm_config" >> /var/log/fhATTRIBUTE
+                crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -t crm_config 2>>/var/log/fhATTRIBUTE; rc=$?
+                ;;
+        esac
     else
         super_ocf_log debug "DBG: LET attribute $attr_name for node ${attr_node} still be ${attr_value}"
         rc=0
@@ -543,6 +559,11 @@ function saphana_init() {
     ATTR_NAME_HANA_SRMODE=("hana_${sid}_srmode" "forever")
     ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
+
+    #
+    ATTR_NAME_HANA_PRIM=("hana_${sid}_prim" "props")                        # SITE
+    ATTR_NAME_HANA_SEC=("hana_${sid}_sec" "props")                          # SITE
+    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_sec_sync_state" "props")   # SOK, SFAIL
     #
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
@@ -833,6 +854,7 @@ function analyze_hana_sync_statusSRS()
        for n in $all_nodes_other_site; do
             super_ocf_log info "ACT site=$sr_name, seting SOK for node <$n>"
             set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+            set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
             lpa_set_lpt 30 "$n"
        done
        rc=0;
@@ -841,6 +863,7 @@ function analyze_hana_sync_statusSRS()
        for n in $all_nodes_other_site; do
             super_ocf_log info "ACT site=$sr_name, seting SFAIL for node <$n>"
             set_hana_attribute "$n" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+            set_hana_attribute "$n" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
             lpa_set_lpt 10 "$n"
        done
        rc=1;
@@ -915,10 +938,12 @@ super_ocf_log info "DEC: remoteNode=$remoteNode; HANA SYNC STATUS is: ${hana_syn
         if [ "${hana_sync_status}" == "ACTIVE" ]; then
             # TODO PRIO1: REMOVE remoteNode dependency - set SOK
             set_hana_attribute "$remoteNode" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+            set_hana_attribute "$remoteNode" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
         else
             super_ocf_log warn "ACT: HANA SYNC STATUS is: ${hana_sync_status}"
             # TODO PRIO1: REMOVE remoteNode dependency - set SFAIL
             set_hana_attribute "$remoteNode" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+            set_hana_attribute "$remoteNode" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
         fi
         # first get a list of all secondary hosts, than a list of all secondary hosts, if the is ANY failure at this site
         #    TODO: PRIO9: for first we assume there is only ONE secondary site (like ROT)
@@ -2006,8 +2031,9 @@ function saphana_monitor_primary()
                         #
             # TODO PRIO1: REMOVE remoteNode dependency - get_sync_status
                         remoteSync=$(get_hana_attribute $remoteNode ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+                        super_ocf_log info "DEC: PRIMDEFECT: remoteNode=$remoteNode SyncStatus=$remoteSync"
                         case "$remoteSync" in
-                            SOK )
+                            SOK | PRIM )
                                  super_ocf_log info "DEC: PreferSiteTakeover selected so decrease promotion score here (and reset lpa)"
                                  set_crm_master 5
                                  if is_the_master_nameserver; then
