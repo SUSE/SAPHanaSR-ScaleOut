@@ -16,6 +16,7 @@
 # Support:      linux@sap.com
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2013,2014 SUSE Linux Products GmbH
+# Copyright:    (c) 2015      SUSE Linux GmbH
 #
 # An example usage: 
 #      See usage() function below for more details...
@@ -141,7 +142,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.5</version>
+<version>0.160.3.6</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -1250,7 +1251,7 @@ function saphana_start_primary()
                 1 ) # we are down, so we should wait --> followup in next monitor
                     super_ocf_log info "LPA: landcape: DOWN, LPA: wait ==> keep waiting"
                     # TODO: PRIO3: Check, if WAITING is correct here
-                    set_hana_attribute ${NODENAME} "WAITING" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+                    set_hana_attribute ${NODENAME} "WAITING4LPA" ${ATTR_NAME_HANA_CLONE_STATE[@]}
                     set_crm_master -9000
                     rc=$OCF_SUCCSESS
                     ;;
@@ -1369,7 +1370,7 @@ function saphana_start_secondary()
                # It seams the stating secondary could not start because of stopping primary
                #    so this is a WAITING situation
                super_ocf_log info "ACT: PRIMARY seams to be down now ==> WAITING"
-               set_hana_attribute ${NODENAME} "WAITING" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+               set_hana_attribute ${NODENAME} "WAITING4PRIM" ${ATTR_NAME_HANA_CLONE_STATE[@]}
                set_crm_master -INFINITY
                rc=$OCF_SUCCSESS
            fi
@@ -1378,7 +1379,7 @@ function saphana_start_secondary()
        fi
     else
        super_ocf_log info "ACT: wait_for_primary_master ==> WAITING"
-       set_hana_attribute ${NODENAME} "WAITING" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+       set_hana_attribute ${NODENAME} "WAITING4PRIM" ${ATTR_NAME_HANA_CLONE_STATE[@]}
        set_crm_master -INFINITY
        rc=$OCF_SUCCSESS
     fi
@@ -1947,7 +1948,7 @@ function saphana_monitor_primary()
             DEMOTED )
                 promoted=0;
                 ;;
-            WAITING )  
+            WAITING* )  
                 # DONE: lpa_check_lpt_status to come out of here :)
                 # DONE: PRIO2: CHECK IF THE FIX FOR COMING OUT OF WAITING IS CORRECT
                 get_hana_landscape_status; lss=$?
