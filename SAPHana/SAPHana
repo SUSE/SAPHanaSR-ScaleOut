@@ -142,7 +142,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.6</version>
+<version>0.160.3.8</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -1783,14 +1783,16 @@ function master_walk() {
         fi
     done
     if [ -z "$active_master" ]; then
-        read best_cold_master rest <<<$master1 $master2 $master3
+        read best_cold_master rest <<EOF
+$master1 $master2 $master3
+EOF
         the_master=$best_cold_master
     else 
         the_master=$active_master
     fi
-    super_ocf_log info "ACT ===> priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
-    super_ocf_log info "TST $FUNCNAME the_master=$the_master rc=X"
-    super_ocf_log info "ACT ===> master_walk: the_master=$the_master;"
+    super_ocf_log info "TST: ===> priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
+    super_ocf_log info "TST: $FUNCNAME the_master=$the_master rc=X"
+    super_ocf_log info "DEC: ===> master_walk: the_master=$the_master;"
 }
 
 
