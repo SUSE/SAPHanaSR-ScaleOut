@@ -141,7 +141,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.2</version>
+<version>0.160.3.5</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -995,7 +995,7 @@ function register_hana_secondary()
     if is_the_master_nameserver; then
         remoteInstance=$InstanceNr
         if ocf_is_true ${AUTOMATED_REGISTER}; then
-           super_ocf_log info "ACT: REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
+           super_ocf_log info "ACT: SAPHANA REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
                 backup_global_and_nameserver
            su - $sidadm -c "hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"; rc=$?
                 backup_global_and_nameserver
@@ -1038,7 +1038,7 @@ function saphana_start() {
         if [ $rc -eq $OCF_SUCCESS ]; then
             output=$($SAPCONTROL -nr $InstanceNr -function StartSystem)
             rc=$?
-            super_ocf_log info "ACT: Starting SAPHANA Instance $SID-$InstanceName: $output"
+            super_ocf_log info "ACT: SAPHANA Starting System $SID-$InstanceName: $output"
         fi
         if [ $rc -eq 0 ]
         then
@@ -1081,7 +1081,7 @@ function saphana_stop() {
           ## TODO: PRIO 2: Do we need a "last-man-switch-of-the-light" detection?
           output=$($SAPCONTROL -nr $InstanceNr -function StopSystem)
           rc=$?
-          super_ocf_log info "ACT: Stopping SAP Instance $SID-$InstanceName: $output"
+          super_ocf_log info "ACT: SAPHANA Stopping SAP System $SID-$InstanceName: $output"
        fi
        if [ $rc -eq 0 ]
        then
@@ -1688,6 +1688,38 @@ function lpa_check_lpt_status() {
 # params:   -
 # globals:  srmode(r), the_master(w)
 function master_walk() {
+ #
+ # TODO: PRIO1: EXCLUDE NON ONLINE CLUSTER NODES (offline/unclean/standby/maintenence)
+ #
+ # * crm node list se03 is online, se01 is standby+maintenence, se02 is offline
+ # se01group1: 
+ #       standby: on
+ #       maintenance: on
+ # se02group1: (offline)
+ # se03group1:
+ # * crm_node -l
+ # 1084752138 se01group1 member
+ # 1084752148 se02group1 lost
+ # 1084752154 se03group1 member
+ # ====> othernodes enthält nur members (für openais)
+ # * crm_attribute ...
+ #
+ # se01group1:~ # crm_attribute -N se01group1 -n standby -G -l forever -q
+ # on
+ # (rc=0)
+ # se01group1:~ # crm_attribute -N se02group1 -n standby -G -l forever -q
+ # Error performing operation: No such device or address
+ # (rc=250)
+ # se01group1:~ # crm_attribute -N se02group1 -n standby -G -l forever -q -d off
+ # off
+ # 
+ # 
+ # ==> Zunöchst non-members ausschliessen (möglicherweise bereits geschehen) duch
+ #       'liste der Knoten | grep member'
+ # ==> Dann Attribute 'standby' und 'maintenence' abfragen
+ # ODER:
+ # scores ansehen:
+ #
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     super_ocf_log info "TST $FUNCNAME ($*)"
     local active_master="" master1="" master2="" master3=""
@@ -1702,45 +1734,51 @@ function master_walk() {
     super_ocf_log info "TST master walk"
     # walk over all known cluster nodes 
     super_ocf_log info "DBG master walk for $srmode"
-    for node in $(crm_node  -l | awk '{print $2}'); do
+    for node in $NODENAME ${otherNodes}; do
         super_ocf_log info "TST master walk node $node"
         nSite=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_SITE[@]})
         if [ "$site" = "$nSite" ]; then
             # node of same site found
-            nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
-            read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
-            super_ocf_log info "DBG site $site $nNsConf:$nNsCurr"
-            case "$nNsConf:$nNsCurr" in
-                master1:master  ) master1=$node; active_master=$node
-                    super_ocf_log info "DBG site $site match master1:master"
-                    super_ocf_log info "TST site $site match master1:master"
-                ;;
-                master2:master  ) master2=$node; active_master=$node
-                    super_ocf_log info "DBG site $site match master2:master"
-                    super_ocf_log info "TST site $site match master2:master"
-                ;;
-                master3:master  ) master3=$node; active_master=$node
-                    super_ocf_log info "DBG site $site match master3:master"
-                    super_ocf_log info "TST site $site match master3:master"
-                ;;
-                *:shtdown       )    
-                    super_ocf_log info "TST site $site ignore node (down)"
-                ;;
-                master1:*       ) master1=$node;
-                    super_ocf_log info "TST site $site match master1:STAR"
-                ;;
-                master2:*       ) master2=$node;
-                    super_ocf_log info "TST site $site match master2:STAR"
-                ;;
-                master3:*       ) master3=$node;
-                    super_ocf_log info "TST site $site match master3:STAR"
-                ;;
-                * )
-                    super_ocf_log info "TST site $site NO match"
-                ;;
-
-            esac
-            super_ocf_log info "DBG $site: $nRole"
+            nStdBy=$(crm_attribute -N ${node} -n standby     -G -l forever -q -d off)
+            nMaint=$(crm_attribute -N ${node} -n maintenance -G -l forever -q -d off)
+            if [ "$nStdBy" = "on" -o "$nMaint" = "on" ]; then
+                super_ocf_log info "DBG Filter node by cluster attributes maintenance and standby"
+                super_ocf_log info "TST Filter node by cluster attributes maintenance and standby"
+            else
+                nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
+                read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+                super_ocf_log info "DBG site $site $nNsConf:$nNsCurr"
+                case "$nNsConf:$nNsCurr" in
+                    master1:master  ) master1=$node; active_master=$node
+                        super_ocf_log info "DBG roles $nRole match master1:master"
+                        super_ocf_log info "TST roles $site match master1:master"
+                    ;;
+                    master2:master  ) master2=$node; active_master=$node
+                        super_ocf_log info "DBG roles $nRole match master2:master"
+                        super_ocf_log info "TST roles $nRole match master2:master"
+                    ;;
+                    master3:master  ) master3=$node; active_master=$node
+                        super_ocf_log info "DBG roles $nRole match master3:master"
+                        super_ocf_log info "TST roles $nRole match master3:master"
+                    ;;
+                    *:shtdown       )    
+                        super_ocf_log info "TST roles $nRole ignore node (down)"
+                    ;;
+                    master1:*       ) master1=$node;
+                        super_ocf_log info "TST roles $nRole match master1:STAR"
+                    ;;
+                    master2:*       ) master2=$node;
+                        super_ocf_log info "TST roles $nRole match master2:STAR"
+                    ;;
+                    master3:*       ) master3=$node;
+                        super_ocf_log info "TST roles $nRole match master3:STAR"
+                    ;;
+                    * )
+                        super_ocf_log info "TST roles $nRole NO match"
+                    ;;
+                esac
+                super_ocf_log info "DBG $site: $nRole"
+            fi
         fi
     done
     if [ -z "$active_master" ]; then
@@ -2330,7 +2368,7 @@ function saphana_promote_clone() {
         case "$hana_sync" in
              SOK )
                 if is_the_master_nameserver; then
-                    super_ocf_log info "ACT: !!!!!!! Promote REPLICA $SID-$InstanceName to be primary. !!!!!!"
+                    super_ocf_log info "ACT: SAPHANA !!!!!!! Promote REPLICA $SID-$InstanceName to be primary. !!!!!!"
                     LPTloc=$(date '+%s')
                     # lpa_set_lpt 20 $remoteNode
                     lpa_set_lpt $LPTloc
