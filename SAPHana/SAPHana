@@ -2303,33 +2303,47 @@ function saphana_monitor_clone() {
         my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
         my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
         scoring_crm_master "$my_role" "$my_sync"
+#######
+        # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
+        #              This reflects the situation that swarm members get be started (as resource)
+        #              before the master nameserver runs the StartSystem command
+        #           => However we need to check, if it could happen that NO warm master namerver
+        #              is available and we miss to monitor the degraded HANA on a other node
+
+        case "$nState" in
+            DEMOTED ) rc=$OCF_SUCCESS;;
+            PROMOTED ) rc=$OCF_RUNNING_MASTER;;
+            UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+            * ) rc=$OCF_NOT_RUNNING;;
+        esac
+ 
         # TODO: PRIO1: Check when we can start to monitor the local instance!! ==> instance restart
 ##### FH BAUSTELLE
-        if saphana_check_local_instance; then
-            case "$nState" in
-                DEMOTED ) rc=$OCF_SUCCESS;;
-                PROMOTED ) rc=$OCF_RUNNING_MASTER;;
-                UNDEFINED ) rc=$OCF_NOT_RUNNING;;
-                * ) rc=$OCF_NOT_RUNNING;;
-            esac
-           if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
-                local placeholder=1
-           elif [ $primary_status -eq $HANA_STATE_SECONDARY  ]; then
+        #if saphana_check_local_instance; then
+        #    case "$nState" in
+        #        DEMOTED ) rc=$OCF_SUCCESS;;
+        #        PROMOTED ) rc=$OCF_RUNNING_MASTER;;
+        #        UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+        #        * ) rc=$OCF_NOT_RUNNING;;
+        #    esac
+        #   if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
+        #        local placeholder=1
+        #   elif [ $primary_status -eq $HANA_STATE_SECONDARY  ]; then
 ##### FH BAUSTELLE
-                $remove_this_line=1
-                #lpa_set_lpt  30
-           else
-                super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
-                super_ocf_log warn "TST: (2) saphana_monitor_clone: HANA_STATE_DEFECT"
-           fi
-        else
-	    case "$nState" in
-                 DEMOTED ) rc=$OCF_NOT_RUNNING;;
-                 PROMOTED ) rc=$OCF_NOT_RUNNING;; ## TODO: PRIO 3: FAILED_MASTER?
-                 UNDEFINED ) rc=$OCF_NOT_RUNNING;;
-                 * ) rc=$OCF_NOT_RUNNING;;
-            esac
-        fi
+        #        $remove_this_line=1
+        #        #lpa_set_lpt  30
+        #   else
+        #        super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
+        #        super_ocf_log warn "TST: (2) saphana_monitor_clone: HANA_STATE_DEFECT"
+        #   fi
+        #else
+	    #case "$nState" in
+        #         DEMOTED ) rc=$OCF_NOT_RUNNING;;
+        #         PROMOTED ) rc=$OCF_NOT_RUNNING;; ## TODO: PRIO 3: FAILED_MASTER?
+        #         UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+        #         * ) rc=$OCF_NOT_RUNNING;;
+        #    esac
+        #fi
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
