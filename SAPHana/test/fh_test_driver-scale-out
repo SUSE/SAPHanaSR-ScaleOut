@@ -4,7 +4,7 @@
 # (c) 2014 SUSE Linux Products GmbH
 # Author: Fabian Herschel
 # License: GPL v2+
-# Version: 0.7.2015.02.24.1-scale-out
+# Version: 0.7.2015.02.24.2-scale-out
 #
 ##################################################################
 # THIS PROGRAM IS NOT INTENDED TO RUN IN PRODUCTIVE ENVIRONMENTS
@@ -153,9 +153,21 @@ sub get_hana_attributes($)
     my $table_title = "Host \\ Attr";
     open CIB, "cibadmin -Ql |";
     while (<CIB>) {
+       my ($host, $name, $value);
+       my $found_attr=0;
        chomp;
+# <nvpair name="hana_lnx_vhost" value="lv9041" id="nodes-lv9041-hana_lnx_vhost"/>
+
        if ( $_ =~ /nvpair\s+id="status-([a-zA-Z0-9]+)-\w+"\s+name="(\w+_${sid}_\w+)"\s+value="([^"]+)"/ ) {
-           my ($host, $name, $value) = ( $1, $2, $3 );
+           $found_attr=1;
+           ($host, $name, $value) = ( $1, $2, $3 );
+       }
+
+       if ( $_ =~ /nvpair\s+name="(\w+_${sid}_\w+)"\s+value="([^"]+)"\s+id="nodes-([a-zA-Z0-9]+)-\w+"/ ) {
+           $found_attr=1;
+           ($name, $value, $host) = ( $1, $2, $3 );
+       }
+       if ( $found_attr ) {
            #
            # handle the hosts name and table-title
            #
@@ -170,6 +182,7 @@ sub get_hana_attributes($)
            # now handle the attributes name and value
            #
            $Name{$name}->{$host}=${value};
+#printf "get_hana_attributes(): \$Name{%s}->{%s}=\${%s}\n", $name, $host, $value;
            if ( defined ($Name{$name}->{_length})) {
               $Name{$name}->{_length} = max($Name{$name}->{_length}, length($value ));
            } else {
@@ -235,7 +248,7 @@ sub get_host_primary($ $)
     my $result="";
     my $h;
     foreach $h ( keys(%{$Name{"hana_${sid}_roles"}}) ) {
-        if ( $Name{"hana_${sid}_roles"}->{$h} =~ /[$lss]:P:/ ) {
+        if ( $Name{"hana_${sid}_roles"}->{$h} =~ /[$lss]:P:master.:master/ ) {
            $result=$h;
         }
     }
@@ -249,11 +262,20 @@ sub get_host_secondary($ $)
     my $result="";
     my $h;
     foreach $h ( keys(%{$Name{"hana_${sid}_roles"}}) ) {
-        if ( $Name{"hana_${sid}_roles"}->{$h} =~ /[$lss]:S:/ ) {
+        if ( $Name{"hana_${sid}_roles"}->{$h} =~ /[$lss]:S:master.:master/ ) {
            $result=$h;
         }
     }
     return $result;
+}
+
+sub get_site_by_host($ $)
+{
+    my $result="";
+    my $sid=shift;
+    my $h = shift;
+    $result = $Name{"hana_${sid}_site"}->{$h};
+    return $result;                                                                                                                                                                                                
 }
 
 sub check_all_ok($)
@@ -435,14 +457,18 @@ while ( 1==1 ) {
     my $phost;
     my $shost;
     my $laststate="";
+    my $sSite="";
+    my $pSite="";
     get_hana_attributes($sid);
     $phost=get_host_primary($sid, "1234");
     $shost=get_host_secondary($sid, "1234");
+    $pSite=get_site_by_host($sid, $phost);
+    $sSite=get_site_by_host($sid, $shost);
     my ($checkOK, $failures ) = check_all_ok($sid);
     if ( $checkOK == 0 ) {
         $badloops=0;
         $goodloops++;
-        $message="All checks passed - primary=$phost secondary=$shost loop=$goodloops testnr=$testcount\n";
+        $message="All checks passed - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$goodloops testnr=$testcount\n";
         mysyslog $priority, "%s", $message;
         if ( ( $goodloops >= 12 ) || ( $first_test == 1 )  ) {
             $testcount++;
@@ -488,9 +514,9 @@ while ( 1==1 ) {
         $goodloops=0;
         $badloops++;
         if ( $checkOK == 1 ) {
-		$message="$checkOK check failed ($failures) - primary=$phost secondary=$shost loop=$badloops test=$testcount\n";
+		$message="$checkOK check failed ($failures) - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$badloops test=$testcount\n";
         } else {
-		$message="$checkOK checks failed ($failures) - primary=$phost secondary=$shost loop=$badloops test=$testcount\n";
+		$message="$checkOK checks failed ($failures) - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$badloops test=$testcount\n";
         }
         mysyslog $priority, "%s", $message;
     }
