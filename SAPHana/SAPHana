@@ -1725,7 +1725,7 @@ function master_walk() {
     super_ocf_log info "ACT master walk"
     # walk over all known cluster nodes 
     super_ocf_log info "DBG master walk for $srmode"
-    for node in $NODENAME ${otherNodes}; do
+    for node in $NODENAME ${otherNodes[@]}; do
         super_ocf_log info "DBG master walk node $node"
         nSite=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_SITE[@]})
         if [ "$site" = "$nSite" ]; then
@@ -1776,9 +1776,9 @@ EOF
     else 
         the_master=$active_master
     fi
-    super_ocf_log info "DBG: ===> priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
-    super_ocf_log info "DBG: $FUNCNAME the_master=$the_master rc=X"
+    super_ocf_log info "DEC: ===> master_walk: priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
     super_ocf_log info "DEC: ===> master_walk: the_master=$the_master;"
+    super_ocf_log info "FLOW $FUNCNAME the_master=$the_master rc=0"
 }
 
 
