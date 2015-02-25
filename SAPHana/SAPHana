@@ -142,7 +142,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.15</version>
+<version>0.160.3.17</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -1017,6 +1017,7 @@ function register_hana_secondary()
         if ocf_is_true ${AUTOMATED_REGISTER}; then
            super_ocf_log info "ACT: SAPHANA REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
                 backup_global_and_nameserver
+                set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
            su - $sidadm -c "hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"; rc=$?
                 backup_global_and_nameserver
         else
@@ -1382,6 +1383,7 @@ function saphana_start_secondary()
     super_ocf_log debug "DBG: wait for promoted side"
     # TODO: PRIO3: Check if setting SFAIL during secondary start is ok
     set_hana_attribute "${NODENAME}" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+    set_hana_attribute "${NODENAME}" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
     if wait_for_primary_master 10; then
        saphana_start; rc=$?
        if [ $rc -ne $OCF_SUCCESS ]; then
@@ -2084,6 +2086,7 @@ function saphana_monitor_primary()
                 lpa_push_lpt $LPTloc
                 if [ "$promoted" -eq 1 ]; then
                     set_hana_attribute "$NODENAME" "PRIM" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+                    set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_PRIM[@]}
                     rc=$OCF_RUNNING_MASTER
                 else
                     if [ "$init_attribute" -eq 1 ]; then
@@ -2400,6 +2403,8 @@ function saphana_promote_clone() {
                     lpa_set_lpt $LPTloc
                     lpa_push_lpt $LPTloc
                     backup_global_and_nameserver
+                    set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_PRIM[@]}
+                    set_hana_attribute "$NODENAME" "" ${ATTR_NAME_HANA_SEC[@]}
                     su - $sidadm -c "hdbnsutil -sr_takeover"
                     backup_global_and_nameserver
                     #
