@@ -363,15 +363,16 @@ function get_hana_attribute()
     local attr_node=$1
     local attr_name=$2
     local attr_store=${3:-reboot} # DONE: PRIO5 get this (optional) from parameter
+    local attr_default=${4:-} 
     date >> /var/log/fhATTRIBUTE
     case "$attr_store" in
         reboot | forever )
             echo "crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> /var/log/fhATTRIBUTE
-            crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q 2>>/var/log/fhATTRIBUTE; rc=$?
+            crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q -d "$attr_default" 2>>/var/log/fhATTRIBUTE; rc=$?
             ;;
         props )
             echo "crm_attribute -N ${attr_node} -G -n \"$attr_name\" -t crm_config -q" >> /var/log/fhATTRIBUTE
-            crm_attribute -N ${attr_node} -G -n "$attr_name" -t crm_config -q 2>>/var/log/fhATTRIBUTE; rc=$?
+            crm_attribute -N ${attr_node} -G -n "$attr_name" -t crm_config -q -d "$attr_default" 2>>/var/log/fhATTRIBUTE; rc=$?
             ;;
     esac
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
@@ -402,8 +403,8 @@ function set_hana_attribute()
                 crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store 2>>/var/log/fhATTRIBUTE; rc=$?
                 ;;
             props )
-                echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -t crm_config" >> /var/log/fhATTRIBUTE
-                crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -t crm_config 2>>/var/log/fhATTRIBUTE; rc=$?
+                echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> /var/log/fhATTRIBUTE
+                crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -t crm_config  -s SAPHanaSR 2>>/var/log/fhATTRIBUTE; rc=$?
                 ;;
         esac
     else
@@ -545,13 +546,12 @@ function saphana_init() {
     SAPHanaFilter="${OCF_RESKEY_SAPHanaFilter:-ra-act-dec-lpa}"
     AUTOMATED_REGISTER="${OCF_RESKEY_AUTOMATED_REGISTER:-false}"
     LPA_DIRECTORY=/var/lib/SAPHanaRA
-    LPA_ATTR=("lpa_${sid}_lpt" "forever")
+    LPA_ATTR=("hana_${sid}_lpt" "forever")
     super_ocf_log debug "DBG: SID=$SID, sid=$sid, SIDInstanceName=$SIDInstanceName, InstanceName=$InstanceName, InstanceNr=$InstanceNr, SAPVIRHOST=$SAPVIRHOST"
     ocf_env=$(env | grep 'OCF_RESKEY_CRM')
     super_ocf_log debug "DBG: OCF: $ocf_env"
     #
     ATTR_NAME_HANA_SYNC_STATUS=("hana_${sid}_sync_state" "reboot")  # SOK, SFAIL, UNKNOWN?
-    ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_primary_at"   "reboot") # Not used so far
     ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
     ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
@@ -559,11 +559,13 @@ function saphana_init() {
     ATTR_NAME_HANA_SRMODE=("hana_${sid}_srmode" "forever")
     ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
-
+    #
+    # new "central" attributes
     #
     ATTR_NAME_HANA_PRIM=("hana_${sid}_prim" "props")                        # SITE
     ATTR_NAME_HANA_SEC=("hana_${sid}_sec" "props")                          # SITE
     ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_sec_sync_state" "props")   # SOK, SFAIL
+    ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_primary_at"   "props") # Not used so far
     #
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
@@ -851,6 +853,8 @@ function analyze_hana_sync_statusSRS()
     #super_ocf_log info "DBG FULL_SR_STATUS=$FULL_SR_STATUS"
     if [ $srRc -eq 15 ]; then
        super_ocf_log info "FLOW $FUNCNAME SOK"
+#### LPA_SET_LPT
+####            set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
        for n in $all_nodes_other_site; do
             super_ocf_log info "ACT site=$sr_name, seting SOK for node <$n>"
             set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
