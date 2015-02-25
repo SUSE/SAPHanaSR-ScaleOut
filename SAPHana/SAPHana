@@ -142,7 +142,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.17</version>
+<version>0.160.3.19</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -1234,26 +1234,32 @@ function saphana_start_primary()
                     ;;
                 1 ) # lets try to register
                     # DONE: PRIO2: Like Action in start_secondary
-                    super_ocf_log info "LPA: landcape: DOWN, LPA: register ==> try to register"
-                    super_ocf_log info "DEC: AN OTHER HANA IS AVAILABLE ==> LETS REGISTER"
-                    set_crm_master  0
-                    if wait_for_primary_master 1; then
-                        register_hana_secondary 
-                        check_for_primary; primary_status=$?
-                        if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
-                            super_ocf_log info "ACT: Register successful"
-                            lpa_push_lpt 10
-                            lpa_set_lpt  10
-                            set_crm_master  0
-                            saphana_start_secondary
-                            rc=$?
-                            lpa_set_lpt  10
+                    if is_the_master_nameserver; then
+                        super_ocf_log info "LPA: landcape: DOWN, LPA: register ==> try to register"
+                        super_ocf_log info "DEC: AN OTHER HANA IS AVAILABLE ==> LETS REGISTER"
+                        set_crm_master  0
+                        if wait_for_primary_master 1; then
+                            register_hana_secondary 
+                            check_for_primary; primary_status=$?
+                            if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
+                                super_ocf_log info "ACT: Register successful"
+                                lpa_push_lpt 10
+                                lpa_set_lpt  10
+                                set_crm_master  0
+                                saphana_start_secondary
+                                rc=$?
+                                lpa_set_lpt  10
+                            else
+                                super_ocf_log err "ACT: Register failed"
+                                rc=$OCF_NOT_RUNNING
+                            fi                                         
                         else
-                            super_ocf_log err "ACT: Register failed"
-                            rc=$OCF_NOT_RUNNING
-                        fi                                         
+                            # lets check next monitor, if we can register
+                            rc=$OCF_SUCCESS
+                        fi
                     else
                         # lets check next monitor, if we can register
+                        super_ocf_log info "DEC: WAIT FOR MASTER NAMESERVER TO REGISTER"
                         rc=$OCF_SUCCESS
                     fi
                     ;;
