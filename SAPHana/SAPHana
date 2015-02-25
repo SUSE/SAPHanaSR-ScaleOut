@@ -556,7 +556,6 @@ function saphana_init() {
     ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
     ATTR_NAME_HANA_ROLES=("hana_${sid}_roles" "reboot")
-    ATTR_NAME_HANA_SRMODE=("hana_${sid}_srmode" "forever")
     ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
     #
@@ -566,6 +565,7 @@ function saphana_init() {
     ATTR_NAME_HANA_SEC=("hana_${sid}_sec" "props")                          # SITE
     ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_sec_sync_state" "props")   # SOK, SFAIL
     ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_primary_at"   "props") # Not used so far
+    ATTR_NAME_HANA_SRMODE2=("hana_${sid}_srmode" "props" "sync")    # sync syncmem async
     #
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
@@ -578,7 +578,7 @@ function saphana_init() {
        "[234]:S:master[123]:master     SOK    100"
        "[234]:S:master[123]:slave      SOK     95"
        "[015]:S:master[123]:           SOK     80"
-       "[0-9]:S:master[123]:*:standby  SFAIL  -22100"
+       "[0-9]:S:master[124]:*:standby  SFAIL  -22100"
        "[0-9]:S:slave:                 SOK    -12200"
        "[0-9]:S:slave:                 SFAIL  -22200"
        "[0-9]:S:                       .*     -32300"
@@ -630,7 +630,7 @@ function saphana_init() {
     site=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SITE[@]});
     sr_name=${site%%:*}  # first field of site (separator :)
     sr_id=${site#*:}     # rest of site (separator :)
-    sr_mode=$(get_hana_attribute "${NODENAME}" ${ATTR_NAME_HANA_SRMODE[@]})
+    sr_mode=$(get_hana_attribute "${NODENAME}" ${ATTR_NAME_HANA_SRMODE2[@]})
     if [ -z "$sr_mode" ]; then
         sr_mode="sync"
     fi

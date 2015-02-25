@@ -246,7 +246,7 @@ function set_hana_attribute()
                 ;;
             props )
                 echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> /var/log/fhATTRIBUTE
-                crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -t crm_config  -s SAPHanaSR 2>>/var/log/fhATTRIBUTE; rc=$?
+                crm_attribute -v $attr_value -n "$attr_name" -t crm_config  -s SAPHanaSR 2>>/var/log/fhATTRIBUTE; rc=$?
                 ;;
         esac
     else
@@ -354,7 +354,6 @@ function sht_init() {
     ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
     ATTR_NAME_HANA_ROLES=("hana_${sid}_roles" "reboot")
-    ATTR_NAME_HANA_SRMODE=("hana_${sid}_srmode" "forever")
     ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
     #
@@ -811,10 +810,7 @@ function sht_monitor_clone() {
     case "$hanaPrim" in
         P ) ;;
         S ) # only secondary may propargate its sync status
-        for n in ${nodelist}; do
-            set_hana_attribute ${n} "$srmode" ${ATTR_NAME_HANA_SRMODE[@]}
-        done
-        set_hana_attribute "" "$srmode" ${ATTR_NAME_HANA_SRMODE2[@]}
+        set_hana_attribute "X" "$srmode" ${ATTR_NAME_HANA_SRMODE2[@]}
           ;;
     esac
     #ATTR_NAME_HANA_STATUS  # TODO: PRIO5: For SCALE-OUT: Fill that attribute later
