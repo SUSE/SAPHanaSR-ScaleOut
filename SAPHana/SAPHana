@@ -142,7 +142,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.21</version>
+<version>0.160.3.25</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -355,6 +355,7 @@ function is_clone() {
 # function: get_hana_attribute 
 # params:   NODE ATTR [STORE]
 # globals:  -
+# output:   attribute value
 #
 function get_hana_attribute()
 {
@@ -562,17 +563,16 @@ function saphana_init() {
     #
     # new "central" attributes
     #
-    ATTR_NAME_HANA_PRIM=("hana_${sid}_prim" "props")                        # SITE
-    ATTR_NAME_HANA_SEC=("hana_${sid}_sec" "props")                          # SITE
-    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_sec_sync_state" "props")   # SOK, SFAIL
-    ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_primary_at"   "props") # Not used so far
-    ATTR_NAME_HANA_SRMODE2=("hana_${sid}_srmode" "props" "sync")    # sync syncmem async
+    ATTR_NAME_HANA_PRIM=("hana_${sid}_glob_prim" "props")                        # SITE
+    ATTR_NAME_HANA_SEC=("hana_${sid}_glob_sec" "props")                          # SITE
+    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sec_sync_state" "props")   # SOK, SFAIL
+    ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props") # Not used so far
+    ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")    # sync syncmem async
+    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sync_state" "props")
     #
     # SITE based attributes
     #
-    LPA_ATTR=("hana_${sid}_lpt_xsite" "props")
-    ATTR_NAME_HANA_SRMODE3=("hana_${sid}_srmode" "props" "sync")    # sync syncmem async
-    #
+    LPA_ATTR=("hana_${sid}__site_lpt_xsite" "props")
     #
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
@@ -966,12 +966,12 @@ super_ocf_log info "DEC: remoteNode=$remoteNode; HANA SYNC STATUS is: ${hana_syn
         if [ "${hana_sync_status}" == "ACTIVE" ]; then
             # TODO PRIO1: REMOVE remoteNode dependency - set SOK
             set_hana_attribute "$remoteNode" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-            set_hana_attribute "$remoteNode" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+            set_hana_attribute "X" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
         else
             super_ocf_log warn "ACT: HANA SYNC STATUS is: ${hana_sync_status}"
             # TODO PRIO1: REMOVE remoteNode dependency - set SFAIL
             set_hana_attribute "$remoteNode" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-            set_hana_attribute "$remoteNode" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+            set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
         fi
         # first get a list of all secondary hosts, than a list of all secondary hosts, if the is ANY failure at this site
         #    TODO: PRIO9: for first we assume there is only ONE secondary site (like ROT)
@@ -1519,7 +1519,7 @@ function lpa_get_lpt() {
     local lpt=""
     local -a ATTR
     ATTR=( ${LPA_ATTR[@]} )
-    ATTR[0]="hana_${sid}_lpt_${mysite}"
+    ATTR[0]="hana_${sid}_site_lpt_${mysite}"
     super_ocf_log info "DEC $FUNCNAME get_hana_attribute X ${ATTR[@]}"
     lpt=$(get_hana_attribute "X" ${ATTR[@]})
     if [ -n "$lpt" ]; then
@@ -1547,7 +1547,7 @@ function lpa_set_lpt() {
     local mysite=${2:-$sr_name}
     local -a ATTR
     ATTR=(${LPA_ATTR[@]})
-    ATTR[0]="hana_${sid}_lpt_${mysite}"
+    ATTR[0]="hana_${sid}_site_lpt_${mysite}"
     super_ocf_log info "FLOW $FUNCNAME (set_hana_attribute X \"$lpt\" ${ATTR[@]})"
     set_hana_attribute "X" "$lpt" ${ATTR[@]}; crm_rc=$?
     clpt=$(lpa_get_lpt $mysite)
@@ -2066,6 +2066,7 @@ function saphana_monitor_primary()
                         #
             # TODO PRIO1: REMOVE remoteNode dependency - get_sync_status
                         remoteSync=$(get_hana_attribute $remoteNode ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+                        remoteSync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
                         super_ocf_log info "DEC: PRIMDEFECT: remoteNode=$remoteNode SyncStatus=$remoteSync"
                         case "$remoteSync" in
                             SOK | PRIM )
