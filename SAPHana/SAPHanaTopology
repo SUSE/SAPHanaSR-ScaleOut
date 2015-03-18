@@ -123,7 +123,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.160.3.2</version>
+    <version>0.160.3.7</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -206,15 +206,16 @@ function get_hana_attribute()
     local attr_name=$2
     local attr_store=${3:-reboot} # DONE: PRIO5 get this (optional) from parameter
     local attr_default=${4:-}
-    date >> /var/log/fhATTRIBUTE
+    local dstr
+    dstr=$(date)
     case "$attr_store" in
         reboot | forever )
-            echo "crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> /var/log/fhATTRIBUTE
+            echo "$dstr: SAPHanaTopology: crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> /var/log/fhATTRIBUTE
             crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q -d "$attr_default" 2>>/var/log/fhATTRIBUTE; rc=$?
             ;;
         props )
-            echo "crm_attribute -N ${attr_node} -G -n \"$attr_name\" -t crm_config -q" >> /var/log/fhATTRIBUTE
-            crm_attribute -N ${attr_node} -G -n "$attr_name" -t crm_config -q -d "$attr_default" 2>>/var/log/fhATTRIBUTE; rc=$?
+            echo "$dstr: SAPHanaTopology: crm_attribute -G -n \"$attr_name\" -t crm_config -q" >> /var/log/fhATTRIBUTE
+            crm_attribute -G -n "$attr_name" -t crm_config -q -d "$attr_default" 2>>/var/log/fhATTRIBUTE; rc=$?
             ;;
     esac
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
@@ -235,17 +236,18 @@ function set_hana_attribute()
     local attr_store=${4:-reboot} # DONE: PRIO5 get this (optional) from parameter
     local rc=1
     local attr_old=""
+    local dstr
+    dstr=$(date)
     attr_old=$(get_hana_attribute $attr_node $attr_name $attr_store); get_rc=$?
     if [ "$attr_old" != "$attr_value" ]; then
         super_ocf_log debug "DBG: SET attribute $attr_name for node ${attr_node} to ${attr_value} former ($attr_old) get_rc=$get_rc "
-    date >> /var/log/fhATTRIBUTE
         case "$attr_store" in
             reboot | forever )
-                echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> /var/log/fhATTRIBUTE
+                echo "$dstr: SAPHanaTopology: crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> /var/log/fhATTRIBUTE
                 crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store 2>>/var/log/fhATTRIBUTE; rc=$?
                 ;;
             props )
-                echo "crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> /var/log/fhATTRIBUTE
+                echo "$dstr: SAPHanaTopology: crm_attribute -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> /var/log/fhATTRIBUTE
                 crm_attribute -v $attr_value -n "$attr_name" -t crm_config  -s SAPHanaSR 2>>/var/log/fhATTRIBUTE; rc=$?
                 ;;
         esac
@@ -359,11 +361,11 @@ function sht_init() {
     #
     # new "central" attributes
     #
-    ATTR_NAME_HANA_PRIM=("hana_${sid}_prim" "props")                        # SITE
-    ATTR_NAME_HANA_SEC=("hana_${sid}_sec" "props")                          # SITE
-    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_sec_sync_state" "props")   # SOK, SFAIL
-    ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_primary_at"   "props")          # Not used so far
-    ATTR_NAME_HANA_SRMODE2=("hana_${sid}_srmode" "props" "sync")            # sync syncmem async
+    ATTR_NAME_HANA_PRIM=("hana_${sid}_glob_prim" "props")                        # SITE
+    ATTR_NAME_HANA_SEC=("hana_${sid}_glob_sec" "props")                          # SITE
+    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sec_sync_state" "props")   # SOK, SFAIL
+    ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props")          # Not used so far
+    ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")            # sync syncmem async
 
     # optional OCF parameters, we try to guess which directories are correct
     if  [ -z "$OCF_RESKEY_DIR_EXECUTABLE" ]
