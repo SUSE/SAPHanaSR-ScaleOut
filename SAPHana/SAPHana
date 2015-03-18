@@ -1043,6 +1043,9 @@ function register_hana_secondary()
     if is_the_master_nameserver; then
         remoteInstance=$InstanceNr
         if ocf_is_true ${AUTOMATED_REGISTER}; then
+           #
+           # before we could register we stop HANA on all nodes of the swarm (maybe some still running)
+           saphana_stop
            super_ocf_log info "ACT: SAPHANA REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
                 backup_global_and_nameserver
                 set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
