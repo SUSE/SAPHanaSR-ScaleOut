@@ -43,6 +43,11 @@ timeB=$(date '+%s')
 #
 #######################################################################
 #
+# KNOWN PROBLEMS TO BE FIXED:
+# P001 - Setup with scale-out and PREFER_SITE_TAKEOVER=true, AUTOMATED_REGISTER=true. If you kill a primary instance it could happen that the primary sets itself to lpt=10 and the secondary will be set to SFAIL and lpt=10 this results in a WAITING4LPA situation. ==> A down/dying primry may never set SFAIL for a secondary!
+# P002 - in the swarm non master-nameserver nodes may never set the lpt=date
+# P003 - in the swarm non master nodes may NOT do a full master-walk 
+
 
 HANA_STATE_PRIMARY=0
 HANA_STATE_SECONDARY=1
@@ -142,7 +147,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.3.25</version>
+<version>0.160.4.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -511,7 +516,7 @@ function get_crm_master()
 # params:   InstanceName
 # globals:  OCF_*(r), SID(w), sid(rw), sidadm(w), InstanceName(w), InstanceNr(w), SAPVIRHOST(w), PreferSiteTakeover(w), 
 # globals:  sr_name(w), remoteHost(w), otherNodes(w) 
-# globals:  ATTR_NAME_HANA_SYNC_STATUS(w), ATTR_NAME_HANA_CLONE_STATE(w)
+# globals:  ATTR_NAME_HANA_SEC_SYNC_STATUS(w), ATTR_NAME_HANA_CLONE_STATE(w)
 # globals:  DIR_EXECUTABLE(w), SAPSTARTSRV(w), SAPCONTROL(w), DIR_PROFILE(w), SAPSTARTPROFILE(w), LD_LIBRARY_PATH(w), PATH(w)
 # globals:  LPA_DIRECTORY(w), SIDInstanceName(w), remoteNode(w)
 # saphana_init : Define global variables with default values, if optional parameters are not set
@@ -553,7 +558,6 @@ function saphana_init() {
     ocf_env=$(env | grep 'OCF_RESKEY_CRM')
     super_ocf_log debug "DBG: OCF: $ocf_env"
     #
-    ATTR_NAME_HANA_SYNC_STATUS=("hana_${sid}_sync_state" "reboot")  # SOK, SFAIL, UNKNOWN?
     ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
     ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
@@ -870,32 +874,26 @@ function analyze_hana_sync_statusSRS()
     #
     # TODO: PRIO2: Here we might also need to filter additional sites (if multi tier should be supported)
     #              Could we define, that we always control site ID 1 and site ID 2?
-    all_nodes_other_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $8}' site=$sr_name | sort -u); 
     all_nodes_local_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $2}' site=$sr_name | sort -u);
-    super_ocf_log info "DBG site=$sr_name, all_nodes_other_site=$all_nodes_other_site"
     super_ocf_log info "DBG site=$sr_name, all_nodes_local_site=$all_nodes_local_site"
     #super_ocf_log info "DBG FULL_SR_STATUS=$FULL_SR_STATUS"
+    #
+    # TODO PRIO3: is the check for return code capable for chains?
+    #
     if [ $srRc -eq 15 ]; then
        super_ocf_log info "FLOW $FUNCNAME SOK"
 #### LPA_SET_LPT
-####            set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-       set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+       set_hana_attribute "X" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+       super_ocf_log info "ACT site=$sr_name, seting SOK for secondary (1)"
        lpa_set_lpt 30 "$remSR_name"
        # TODO: PRIO1 - get rid of this loop
-       for n in $all_nodes_other_site; do
-            super_ocf_log info "ACT site=$sr_name, seting SOK for node <$n>"
-            set_hana_attribute "$n" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-       done
        rc=0;
     else 
        super_ocf_log info "FLOW $FUNCNAME SFAIL"
-       set_hana_attribute "$n" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+       set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+       super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (2)"
        lpa_set_lpt 10 "$remSR_name"
        # TODO: PRIO1 - get rid of this loop
-       for n in $all_nodes_other_site; do
-            super_ocf_log info "ACT site=$sr_name, seting SFAIL for node <$n>"
-            set_hana_attribute "$n" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-       done
        rc=1;
     fi
     super_ocf_log info "FLOW $FUNCNAME PRIM+LPA"
@@ -903,15 +901,6 @@ function analyze_hana_sync_statusSRS()
     #       site nodes or only for all site masters (master1, master2, master3)
     # TODO: PRIO1: Could we get rid of setting all nodes (same side) to PRIM?
     super_ocf_log info "DBG PRIM"
-    for n in ${otherNodes[@]}; do
-        nSite=$(get_hana_attribute ${n} ${ATTR_NAME_HANA_SITE[@]})
-        if [ "$site" = "$nSite" ]; then
-            super_ocf_log info "DBG PRIM for $n"
-            super_ocf_log info "ACT site=$sr_name, seting PRIM for node <$n>"
-            set_hana_attribute "$n" "PRIM" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-       fi
-    done
-    
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
 }
@@ -964,41 +953,13 @@ super_ocf_log info "DEC: hdbsql rc=$sqlrc hana_sync_status=\"$hana_sync_status\"
         #
 super_ocf_log info "DEC: remoteNode=$remoteNode; HANA SYNC STATUS is: ${hana_sync_status}"
         if [ "${hana_sync_status}" == "ACTIVE" ]; then
-            # TODO PRIO1: REMOVE remoteNode dependency - set SOK
-            set_hana_attribute "$remoteNode" "SOK" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
             set_hana_attribute "X" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+            super_ocf_log info "ACT site=$sr_name, seting SOK for secondary (3)"
         else
             super_ocf_log warn "ACT: HANA SYNC STATUS is: ${hana_sync_status}"
-            # TODO PRIO1: REMOVE remoteNode dependency - set SFAIL
-            set_hana_attribute "$remoteNode" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
             set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+            super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (4)"
         fi
-        # first get a list of all secondary hosts, than a list of all secondary hosts, if the is ANY failure at this site
-        #    TODO: PRIO9: for first we assume there is only ONE secondary site (like ROT)
-        #    TODO: PRIO3: should we loop over all cluster nodes fetching their roles-attribute? To minimize sql-queries?
-        #
-        all_secondary_hosts=$(timeout 60 hdbsql -a -x -U $secUser $query_secondaries ); sqlrc=$?
-        all_secondary_hosts=$(echo $all_secondary_hosts | dequote);
-        if [ "$sqlrc" -eq 0 ]; then
-            all_broken_secondary_hosts=$(timeout 60 hdbsql -a -x -U $secUser $query_failed_secondaries); sqlrc=$?
-            all_broken_secondary_hosts=$(echo $all_broken_secondary_hosts | dequote);
-            if  [ "$sqlrc" -eq 0 ]; then                 
-                 if [ -n "$all_broken_secondary_hosts" ]; then
-                     #
-                     # we have a broken secondary site - set all hosts to "SFAIL"
-                     #
-                     # Note: since HANA hostname can be different from nodename we need to check all vhost attributes
-                     for n in $all_broken_secondary_hosts; do
-                         for cl in ${otherNodes[@]}; do
-                             vHost=$(get_hana_attribute $cl  ${ATTR_NAME_HANA_VHOST[@]})
-                             if [ "$vHost" = "$n" ]; then # we found the correct node
-                                set_hana_attribute $cl "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-                             fi
-                         done  
-                     done
-                 fi
-            fi
-        fi                  
     else
         # return codes 19: license error -> set SFAIL!
         case "$sqlrc" in
@@ -1006,9 +967,8 @@ super_ocf_log info "DEC: remoteNode=$remoteNode; HANA SYNC STATUS is: ${hana_syn
                 # DONE: PRIO1: We should NOT set SFAIL, if HDB is exactly broken now
                 #       When HDB breaks during monitor this could prevent a prositive remote failover
                 super_ocf_log warn "ACT: Was not able to fetch HANA SYNC STATUS - set sync status to SFAIL for ALL OTHER cluster hosts"
-                for n in ${otherNodes[@]}; do
-                    set_hana_attribute "$n" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-                done
+                set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+                super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (5)"
                 ;;
         esac
     fi  
@@ -1209,7 +1169,7 @@ function saphana_start_primary()
     lpa_check_lpt_status; lpa_dec=$?
     get_hana_landscape_status; lss=$?
     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-    my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
     case "$lpa_dec" in
         0 ) # LPA says start-up
             lpa_advice="start"
@@ -1419,7 +1379,7 @@ function saphana_start_secondary()
     #
     super_ocf_log debug "DBG: wait for promoted side"
     # TODO: PRIO3: Check if setting SFAIL during secondary start is ok
-    set_hana_attribute "${NODENAME}" "SFAIL" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
+    set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
     set_hana_attribute "${NODENAME}" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
     if wait_for_primary_master 10; then
        saphana_start; rc=$?
@@ -1551,7 +1511,7 @@ function lpa_set_lpt() {
     local -a ATTR
     ATTR=(${LPA_ATTR[@]})
     ATTR[0]="hana_${sid}_site_lpt_${mysite}"
-    super_ocf_log info "FLOW $FUNCNAME (set_hana_attribute X \"$lpt\" ${ATTR[@]})"
+    super_ocf_log info "DEC $FUNCNAME (set_hana_attribute X \"$lpt\" ${ATTR[@]})"
     set_hana_attribute "X" "$lpt" ${ATTR[@]}; crm_rc=$?
     clpt=$(lpa_get_lpt $mysite)
     if [ "$lpt" != "$clpt" ]; then
@@ -2068,7 +2028,6 @@ function saphana_monitor_primary()
                         # TODO: PRIO4: Decide if penality (-9000) or weak (5) is better here to cover situations where other clone is gone
                         #
             # TODO PRIO1: REMOVE remoteNode dependency - get_sync_status
-                        remoteSync=$(get_hana_attribute $remoteNode ${ATTR_NAME_HANA_SYNC_STATUS[@]})
                         remoteSync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
                         super_ocf_log info "DEC: PRIMDEFECT: remoteNode=$remoteNode SyncStatus=$remoteSync"
                         case "$remoteSync" in
@@ -2092,7 +2051,7 @@ function saphana_monitor_primary()
                         #        It maybe that for the local restart we only need to decrease the secondaries promotion score
                         #super_ocf_log info "DEC: PreferSiteTakeover selected so decrease promotion score here"
                         my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-                        my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+                        my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
                         scoring_crm_master "$my_role" "$my_sync"
                         rc=$OCF_FAILED_MASTER
                     fi
@@ -2115,8 +2074,7 @@ function saphana_monitor_primary()
                 lpa_set_lpt $LPTloc "$sr_name"
                 lpa_push_lpt $LPTloc
                 if [ "$promoted" -eq 1 ]; then
-                    set_hana_attribute "$NODENAME" "PRIM" ${ATTR_NAME_HANA_SYNC_STATUS[@]}
-                    set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_PRIM[@]}
+                    set_hana_attribute "X" "$sr_name" ${ATTR_NAME_HANA_PRIM[@]}
                     rc=$OCF_RUNNING_MASTER
                 else
                     if [ "$init_attribute" -eq 1 ]; then
@@ -2126,7 +2084,7 @@ function saphana_monitor_primary()
                         rc=$OCF_SUCCESS
                     fi
                 fi
-                my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+                my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
                 my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
                 case "$my_role" in 
                     [12]:P:*:master:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status{SRS|SQL}
@@ -2248,14 +2206,14 @@ function saphana_monitor_secondary()
             ;;
         2 | 3 | 4 ) # WARN INFO OK
             rc=$OCF_SUCCESS
-            sync_attr=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+            sync_attr=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
             super_ocf_log debug "DBG: sync_attr=$sync_attr"
             case "$sync_attr" in
                 "SOK"   ) # This is a possible node to promote, when primary is missing
                     lpa_set_lpt  30 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status SOK ==> possible takeover node"
                     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-                    my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+                    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
                     scoring_crm_master "$my_role" "$my_sync"
                     ;;
                 "SFAIL" ) # This is currently NOT a possible node to promote
@@ -2301,7 +2259,7 @@ function saphana_monitor_clone() {
     local primary_status=$HANA_STATE_DEFECT
 
     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-    my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
     lpa_check_lpt_status  # TODO: PRIO3 : remove that line later - its only to call lpa_check_lpt_status much more often for checking
 
     if ocf_is_probe; then
@@ -2346,7 +2304,7 @@ function saphana_monitor_clone() {
     else
         nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
         my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-        my_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+        my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
         scoring_crm_master "$my_role" "$my_sync"
 #######
         # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
@@ -2423,7 +2381,7 @@ function saphana_promote_clone() {
         # we are SECONDARY/SLAVE and need to takepover ...
         # promote on the replica side...
         #
-        hana_sync=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SYNC_STATUS[@]})
+        hana_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
         case "$hana_sync" in
              SOK )
                 if is_the_master_nameserver; then
