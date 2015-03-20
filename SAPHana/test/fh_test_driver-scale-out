@@ -4,7 +4,7 @@
 # (c) 2014 SUSE Linux Products GmbH
 # Author: Fabian Herschel
 # License: GPL v2+
-# Version: 0.8.2015.03.19.1-scale-out
+# Version: 0.8.2015.03.18.1-scale-out
 #
 ##################################################################
 # THIS PROGRAM IS NOT INTENDED TO RUN IN PRODUCTIVE ENVIRONMENTS
@@ -156,7 +156,6 @@ sub get_sid_and_InstNr()
 sub get_hana_attributes($)
 {
     my $sid = shift;
-    my $table_title = "Host \\ Attr";
     open CIB, "cibadmin -Ql |";
     while (<CIB>) {
        my ($host, $name, $value);
@@ -173,33 +172,23 @@ sub get_hana_attributes($)
            $found_attr=1;
            ($name, $value, $host) = ( $1, $2, $3 );
        }
+# <nvpair id="SAPHanaSR-hana_lnx_glob_sync_state" name="hana_lnx_glob_sync_state" value="SOK"/>
+
+       if ( $_ =~ /nvpair\s+id="(SAPHanaSR)-[a-zA-Z0-9]+[_-]\w+"\s+name="(\w+_${sid}_glob_\w+)"\s+value="([^"]+)"/ ) {
+           $found_attr=1;
+           ($host, $name, $value) = ( $1, $2, $3 );
+       }
+       
        if ( $found_attr ) {
            #
            # handle the hosts name and table-title
            #
            $Host{$host}->{$name}=${value};
-           if ( defined ($Name{_hosts}->{_length})) {
-              $Name{_hosts}->{_length} = max($Name{_hosts}->{_length}, length($host ));
-           } else {
-              $Name{_hosts}->{_length} = length($host );
-           }
-           $Name{_hosts}->{_length} = max($Name{_hosts}->{_length}, length( $table_title));
            #
            # now handle the attributes name and value
            #
            $Name{$name}->{$host}=${value};
 #printf "get_hana_attributes(): \$Name{%s}->{%s}=\${%s}\n", $name, $host, $value;
-           if ( defined ($Name{$name}->{_length})) {
-              $Name{$name}->{_length} = max($Name{$name}->{_length}, length($value ));
-           } else {
-              $Name{$name}->{_length} = length($value );
-           }
-           if ( $name =~ /hana_${sid}_(.*)/ ) {
-              $Name{$name}->{_title} =  $1;
-           } else {
-              $Name{$name}->{_title} = $name; 
-           }
-           $Name{$name}->{_length} = max($Name{$name}->{_length}, length( $Name{$name}->{_title}));
        }
     }
     close CIB;
@@ -211,8 +200,9 @@ sub get_hana_sync_state($)
     my $sid=shift;
     my $result="";
     my $h;
-    foreach $h ( keys(%{$Name{"hana_${sid}_sync_state"}}) ) {
-        if ( $Name{"hana_${sid}_sync_state"}->{$h} =~ /(S.*)/ ) {
+    
+    foreach $h ( keys(%{$Name{"hana_${sid}_glob_sync_state"}}) ) {
+        if ( $Name{"hana_${sid}_glob_sync_state"}->{$h} =~ /(S.*)/ ) {
            $result=$1;
         }
     }
