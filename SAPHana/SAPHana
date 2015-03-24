@@ -47,6 +47,7 @@ timeB=$(date '+%s')
 # P001 - Setup with scale-out and PREFER_SITE_TAKEOVER=true, AUTOMATED_REGISTER=true. If you kill a primary instance it could happen that the primary sets itself to lpt=10 and the secondary will be set to SFAIL and lpt=10 this results in a WAITING4LPA situation. ==> A down/dying primry may never set SFAIL for a secondary!
 # P002 - in the swarm non master-nameserver nodes may never set the lpt=date
 # P003 - in the swarm non master nodes may NOT do a full master-walk 
+# P004 - Monitor on "dying" primary and failing systemReplicationStatus script set secondary to SFAIL, so local restart was proessed instead of takeover
 
 
 HANA_STATE_PRIMARY=0
@@ -147,7 +148,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.4.1</version>
+<version>0.160.4.5</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -201,6 +202,11 @@ The resource agent uses the following four interfaces provided by SAP:
     <parameter name="InstanceNumber" unique="0" required="1">
         <longdesc lang="en">SAP instance number like "00" or "07"</longdesc>
         <shortdesc lang="en">SAP instance number</shortdesc>
+        <content type="string" default="" />
+    </parameter>
+    <parameter name="SR_ROLE" unique="0" required="0">
+        <longdesc lang="en">SAP HANA system SR role like "primary" or "secondary"</longdesc>
+        <shortdesc lang="en">SAP HANA system SR role</shortdesc>
         <content type="string" default="" />
     </parameter>
     <parameter name="PREFER_SITE_TAKEOVER" unique="0" required="0">
@@ -576,7 +582,8 @@ function saphana_init() {
     #
     # SITE based attributes
     #
-    LPA_ATTR=("hana_${sid}__site_lpt_xsite" "props")
+    LPA_ATTR=("hana_${sid}_site_lpt" "props")
+    ATTR_NAME_HANA_LSS=("hana_${sid}_site_lss" "props")
     #
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
@@ -859,12 +866,12 @@ function check_for_primary() {
 # globals:  DIR_EXECUTABLE(r), FULL_SR_STATUS(w)
 #
 # systemReplicationStatus.py return-codes:
-#    NoHSR        = 0
-#    Error        = 1
-#    Unkown       = 2
-#    Initializing = 3
-#    Syncing      = 4
-#    Active       = 5
+#    NoHSR        = 10
+#    Error        = 11
+#    Unkown       = 12
+#    Initializing = 13
+#    Syncing      = 14
+#    Active       = 15
 function analyze_hana_sync_statusSRS()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
@@ -873,33 +880,23 @@ function analyze_hana_sync_statusSRS()
     super_ocf_log info "FLOW $FUNCNAME systemReplicationStatus.py -> $srRc"
     #
     # TODO: PRIO2: Here we might also need to filter additional sites (if multi tier should be supported)
-    #              Could we define, that we always control site ID 1 and site ID 2?
-    all_nodes_local_site=$(echo "$FULL_SR_STATUS" | tr -d ' ' | awk -F'|' '$7==site { print $2}' site=$sr_name | sort -u);
-    super_ocf_log info "DBG site=$sr_name, all_nodes_local_site=$all_nodes_local_site"
-    #super_ocf_log info "DBG FULL_SR_STATUS=$FULL_SR_STATUS"
-    #
-    # TODO PRIO3: is the check for return code capable for chains?
+    #              And is the check for return code capable for chains?
     #
     if [ $srRc -eq 15 ]; then
        super_ocf_log info "FLOW $FUNCNAME SOK"
-#### LPA_SET_LPT
        set_hana_attribute "X" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
        super_ocf_log info "ACT site=$sr_name, seting SOK for secondary (1)"
        lpa_set_lpt 30 "$remSR_name"
-       # TODO: PRIO1 - get rid of this loop
        rc=0;
     else 
        super_ocf_log info "FLOW $FUNCNAME SFAIL"
        set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
-       super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (2)"
+       super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (2) - srRc=$srRc"
+       # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
        lpa_set_lpt 10 "$remSR_name"
-       # TODO: PRIO1 - get rid of this loop
        rc=1;
     fi
     super_ocf_log info "FLOW $FUNCNAME PRIM+LPA"
-    # TODO: PRIO2: Check id we should set local (different) LPTs or one from the master for all
-    #       site nodes or only for all site masters (master1, master2, master3)
-    # TODO: PRIO1: Could we get rid of setting all nodes (same side) to PRIM?
     super_ocf_log info "DBG PRIM"
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
@@ -1006,6 +1003,7 @@ function register_hana_secondary()
            #
            # before we could register we stop HANA on all nodes of the swarm (maybe some still running)
            saphana_stop
+           # TODO: PRIO2 How to get the remoteHost without cluster attribute remoteHost - could we use the master-list attribute?
            super_ocf_log info "ACT: SAPHANA REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
                 backup_global_and_nameserver
                 set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
@@ -1482,7 +1480,7 @@ function lpa_get_lpt() {
     local lpt=""
     local -a ATTR
     ATTR=( ${LPA_ATTR[@]} )
-    ATTR[0]="hana_${sid}_site_lpt_${mysite}"
+    ATTR[0]="${LPA_ATTR[0]}_${mysite}"
     super_ocf_log info "DEC $FUNCNAME get_hana_attribute X ${ATTR[@]}"
     lpt=$(get_hana_attribute "X" ${ATTR[@]})
     if [ -n "$lpt" ]; then
@@ -1510,7 +1508,7 @@ function lpa_set_lpt() {
     local mysite=${2:-$sr_name}
     local -a ATTR
     ATTR=(${LPA_ATTR[@]})
-    ATTR[0]="hana_${sid}_site_lpt_${mysite}"
+    ATTR[0]="${LPA_ATTR[0]}_${mysite}"
     super_ocf_log info "DEC $FUNCNAME (set_hana_attribute X \"$lpt\" ${ATTR[@]})"
     set_hana_attribute "X" "$lpt" ${ATTR[@]}; crm_rc=$?
     clpt=$(lpa_get_lpt $mysite)
@@ -2040,10 +2038,10 @@ function saphana_monitor_primary()
                                  fi
                                  ;;
                             SFAIL )
-                                 super_ocf_log info "DEC: PreferSiteTakeover selected BUT remoteHost is not in sync (SFAIL) ==> local restart preferred"                            
+                                 super_ocf_log info "DEC: PreferSiteTakeover selected BUT remote site is not in sync (SFAIL) ==> local restart preferred"                            
                                  ;;
                             * ) 
-                                 super_ocf_log info "DEC: PreferSiteTakeover selected BUT remoteHost is not in sync ($remoteSync) ==> local restart preferred"                            
+                                 super_ocf_log info "DEC: PreferSiteTakeover selected BUT remote site is not in sync ($remoteSync) ==> local restart preferred"                            
                                  ;;
                         esac                        
                     else 
