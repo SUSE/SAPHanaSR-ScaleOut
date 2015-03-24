@@ -148,7 +148,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.4.5</version>
+<version>0.160.4.6</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -888,6 +888,21 @@ function analyze_hana_sync_statusSRS()
        super_ocf_log info "ACT site=$sr_name, seting SOK for secondary (1)"
        lpa_set_lpt 30 "$remSR_name"
        rc=0;
+    elif [ $srRc -eq 11 ]; then
+       # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down than do NOT set SFAIL 
+       get_hana_landscape_status; lss=$?
+       if [ $lss -lt 2 ]; then
+          # keep everithing like it was
+          rc=2
+       else
+          # ok we should be careful and set secondary to SFAIL
+          super_ocf_log info "FLOW $FUNCNAME SFAIL"
+          set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+          super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (5) - srRc=$srRc"
+          # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
+          lpa_set_lpt 10 "$remSR_name"
+          rc1
+       fi
     else 
        super_ocf_log info "FLOW $FUNCNAME SFAIL"
        set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
