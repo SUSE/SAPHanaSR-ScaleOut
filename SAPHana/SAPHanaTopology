@@ -123,7 +123,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.160.3.7</version>
+    <version>0.160.4.2</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -366,7 +366,12 @@ function sht_init() {
     ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sec_sync_state" "props")   # SOK, SFAIL
     ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props")          # Not used so far
     ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")            # sync syncmem async
-
+    #
+    # SITE based attributes
+    #
+    LPA_ATTR=("hana_${sid}_site_lpt" "props")
+    ATTR_NAME_HANA_LSS=("hana_${sid}_site_lss" "props")
+    ATTR_NAME_HANA_SRR=("hana_${sid}_site_srr" "props")
     # optional OCF parameters, we try to guess which directories are correct
     if  [ -z "$OCF_RESKEY_DIR_EXECUTABLE" ]
     then
@@ -427,6 +432,7 @@ function sht_init() {
               ;;
         esac
     done
+    # TODO PRIO3: Implement a file lookup, if we did not get a result
     siteID=$(echo "$hdbANSWER" | awk -F= '/site id/ {print $2}')
     siteNAME=$(echo "$hdbANSWER" | awk -F= '/site name/ {print $2}')
     site=$siteNAME
@@ -806,7 +812,12 @@ function sht_monitor_clone() {
         set_hana_attribute ${NODENAME} "$hanaRemoteHost" ${ATTR_NAME_HANA_REMOTEHOST[@]} 
     fi
     set_hana_attribute ${NODENAME} "$hanalrc:$hanaPrim:$hanarole" ${ATTR_NAME_HANA_ROLES[@]} 
+
     if [ -n "$site" ]; then
+        ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$site"
+        set_hana_attribute "X" "$hanalrc" ${ATTR[@]}
+        ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$site"
+        set_hana_attribute "X" "$hanaPrim" ${ATTR[@]}
         set_hana_attribute ${NODENAME} "$site" ${ATTR_NAME_HANA_SITE[@]} 
     fi
     case "$hanaPrim" in
