@@ -577,7 +577,7 @@ function saphana_init() {
     ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props") # Not used so far
     ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")    # sync syncmem async
     ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sync_state" "props")
-    ATTR_NAME_HANA_FILTER=("hana_${sid}_glob_filter" "props" "ra")
+    ATTR_NAME_HANA_FILTER=("hana_${sid}_glob_filter" "props" "ra-act-dec-lpa")
     #
     # SITE based attributes
     #
@@ -2476,7 +2476,6 @@ SAPCONTROL=""
 DIR_PROFILE=""
 SAPSTARTPROFILE=""
 SAPHanaFilter="ra-act-dec-lpa"
-#SAPHanaFilter="${OCF_RESKEY_SAPHanaFilter:-ra-act-dec-lpa}"
 
 NODENAME=$(crm_node -n)
 
