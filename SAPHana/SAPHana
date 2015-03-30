@@ -144,11 +144,12 @@ function backup_global_and_nameserver() {
 function saphana_meta_data() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
+# TODO PRIO3: Description including parameters to be reviwed for scale-out
     cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.4.6</version>
+<version>0.160.4.10</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -250,10 +251,8 @@ The resource agent uses the following four interfaces provided by SAP:
         <content type="string" default="" />
     </parameter>
     <parameter name="SAPHanaFilter" unique="0" required="0">
-        <shortdesc lang="en">Define SAPHana resource agent messages to be printed</shortdesc>
-        <longdesc lang="en">Define SAPHana resource agent messages to be printed.
-        This parameter should only be set of been requested by SUSE support. The default is sufficient for normal operation.
-        </longdesc>
+        <shortdesc lang="en">OUTDATED PARAMETER</shortdesc>
+        <longdesc lang="en">OUTDATED PARAMETER</longdesc>
         <content type="string" default="" />
     </parameter>
 </parameters>
@@ -557,7 +556,6 @@ function saphana_init() {
     fi
     SAPVIRHOST=${vName}
     PreferSiteTakeover="$OCF_RESKEY_PREFER_SITE_TAKEOVER"
-    SAPHanaFilter="${OCF_RESKEY_SAPHanaFilter:-ra-act-dec-lpa}"
     AUTOMATED_REGISTER="${OCF_RESKEY_AUTOMATED_REGISTER:-false}"
     LPA_DIRECTORY=/var/lib/SAPHanaRA
     super_ocf_log debug "DBG: SID=$SID, sid=$sid, SIDInstanceName=$SIDInstanceName, InstanceName=$InstanceName, InstanceNr=$InstanceNr, SAPVIRHOST=$SAPVIRHOST"
@@ -579,23 +577,26 @@ function saphana_init() {
     ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props") # Not used so far
     ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")    # sync syncmem async
     ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sync_state" "props")
+    ATTR_NAME_HANA_FILTER=("hana_${sid}_glob_filter" "props" "ra")
     #
     # SITE based attributes
     #
     LPA_ATTR=("hana_${sid}_site_lpt" "props")
     ATTR_NAME_HANA_LSS=("hana_${sid}_site_lss" "props")
+
+    SAPHanaFilter=$(get_hana_attribute "X" ${ATTR_NAME_HANA_FILTER[@]})
     #
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
     SCORING_TABLE_PREFERRED_SITE_TAKEOVER=(
        "[234]:P:master[123]:master     .*     150"  
-       "[234]:P:master[123]:slave      .*      90"
-       "[015]:P:master[123]:           .*      90"
+       "[234]:P:master[123]:slave      .*     110"
+       "[015]:P:master[123]:           .*      70"
        "[0-9]:P:master[123]:*:standby  .*      60"
        "[0-9]:P:slave:                 .*     -10000"
        "[234]:S:master[123]:master     SOK    100"
-       "[234]:S:master[123]:slave      SOK     95"
-       "[015]:S:master[123]:           SOK     80"
+       "[234]:S:master[123]:slave      SOK     80"
+       "[015]:S:master[123]:           SOK     70"
        "[0-9]:S:master[124]:*:standby  SFAIL  -22100"
        "[0-9]:S:slave:                 SOK    -12200"
        "[0-9]:S:slave:                 SFAIL  -22200"
@@ -888,7 +889,7 @@ function analyze_hana_sync_statusSRS()
        super_ocf_log info "ACT site=$sr_name, seting SOK for secondary (1)"
        lpa_set_lpt 30 "$remSR_name"
        rc=0;
-    elif [ $srRc -eq 11 ]; then
+    elif [ $srRc -le 11 ]; then # 11 and 10
        # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down than do NOT set SFAIL 
        get_hana_landscape_status; lss=$?
        if [ $lss -lt 2 ]; then
@@ -2100,9 +2101,9 @@ function saphana_monitor_primary()
                 my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
                 my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
                 case "$my_role" in 
-                    [12]:P:*:master:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status{SRS|SQL}
+                    [12]:P:*:*:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status{SRS|SQL}
                         ;;
-                    [34]:P:*:master:*  ) # primary is up and should now be able to anser hdbsql query
+                    [34]:P:*:*:*  ) # primary is up and should now be able to anser hdbsql query
                         if [ -f $DIR_EXECUTABLE/python_support/systemReplicationStatus.py ]; then
                             analyze_hana_sync_statusSRS
                         else
@@ -2474,7 +2475,8 @@ SAPSTARTSRV=""
 SAPCONTROL=""
 DIR_PROFILE=""
 SAPSTARTPROFILE=""
-SAPHanaFilter="${OCF_RESKEY_SAPHanaFilter:-ra-act-dec-lpa}"
+SAPHanaFilter="ra-act-dec-lpa"
+#SAPHanaFilter="${OCF_RESKEY_SAPHanaFilter:-ra-act-dec-lpa}"
 
 NODENAME=$(crm_node -n)
 
@@ -2557,5 +2559,6 @@ case "$ACTION" in
 esac
 timeE=$(date '+%s')
 (( timeR = timeE - timeB ))
+super_ocf_log info "RA ==== SAPHanaFilter=$SAPHanaFilter"
 super_ocf_log info "RA ==== end action $ACTION$CLACT with rc=${ra_rc} ($THE_VERSION) (${timeR}s)===="
 exit ${ra_rc}
