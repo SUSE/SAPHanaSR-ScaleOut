@@ -24,10 +24,10 @@ my %HName;
 my %SName;
 my %GName;
 
-#	my $result = GetOptions ("sid=s" => \$SID,
-#	                      "ino=s" => \$INO,
-#	                      "sort=s" => \$sortBy,
-#		 );
+	my $result = GetOptions ("sid=s" => \$sid,
+	                      "ino=s" => \$ino,
+	                      "sort=s" => \$sortBy,
+		 );
 
 sub max { # thanks to http://www.perlunity.de/perl/forum/thread_018329.shtml
  my $a = shift;
@@ -57,37 +57,74 @@ sub max { # thanks to http://www.perlunity.de/perl/forum/thread_018329.shtml
 #	return 0;
 #}
 
-sub print_host_attr($$$)
+sub print_host_attr($$$$)
 {
-    my ($refH, $refN, $title) = @_;
+    my ($refH, $refN, $title, $sort) = @_;
     my ($AKey, $HKey, $len, $line_len, $hclen);
     $hclen=$$refN{_hosts}->{_length};
     $line_len=$hclen+1;
-	printf "%-$hclen.${hclen}s ", "$title";
+    printf "%-$hclen.${hclen}s ", "$title";
     #
     # headline
     #
-	foreach $AKey (sort keys %$refN) {
-       if ($AKey ne "_hosts") {
-           $len = $$refN{$AKey}->{_length};
-           $line_len=$line_len+$len+1;
-           printf "%-$len.${len}s ", $$refN{$AKey}->{_title};
-       }
-	}
-	printf "\n";
-	printf "%s\n", "-" x $line_len ;
-	foreach $HKey (sort keys %$refH) {
-	   printf "%-$hclen.${hclen}s ", $HKey;
-	   foreach $AKey (sort keys %$refN) {
-           if ($AKey ne "_hosts") {
-               $len = $$refN{$AKey}->{_length};
-               printf "%-$len.${len}s ", $$refH{$HKey} -> {$AKey};
+    foreach $AKey (sort keys %$refN) {
+        if ($AKey ne "_hosts") {
+            $len = $$refN{$AKey}->{_length};
+            $line_len=$line_len+$len+1;
+            
+            if ( $AKey eq $sort ) {
+               printf "*%-$len.${len}s ", $$refN{$AKey}->{_title};
+            } else {
+               printf "%-$len.${len}s ", "$$refN{$AKey}->{_title}";
             }
         }
-	   printf "\n";
-	}
+    }
     printf "\n";
-	return 0;
+    printf "%s\n", "-" x $line_len ;
+    #
+    # object / name / value lines
+    #
+    if ( $sort eq "" ) {
+        foreach $HKey (sort keys %$refH) {
+            printf "%-$hclen.${hclen}s ", $HKey;
+            foreach $AKey (sort keys %$refN) {
+                if ($AKey ne "_hosts") {
+                    $len = $$refN{$AKey}->{_length};
+                    printf "%-$len.${len}s ", $$refH{$HKey} -> {$AKey};
+                }
+            }
+            printf "\n";
+        }    
+    } else {
+       # try to sort by site (other attrs to follow)
+       # first try to get a ordered list of attribute values assigned host names
+       my $sortV;
+       my %GroupedHosts;
+       foreach $HKey (sort keys %$refH) {
+           $sortV = $$refH{$HKey} -> {$sort};
+           push(@{$GroupedHosts{$sortV}}, $HKey);
+           #printf "TST: <%s>\n", $sortV;
+       }
+       # not ready so far only print the grouped hosts
+       foreach $sortV (sort keys %GroupedHosts) {
+           #my $StrHosts;
+           #$StrHosts=join(":", @{$GroupedHosts{$sortV}});
+           my $Host;
+           foreach $Host (@{$GroupedHosts{$sortV}}) {
+               printf "%-$hclen.${hclen}s ", $Host;
+               foreach $AKey (sort keys %$refN) {
+                if ($AKey ne "_hosts") {
+                    $len = $$refN{$AKey}->{_length};
+                    printf "%-$len.${len}s ", $$refH{$Host} -> {$AKey};
+                }
+            }
+            printf "\n";
+           }
+           #printf "TST: <%s> -> <%s>\n", $sortV, $StrHosts;
+       }
+    }
+    printf "\n";
+    return 0;
 }
 
 open ListInstances, "/usr/sap/hostctrl/exe/saphostctrl -function ListInstances|";
@@ -101,9 +138,11 @@ while (<ListInstances>) {
 close ListInstances;
 
 sub insertAttribute($$$$$) { 
-   my ($refHash, $refN, $object, $attribute, $value) = @_;
-
-my $table_titleH="XXXXXXXX";
+    my ($refHash, $refN, $object, $attribute, $value) = @_;
+    my $table_titleH="";
+    if ( $attribute =~ /hana_${sid}_(.*)/ ) {
+       $attribute =  $1;
+    }
        #
        # handle the hosts name and table-title
        #
@@ -124,11 +163,7 @@ my $table_titleH="XXXXXXXX";
        } else {
           $$refN{$attribute}->{_length} = length($value );
        }
-       if ( $attribute =~ /hana_${sid}_(.*)/ ) {
-          $$refN{$attribute}->{_title} =  $1;
-       } else {
-          $$refN{$attribute}->{_title} = $attribute; 
-       }
+       $$refN{$attribute}->{_title} = $attribute; 
        $$refN{$attribute}->{_length} = max($$refN{$attribute}->{_length}, length( $$refN{$attribute}->{_title}));
        # printf "%-8s %-20s %-30s\n", $1, $2, $3;
 }
@@ -172,6 +207,7 @@ while (<CIB>) {
 close CIB;
 
 #print_attr_host;
-print_host_attr(\%Global, \%GName, "Global");
-print_host_attr(\%Site,   \%SName, "Sites");
-print_host_attr(\%Host,   \%HName, "Hosts");
+print_host_attr(\%Global, \%GName, "Global", "");
+print_host_attr(\%Site,   \%SName, "Sites",  "");
+#print_host_attr(\%Host,   \%HName, "Hosts",  "site");
+print_host_attr(\%Host,   \%HName, "Hosts",  $sortBy);
