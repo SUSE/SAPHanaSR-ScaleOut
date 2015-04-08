@@ -144,12 +144,12 @@ function backup_global_and_nameserver() {
 function saphana_meta_data() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
-# TODO PRIO3: Description including parameters to be reviwed for scale-out
+# TODO PRIO2: Description including parameters to be reviwed for scale-out
     cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.4.10</version>
+<version>0.160.4.11</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -1772,9 +1772,6 @@ function master_walk() {
                     master3:master  ) master3=$node; active_master=$node
                         super_ocf_log info "DBG: roles $nRole match master3:master"
                     ;;
-                    *:shtdown       )    
-                        super_ocf_log info "DBG: roles $nRole ignore node (down)"
-                    ;;
                     master1:*       ) master1=$node;
                         super_ocf_log info "DBG: roles $nRole match master1:STAR"
                     ;;
@@ -1783,6 +1780,9 @@ function master_walk() {
                     ;;
                     master3:*       ) master3=$node;
                         super_ocf_log info "DBG: roles $nRole match master3:STAR"
+                    ;;
+                    *:shtdown       )    
+                        super_ocf_log info "DBG: roles $nRole ignore node (down)"
                     ;;
                     * )
                         super_ocf_log info "DBG: roles $nRole NO match"
@@ -2257,52 +2257,46 @@ function saphana_monitor_clone() {
         if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
             saphana_monitor_primary; rc=$?
         elif [ $primary_status -eq $HANA_STATE_SECONDARY  ]; then
-                saphana_monitor_secondary; rc=$?
+            saphana_monitor_secondary; rc=$?
         else
-                #
-                # OK, we are neither HANA PRIMARY nor HANA SECONDARY
-                #
-                super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
-                # TODO: PRIO2: Or only set_crm_master -INFINITY ?
-# DONE: PRIO1: Baustelle - OCF_ERR_GENERIC ist recht fatal, falls hdbnsutil nur mal ein Problem hat
-#                rc=$OCF_ERR_GENERIC
-                nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
-                if saphana_check_local_instance; then
-                    case "$nState" in
+            #
+            # OK, we are neither HANA PRIMARY nor HANA SECONDARY
+            #
+            super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
+            # TODO: PRIO2: Or only set_crm_master -INFINITY ?
+            # DONE: PRIO1: Baustelle - OCF_ERR_GENERIC ist recht fatal, falls hdbnsutil nur mal ein Problem hat
+            nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
+            if saphana_check_local_instance; then
+                case "$nState" in
                         DEMOTED )   rc=$OCF_SUCCESS;;
                         PROMOTED )  rc=$OCF_RUNNING_MASTER;;
                         UNDEFINED ) rc=$OCF_NOT_RUNNING;;
                         * )         rc=$OCF_NOT_RUNNING;;
                     esac
-                else
+            else
 	            case "$nState" in
                         DEMOTED )   rc=$OCF_NOT_RUNNING;;
                         PROMOTED )  rc=$OCF_NOT_RUNNING;; ## TODO: PRIO 3: FAILED_MASTER?
                         UNDEFINED ) rc=$OCF_NOT_RUNNING;;
                         * )         rc=$OCF_NOT_RUNNING;;
-                    esac
-                fi
+                esac
+            fi
         fi
     else
-
         # TODO: PRIO2: Check, if we need to (re) start a failed SAP HANA instance in a swarm
         nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
-        my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-        my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
         scoring_crm_master "$my_role" "$my_sync"
         # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
         #              This reflects the situation that swarm members get be started (as resource)
         #              before the master nameserver runs the StartSystem command
-        #           => However we need to check, if it could happen that NO warm master namerver
+        #           => However we need to check, if it could happen that NO started (warm) master namerver
         #              is available and we miss to monitor the degraded HANA on a other node
-
         case "$nState" in
             DEMOTED ) rc=$OCF_SUCCESS;;
             PROMOTED ) rc=$OCF_RUNNING_MASTER;;
             UNDEFINED ) rc=$OCF_NOT_RUNNING;;
             * ) rc=$OCF_NOT_RUNNING;;
         esac
- 
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
