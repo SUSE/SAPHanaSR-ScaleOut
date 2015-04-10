@@ -123,7 +123,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.160.4.2</version>
+    <version>0.160.5.1</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -344,7 +344,7 @@ function sht_init() {
     sidadm="${sid}adm"
     ocf_env=$(env | grep 'OCF_RESKEY_CRM')
     super_ocf_log debug "DBG3: OCF: $ocf_env"
-    ATTR_NAME_HANA_SYNC_STATUS=("hana_${sid}_sync_state" "reboot")   # SOK, SFAIL, UNKNOWN?
+    ATTR_NAME_HANA_SYNC_STATUS=("hana_${sid}_sync_state" "reboot")  # SOK, SFAIL, UNKNOWN?
     ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_primary_at" "reboot")   # Not really used
     ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
     ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
@@ -595,7 +595,7 @@ function master_walk() {
               if [ "$site" = "$nSite" ]; then
                  # node of same site found
                  nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
-                 read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+                 read nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
                  super_ocf_log info "DBG site $site $nNsConf:$nNsCurr"
                  case "$nNsConf:$nNsCurr" in
                     master1:master  ) master1=$node; active_master=$node
@@ -732,11 +732,9 @@ function sht_stop_clone() {
     else
         hanaPrim="-"
     fi
-    # remove set_hana_attribute "${NODENAME}" "1:$hanaPrim:-:-:-:-" ${ATTR_NAME_HANA_ROLES[@]}
-    # because in scale-out we need the ROLES attribute to tell us about the configured role
     nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
-    read nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
-    set_hana_attribute "${NODENAME}" "1:$hanaPrim:$nNsConf:shtdown:shtdown:shtdown" ${ATTR_NAME_HANA_ROLES[@]} 
+    read nSrmode nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+    set_hana_attribute "${NODENAME}" "$hanaPrim:$nNsConf:shtdown:shtdown:shtdown" ${ATTR_NAME_HANA_ROLES[@]} 
     sht_stop; rc=$?
     return $rc
 }
@@ -809,7 +807,7 @@ function sht_monitor_clone() {
     if [ -n "$hanaRemoteHost" ]; then
         set_hana_attribute ${NODENAME} "$hanaRemoteHost" ${ATTR_NAME_HANA_REMOTEHOST[@]} 
     fi
-    set_hana_attribute ${NODENAME} "$hanalrc:$hanaPrim:$hanarole" ${ATTR_NAME_HANA_ROLES[@]} 
+    set_hana_attribute ${NODENAME} "$hanaPrim:$hanarole" ${ATTR_NAME_HANA_ROLES[@]} 
 
     if [ -n "$site" ]; then
         ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$site"
