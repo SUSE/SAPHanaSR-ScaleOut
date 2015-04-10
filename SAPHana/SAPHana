@@ -837,25 +837,27 @@ function check_for_primary() {
     node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
     node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
     super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
+    # TODO: PRIO2: Maybe we need to use a fallback interface when hdbnsitil does not answer properly -> lookup in config files?
+    #              This might also solve some problems when we could not figure-out the ilocal or remote site name
     for i in  1 2 3 4 5 6 7 8 9; do
        case "$node_status" in
            primary ) 
-                  super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_PRIMARY"
-                  return $HANA_STATE_PRIMARY;;
+               super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_PRIMARY"
+               return $HANA_STATE_PRIMARY;;
            syncmem | sync | async )
-                  super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_SECONDARY"
-                  return $HANA_STATE_SECONDARY;;
-           none )     # have seen that mode on second side BEFEORE we registered it as replica
-                  super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_STANDALONE"
-                  return $HANA_STATE_STANDALONE;;
+               super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_SECONDARY"
+               return $HANA_STATE_SECONDARY;;
+           none ) # have seen that mode on second side BEFEORE we registered it as replica
+               super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_STANDALONE"
+               return $HANA_STATE_STANDALONE;;
            * )
-              super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: <$node_status>"
-                  dump=$( echo $node_status | hexdump -C );
-              super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
-                  node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
-                  node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
-                  super_ocf_log debug "DEC: check_for_primary: loop=$i: node_status=$node_status"
-                  # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
+               super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: <$node_status>"
+               dump=$( echo $node_status | hexdump -C );
+               super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
+               node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
+               node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
+               super_ocf_log debug "DEC: check_for_primary: loop=$i: node_status=$node_status"
+               # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
        esac;
     done
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
@@ -2329,8 +2331,7 @@ function saphana_promote_clone() {
   else
      if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
         #
-        # we are SECONDARY/SLAVE and need to takepover ...
-        # promote on the replica side...
+        # we are SECONDARY/SLAVE and need to takeover ...  promote on the replica (secondary) side...
         #
         hana_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
         case "$hana_sync" in
