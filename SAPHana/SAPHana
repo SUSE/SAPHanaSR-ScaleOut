@@ -149,7 +149,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.5.3</version>
+<version>0.160.6.2</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -563,7 +563,7 @@ function saphana_init() {
     super_ocf_log debug "DBG: OCF: $ocf_env"
     #
     ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
-    ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
+    #ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
     ATTR_NAME_HANA_ROLES=("hana_${sid}_roles" "reboot")
     ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
@@ -633,22 +633,6 @@ function saphana_init() {
     #
     #
 
-    remoteHost=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_REMOTEHOST[@]});
-    if [ -z "$remoteHost" ]; then
-       if [ ${#otherNodes[@]} -eq 1 ]; then # we are a 2 node cluster, lets assume the other is the remote-host
-          remoteHost=${otherNodes[0]}
-          remoteNode=$remoteHost
-          super_ocf_log debug "DBG: auto-guess remoteHost=$remoteHost"
-       else
-          super_ocf_log debug "DBG: Could not auto-guess remoteHost out of list (${otherNodes[@]})"
-       fi
-    else
-        #
-        # search cluster node which vhost is equal remoteHost
-        #
-        remoteNode=$(remoteHost2remoteNode $remoteHost)
-        # TODO: PRIO5: catch rc!=0
-    fi
     #  ATTR_NAME_HANA_SITE
     site=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SITE[@]});
     sr_name=${site%%:*}  # first field of site (separator :)
@@ -661,6 +645,9 @@ function saphana_init() {
     # get remote site name
     # PRIO1: WHAT TO DO, IF remSite could not be fetched?
     # TODO: PRIO1: Do not overwrite already found remSite, if next node does not provide this value
+    # TODO: PRIO9: For later releases we might add the feature to differ between other remote Sites. Currently we only allow two SR sites of
+    #              one SAP HANA Database in the same cluster. So only f.e. WALLDORF and ROT and not WALLDORF, ROT and NUSSLOCH.
+    #              This limits us to only have sites A => B inside of the cluster and completely "ignore" site C
     #
     for clN in ${otherNodes[@]}; do
 	    nodeSite=$(get_hana_attribute $clN ${ATTR_NAME_HANA_SITE[@]})
@@ -671,6 +658,14 @@ function saphana_init() {
             remSR_id=${remSite#*:}
         fi
     done
+    # It's always the master name server of the remote site which is really releveant, so we do not need any longer each nodes remoteHost 
+    ATTR=(${ATTR_NAME_HANA_MNS[@]}); ATTR[0]="${ATTR[0]}_$remSR_name"
+    rem_mns=$(get_hana_attribute "X" ${ATTR[@]})
+    remoteHost=$rem_mns
+    super_ocf_log info "DEC: remoteHost is $remoteHost"
+    # TODO PRIO 9: reimplement remoteHost2remoteNode 
+    #remoteNode=$(remoteHost2remoteNode $remoteHost)
+    remoteNode=$rem_mns
     super_ocf_log info "DEC: sr_name=$sr_name, remSR_name=$remSR_name"
     super_ocf_log debug "DBG: sr_name=$sr_name, remoteHost=$remoteHost, remoteNode=$remoteNode, sr_mode=$sr_mode"
     # optional OCF parameters, we try to guess which directories are correct
@@ -903,7 +898,7 @@ function analyze_hana_sync_statusSRS()
           # ok we should be careful and set secondary to SFAIL
           super_ocf_log info "FLOW $FUNCNAME SFAIL"
           set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
-          super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (5) - srRc=$srRc"
+          super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (5) - srRc=$srRc lss=$lss"
           # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
           lpa_set_lpt 10 "$remSR_name"
           rc1
