@@ -149,7 +149,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.6.3</version>
+<version>0.160.6.2</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -314,7 +314,7 @@ function remoteHost2remoteNode()
     local remoteNode=""
     local rc=1
     for cl in ${otherNodes[@]}; do
-        vHost=$(get_hana_attribute $cl  ${ATTR_NAME_HANA_VHOST[@]})
+        vHost=$(get_hana_attribute $cl  ${ATTR_NAME_HANA_VHOST[@]} "$cl")
         if [ "$vHost" = "$remoteHost" ]; then # we found the correct node
             remoteNode=$cl
             rc=0
@@ -403,9 +403,10 @@ function set_hana_attribute()
     local attr_value=$2
     local attr_name=$3
     local attr_store=${4:-reboot} # DONE: PRIO5 get this (optional) from parameter
+    local attr_default=${5:-}
     local rc=1
     local attr_old=""
-    attr_old=$(get_hana_attribute $attr_node $attr_name $attr_store); get_rc=$?
+    attr_old=$(get_hana_attribute $attr_node $attr_name $attr_store $attr_default); get_rc=$?
     if [ "$attr_old" != "$attr_value" ]; then
         super_ocf_log debug "DBG: SET attribute $attr_name for node ${attr_node} to ${attr_value} former ($attr_old) get_rc=$get_rc "
         dstr=$(date)
@@ -552,7 +553,7 @@ function saphana_init() {
        #
        # if saphostctrl does not know the answer, try to fallback to attribute provided by SAPHanaTopology
        #
-       vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]});
+       vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]} "$NODENAME");
     fi
     SAPVIRHOST=${vName}
     PreferSiteTakeover="$OCF_RESKEY_PREFER_SITE_TAKEOVER"
@@ -566,7 +567,7 @@ function saphana_init() {
     #ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
     ATTR_NAME_HANA_ROLES=("hana_${sid}_roles" "reboot")
-    ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever" "$NODENAME")
+    ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
     #
     # new "central" attributes
@@ -590,7 +591,6 @@ function saphana_init() {
     #
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
-    scoreTakeover=122
     SCORING_TABLE_PREFERRED_SITE_TAKEOVER=(
        "[234]:P:master[123]:master     .*     150"
        "[234]:P:master[123]:slave      .*     110"
@@ -892,8 +892,6 @@ function analyze_hana_sync_statusSRS()
     elif [ $srRc -le 11 ]; then # 11 and 10
        # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down than do NOT set SFAIL
        get_hana_landscape_status; lss=$?
-       # TODO: PRIO2: Should we include lss=2 for keeping the SR status unchanged? Currently we keep SR status
-       #              unchanged only for lss=0 (fatal) or 1 (down/error)
        if [ $lss -lt 2 ]; then
           # keep everithing like it was
           rc=2
@@ -2337,7 +2335,7 @@ function saphana_monitor_clone() {
 #
 # function: saphana_promote_clone - promote a hana clone
 # params:   -
-# globals:  OCF_*(r), NODENAME(r), HANA_STATE_*, SID(r), InstanceName(r), scoreTakeover(r)
+# globals:  OCF_*(r), NODENAME(r), HANA_STATE_*, SID(r), InstanceName(r),
 # saphana_promote_clone:
 #    In a Master/Slave configuration get Master being the primary OR by running hana takeover
 #
@@ -2376,7 +2374,7 @@ function saphana_promote_clone() {
                     set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_PRIM[@]}
                     set_hana_attribute "$NODENAME" "" ${ATTR_NAME_HANA_SEC[@]}
 # TODO PRIO2: 122 should not be static but come from the scoring table
-                    set_crm_master $scoreTakeover
+                    set_crm_master 122
                     su - $sidadm -c "hdbnsutil -sr_takeover"
                     backup_global_and_nameserver
                     #

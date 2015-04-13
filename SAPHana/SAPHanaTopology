@@ -123,7 +123,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.160.6.2</version>
+    <version>0.160.6.1</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -229,11 +229,12 @@ function set_hana_attribute()
     local attr_value=$2
     local attr_name=$3
     local attr_store=${4:-reboot} # DONE: PRIO5 get this (optional) from parameter
+    local attr_default=${5:-}
     local rc=1
     local attr_old=""
     local dstr
     dstr=$(date)
-    attr_old=$(get_hana_attribute $attr_node $attr_name $attr_store); get_rc=$?
+    attr_old=$(get_hana_attribute $attr_node $attr_name $attr_store $attr_default); get_rc=$?
     if [ "$attr_old" != "$attr_value" ]; then
         super_ocf_log debug "DBG: SET attribute $attr_name for node ${attr_node} to ${attr_value} former ($attr_old) get_rc=$get_rc "
         case "$attr_store" in
@@ -350,7 +351,7 @@ function sht_init() {
     #ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
     ATTR_NAME_HANA_ROLES=("hana_${sid}_roles" "reboot")
-    ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever" "$NODENAME")
+    ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
     #
     # new "central" attributes
@@ -797,9 +798,9 @@ function sht_monitor_clone() {
         | awk '$4 == SID && $6=NR { print $8 }' SID=$SID NR=$InstanceNr 2>/dev/null )
     super_ocf_log debug "DBG: ListInstances: $(/usr/sap/hostctrl/exe/saphostctrl -function ListInstances)"
     if [ -n "$vName" ]; then
-       set_hana_attribute ${NODENAME} "$vName" ${ATTR_NAME_HANA_VHOST[@]}
+       set_hana_attribute ${NODENAME} "$vName" ${ATTR_NAME_HANA_VHOST[@]} "${NODENAME}"
     else
-       vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]})
+       vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]} "${NODENAME}")
     fi
     hanaANSWER=$(su - $sidadm -c "python exe/python_support/landscapeHostConfiguration.py" 2>/dev/null); hanalrc="$?"
     hanarole=$(echo "$hanaANSWER" | tr -d ' ' | awk -F'|' '$2 == host {  printf "%s:%s:%s:%s\n",$10,$11,$12,$13 }  ' host=${vName})
