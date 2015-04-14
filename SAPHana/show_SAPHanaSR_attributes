@@ -172,7 +172,7 @@ open CIB, "cibadmin -Ql |";
 while (<CIB>) {
    chomp;
    my ($host, $name, $site, $value);
-   if ( $_ =~ /nvpair.*name="(\w+_${sid}_\w+)"/ ) {
+   if ( $_ =~ /nvpair.*name="([a-zA-Z0-9\_\-]+_${sid}_([a-zA-Z0-9\-\_]+))"/ ) {
       $name=$1;
       if ( $_ =~ /id=.(status|nodes)-([a-zA-Z0-9\_\-]+)-/ ) {
          # found attribute in nodes forever and reboot store
