@@ -18,17 +18,23 @@ use strict;
 use Sys::Syslog;
 use Sys::Hostname;
 use File::Path;
+use Getopt::Long;
 
 ###################################
 ## this part is not for scale out and currently NOT zero-config
 
 my $ClusterNodes=6;
-my $ClusterPrimaries=$ClusterNodes / 2;
-my $ClusterSecondaries=$ClusterNodes / 2;
+my $ClusterPrimaries=1;
+my $ClusterSecondaries=1;
 
 my %Name;
-my %Host;
 my $host = hostname();
+my %Host;
+my %Site;
+my %Global;
+my %HName;
+my %SName;
+my %GName;
 
 my $varlib='/var/lib/SAPHanaTD';
 my $testfile='SAPHanaTD.status';
@@ -36,6 +42,16 @@ my $testcount=0;
 my $testCase=0;
 my $msl;
 my $first_test=1;
+my $sid;
+my $ino;
+my $testCase;
+
+	my $result = GetOptions ("sid=s" => \$sid,
+	                      "ino=s" => \$ino,
+	                      "nodes=s" => \$ClusterNodes,
+	                      "case=s" => \$testCase,
+		 );
+
 
     my $message;
     my $phost;
@@ -153,45 +169,84 @@ sub get_sid_and_InstNr()
     return ( $sid, $Inr );
 }
 
+sub insertAttribute($$$$$$) { 
+    my ($sid, $refHash, $refN, $object, $attribute, $value) = @_;
+    my $table_titleH="";
+    if ( $attribute =~ /hana_${sid}_(.*)/ ) {
+       $attribute =  $1;
+    }
+       #
+       # handle the hosts name and table-title
+       #
+       $$refHash{$object}->{$attribute}=${value};
+       if ( defined ($$refN{_hosts}->{_length})) {
+          $$refN{_hosts}->{_length} = max($$refN{_hosts}->{_length}, length($object ));
+       } else {
+          $$refN{_hosts}->{_length} = length($object );
+       }
+       $$refN{_hosts}->{_length} = max($$refN{_hosts}->{_length}, length( $table_titleH));
+       #
+       # now handle the attributes name and value
+       #
+       $$refN{$attribute}->{$object}=${value};
+    #   $$refN{$attribute}->{$object}=${value};
+       if ( defined ($$refN{$attribute}->{_length})) {
+          $$refN{$attribute}->{_length} = max($$refN{$attribute}->{_length}, length($value ));
+       } else {
+          $$refN{$attribute}->{_length} = length($value );
+       }
+       $$refN{$attribute}->{_title} = $attribute; 
+       $$refN{$attribute}->{_length} = max($$refN{$attribute}->{_length}, length( $$refN{$attribute}->{_title}));
+       # printf "%-8s %-20s %-30s\n", $1, $2, $3;
+}
+
 sub get_hana_attributes($)
 {
     my $sid = shift;
-    open CIB, "cibadmin -Ql |";
-    while (<CIB>) {
-       my ($host, $name, $value);
-       my $found_attr=0;
-       chomp;
-# <nvpair name="hana_lnx_vhost" value="lv9041" id="nodes-lv9041-hana_lnx_vhost"/>
+open CIB, "cibadmin -Ql |";
+while (<CIB>) {
+   chomp;
+   my ($host, $name, $site, $value);
+   if ( $_ =~ /nvpair.*name="([a-zA-Z0-9\_\-]+_${sid}_([a-zA-Z0-9\-\_]+))"/ ) {
+      $name=$1;
+      if ( $_ =~ /id=.(status|nodes)-([a-zA-Z0-9\_\-]+)-/ ) {
+         # found attribute in nodes forever and reboot store
+         $host=$2;
+         if ( $_ =~ /value="([^"]+)"/ ) {
+             $value=$1;
+#print "insertAttribute(Host, HName, $host, $name, $value)\n";
+             insertAttribute($sid, \%Host, \%HName, $host, $name, $value);
+         }
+      } elsif ( $_ =~ /id=.SAPHanaSR-[a-zA-Z0-9\_\-]+_site_[a-zA-Z0-9\-]+_([a-zA-Z0-9\_\-]+)/) {
+         # found a site attribute
+         $site=$1;
+         if ( $name =~ /[a-zA-Z0-9\_\-]+_site_([a-zA-Z0-9\-]+)/ ) {
+            $name = $1;
+         }
+         if ( $_ =~ /value="([^"]+)"/ ) {
+             $value=$1;
+#print "insertAttribute(Site, SName, $site, $name, $value)";
+             insertAttribute($sid, \%Site, \%SName, $site, $name, $value);
+         }
+      } elsif ( $_ =~ /id=.SAPHanaSR-[a-zA-Z0-9\_\-]+_glob_[a-zA-Z0-9\_\-]+/) {
+         # found a global attribute
+         $host="GLOBAL";
+         if ( $name =~ /([a-zA-Z0-9\_\-]+)_glob_([a-zA-Z0-9\_\-]+)/ ) {
+            $name = $2;
+         }
+         if ( $_ =~ /value="([^"]+)"/ ) {
+             $value=$1;
+             insertAttribute($sid, \%Global, \%GName, "global", $name, $value);
+         }
+      }
+   }
 
-       if ( $_ =~ /nvpair\s+id="status-([a-zA-Z0-9]+)-\w+"\s+name="(\w+_${sid}_\w+)"\s+value="([^"]+)"/ ) {
-           $found_attr=1;
-           ($host, $name, $value) = ( $1, $2, $3 );
-       }
-
-       if ( $_ =~ /nvpair\s+name="(\w+_${sid}_\w+)"\s+value="([^"]+)"\s+id="nodes-([a-zA-Z0-9]+)-\w+"/ ) {
-           $found_attr=1;
-           ($name, $value, $host) = ( $1, $2, $3 );
-       }
-# <nvpair id="SAPHanaSR-hana_lnx_glob_sync_state" name="hana_lnx_glob_sync_state" value="SOK"/>
-
-       if ( $_ =~ /nvpair\s+id="(SAPHanaSR)-[a-zA-Z0-9]+[_-]\w+"\s+name="(\w+_${sid}_glob_\w+)"\s+value="([^"]+)"/ ) {
-           $found_attr=1;
-           ($host, $name, $value) = ( $1, $2, $3 );
-       }
-       
-       if ( $found_attr ) {
-           #
-           # handle the hosts name and table-title
-           #
-           $Host{$host}->{$name}=${value};
-           #
-           # now handle the attributes name and value
-           #
-           $Name{$name}->{$host}=${value};
-#printf "get_hana_attributes(): \$Name{%s}->{%s}=\${%s}\n", $name, $host, $value;
-       }
-    }
-    close CIB;
+}
+close CIB;
+   #my $dumpk;
+   #foreach $dumpk ( keys %HName ) { print "host:$dumpk\n"; }
+   #foreach $dumpk ( keys %SName ) { print "site:$dumpk\n"; }
+   #foreach $dumpk ( keys %GName ) { print "glob:$dumpk\n"; }
     return 0;
 }
 
@@ -201,11 +256,7 @@ sub get_hana_sync_state($)
     my $result="";
     my $h;
     
-    foreach $h ( keys(%{$Name{"hana_${sid}_glob_sync_state"}}) ) {
-        if ( $Name{"hana_${sid}_glob_sync_state"}->{$h} =~ /(S.*)/ ) {
-           $result=$1;
-        }
-    }
+    $result = $GName{sync_state}->{"global"};
     return $result;
 }
 
@@ -214,9 +265,9 @@ sub get_number_primary($ $)
     my $sid=shift;
     my $lss=shift;
     my $rc=0;
-    my $h;
-    foreach $h ( keys(%{$Name{"hana_${sid}_roles"}}) ) {
-        if ( $Name{"hana_${sid}_roles"}->{$h} =~ /[$lss]:P:/ ) {
+    my $s;
+    foreach $s ( keys(%{$SName{"srr"}}) ) {
+        if ( ( $SName{"srr"}->{$s} =~ /P/ ) && ( $SName{"lss"}->{$s} =~ /[$lss]/ )) {
            $rc++;
         }
     }
@@ -228,9 +279,9 @@ sub get_number_secondary($ $)
     my $sid=shift;
     my $lss=shift;
     my $rc=0;
-    my $h;
-    foreach $h ( keys(%{$Name{"hana_${sid}_roles"}}) ) {
-        if ( $Name{"hana_${sid}_roles"}->{$h} =~ /[$lss]:S:/ ) {
+    my $s;
+    foreach $s ( keys(%{$SName{"srr"}}) ) {
+        if ( ( $SName{"srr"}->{$s} =~ /S/ ) && ( $SName{"lss"}->{$s} =~ /[$lss]/ )) {
            $rc++;
         }
     }
@@ -242,10 +293,10 @@ sub get_host_primary($ $)
     my $sid=shift;
     my $lss=shift;
     my $result="";
-    my $h;
-    foreach $h ( keys(%{$Name{"hana_${sid}_roles"}}) ) {
-        if ( $Name{"hana_${sid}_roles"}->{$h} =~ /[$lss]:P:master.:master/ ) {
-           $result=$h;
+    my $s;
+    foreach $s ( keys(%{$SName{"srr"}}) ) {
+        if ( ( $SName{"srr"}->{$s} =~ /P/ ) && ( $SName{"lss"}->{$s} =~ /[$lss]/ )) {
+           $result=$SName{"mns"}->{$s};
         }
     }
     return $result;
@@ -256,10 +307,10 @@ sub get_host_secondary($ $)
     my $sid=shift;
     my $lss=shift;
     my $result="";
-    my $h;
-    foreach $h ( keys(%{$Name{"hana_${sid}_roles"}}) ) {
-        if ( $Name{"hana_${sid}_roles"}->{$h} =~ /[$lss]:S:master.:master/ ) {
-           $result=$h;
+    my $s;
+    foreach $s ( keys(%{$SName{"srr"}}) ) {
+        if ( ( $SName{"srr"}->{$s} =~ /S/ ) && ( $SName{"lss"}->{$s} =~ /[$lss]/ )) {
+           $result=$SName{"mns"}->{$s};
         }
     }
     return $result;
@@ -270,7 +321,9 @@ sub get_site_by_host($ $)
     my $result="";
     my $sid=shift;
     my $h = shift;
-    $result = $Name{"hana_${sid}_site"}->{$h};
+# print "get_site_by_host($sid, $h)";
+    $result = $HName{"site"}->{$h};
+    $result = $Host{$h}->{"site"};
     return $result;                                                                                                                                                                                                
 }
 
@@ -379,6 +432,26 @@ sub run_test_stop_hana( $ $ $ )
     }
     mysyslog $priority, "%s", "TEST Stopped HDB at $theHost test=$testNr";
     return $rc;
+}
+
+sub run_test_stop_hana_system( $ $ $ )
+{
+    my $sid=shift;
+    my $theHost=shift;
+    my $testNr=shift;
+    my $rc=0;
+       my $SID=toupper($sid);
+    mysyslog $priority, "%s", "TEST Try to stop HANA SYSTEM at $theHost test=$testNr\n";
+    if ( $theHost eq $host ) {
+       # local
+	    mysyslog $priority, "%s", "TEST su - ${sid}adm -c \"sapcontrol -nr $INr -function StopSystem\" test=$testNr";
+       system("su - ${sid}adm -c \"sapcontrol -nr $INr -function StopSystem\"");
+    } else {
+            mysyslog $priority, "%s", "TEST ssh ${sid}adm\@$theHost sapcontrol -nr $INr -function StopSystem test=$testNr\n";
+       # remote
+       system("ssh ${sid}adm\@$theHost \"/usr/sap/$SID/HDB$INr/exe/sapcontrol -nr $INr -function StopSystem\"");
+    }
+    mysyslog $priority, "%s", "TEST Stopped HDB at $theHost test=$testNr";
 }
 
 sub run_test_kill_hana( $ $ $ $ ) 
@@ -493,6 +566,10 @@ sub run_testCase($)
             mysyslog $priority, "%s", "Testcase $testCase: stop and start master/slave";
             run_test_stop_masterslave($msl, $testcount);
         }
+        case [12] {
+            mysyslog $priority, "%s", "Testcase $testCase: Primary: StopSystem. test=$testcount";
+            run_test_stop_hana_system($sid, $phost, $testcount);
+        }
         else   { 
             mysyslog $priority, "%s", "Uncovered test case number";}
         }
@@ -529,7 +606,7 @@ while ( 1==1 ) {
             close STATFILE;
             my $maxTestCase=10;
             # $testCase=$testcount % $maxTestCase + 1 ;
-            $testCase=1;
+            #$testCase=1;
             run_testCase($testCase);
             $testActive=1;
             $goodloops=0;
