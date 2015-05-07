@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 #
-#
-# fh_test_driver
+# SAPHanaSR-testDriver
 # (c) 2014 SUSE Linux Products GmbH, Nuremberg, Germany
 # (c) 2015 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel
