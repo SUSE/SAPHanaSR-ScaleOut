@@ -47,7 +47,8 @@ sub init()
 	                      "format=s" => \$Format,
 	                      "cont=s" => \$Continuous,
                           "out=s" => \$HtmlPage,
-                          "intervall=s" => \$Intervall
+                          "intervall=s" => \$Intervall,
+                          "nodes=s" => \$ClusterNodes,
 	);
      set_new_attribute_model;
     return 0;
@@ -246,9 +247,7 @@ sub processMonitor() {
     # crm checks
     #
     my $crm_errors="";
-    
     if ( get_nodes_online() != $ClusterNodes ) { $crm_col="yellow"; $crm_errors .= " C#n\n";}
-#printf "get_nodes_online()=%s\n", get_nodes_online();
 
     # attr checks
     my $attr_errors="";
