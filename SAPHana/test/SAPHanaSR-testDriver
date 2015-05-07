@@ -62,7 +62,7 @@ my $testCase;
     my $sSite="";
     my $pSite="";
 
-sub init() 
+sub init()
 {
     mkpath($varlib, { mode => 0700, });
     open(STATFILE, "<", "$varlib/$testfile");
@@ -74,9 +74,9 @@ sub init()
     $msl="msl_";
     #$msl="msl_SAPHana_SLE_HDB00";
 #crm resource list
-# stonith_fscs98 (stonith:external/ipmi):        Started 
-# stonith_fscs99 (stonith:external/ipmi):        Started 
-# rsc_ip_SLE_HDB00       (ocf::heartbeat:IPaddr2):       Started 
+# stonith_fscs98 (stonith:external/ipmi):        Started
+# stonith_fscs99 (stonith:external/ipmi):        Started
+# rsc_ip_SLE_HDB00       (ocf::heartbeat:IPaddr2):       Started
 # Master/Slave Set: msl_SAPHana_SLE_HDB00 [rsc_SAPHana_SLE_HDB00]
     open crmRList, "crm resource list |";
     while (<crmRList>) {
@@ -99,11 +99,11 @@ my $priority = "info";
 openlog $ident, $logopt, $facility;       # don't forget this
 my $sid="";
 my $INr="";
-    
+
 ( $sid, $INr ) = get_sid_and_InstNr();
 
 
-sub run_test_stop_hana( $ $ $ ) 
+sub run_test_stop_hana( $ $ $ )
 {
     my $sid=shift;
     my $theHost=shift;
@@ -144,7 +144,7 @@ sub run_test_stop_hana_system( $ $ $ )
     mysyslog $priority, "%s", "TEST Stopped HDB at $theHost test=$testNr";
 }
 
-sub run_test_kill_hana( $ $ $ $ ) 
+sub run_test_kill_hana( $ $ $ $ )
 {
     my $sid=shift;
     my $theHost=shift;
@@ -212,45 +212,45 @@ sub run_testCase($)
     use Switch;
     my $testCase=shift;
     switch ($testCase) {
-        case [1] { 
+        case [1] {
             mysyslog $priority, "%s", "Testcase $testCase: Kill-2 primary SAP Hana instance. test=$testcount";
-            run_test_kill_hana($sid, $phost, $testcount, 2); 
+            run_test_kill_hana($sid, $phost, $testcount, 2);
         }
-        case [2] { 
+        case [2] {
             mysyslog $priority, "%s", "Testcase $testCase: Kill-2 secondary SAP Hana instance. test=$testcount";
-            run_test_kill_hana($sid, $shost, $testcount, 2); 
+            run_test_kill_hana($sid, $shost, $testcount, 2);
         }
-        case [3] { 
+        case [3] {
             mysyslog $priority, "%s", "Testcase $testCase: Kill-11 primary SAP Hana instance. test=$testcount";
-            run_test_kill_hana($sid, $phost, $testcount, 11); 
+            run_test_kill_hana($sid, $phost, $testcount, 11);
         }
-        case [4] { 
+        case [4] {
             mysyslog $priority, "%s", "Testcase $testCase: Kill-11 secondary SAP Hana instance. test=$testcount";
-            run_test_kill_hana($sid, $shost, $testcount, 11); 
-        } 
-        case [5] { 
+            run_test_kill_hana($sid, $shost, $testcount, 11);
+        }
+        case [5] {
             mysyslog $priority, "%s", "Testcase $testCase: Stop secondary SAP Hana instance. test=$testcount";
-            run_test_stop_hana($sid, $shost, $testcount); 
+            run_test_stop_hana($sid, $shost, $testcount);
         }
-        case [6] { 
+        case [6] {
             mysyslog $priority, "%s", "Testcase $testCase: Stop primary SAP Hana instance. test=$testcount";
-            run_test_stop_hana($sid, $phost, $testcount); 
-        } # maybe add max wished test time till good again?  
-        case [7] { 
+            run_test_stop_hana($sid, $phost, $testcount);
+        } # maybe add max wished test time till good again?
+        case [7] {
             mysyslog $priority, "%s", "Testcase $testCase: Kill-9 primary SAP Hana instance. test=$testcount";
-            run_test_kill_hana($sid, $phost, $testcount, 9); 
+            run_test_kill_hana($sid, $phost, $testcount, 9);
         }
-        case [8] { 
+        case [8] {
             mysyslog $priority, "%s", "Testcase $testCase: Kill-9 secondary SAP Hana instance. test=$testcount";
-            run_test_kill_hana($sid, $shost, $testcount, 9); 
-        } 
+            run_test_kill_hana($sid, $shost, $testcount, 9);
+        }
         case [9] {
             mysyslog $priority, "%s", "Testcase $testCase: standby node with secondary SAP Hana instance. test=$testcount";
-            run_test_standby_node($sid, $shost, $testcount); 
+            run_test_standby_node($sid, $shost, $testcount);
         }
         case [10] {
             mysyslog $priority, "%s", "Testcase $testCase: standby node with primary SAP Hana instance. test=$testcount";
-            run_test_standby_node($sid, $phost, $testcount); 
+            run_test_standby_node($sid, $phost, $testcount);
         }
         case [11] {
             mysyslog $priority, "%s", "Testcase $testCase: stop and start master/slave";
@@ -260,7 +260,7 @@ sub run_testCase($)
             mysyslog $priority, "%s", "Testcase $testCase: Primary: StopSystem. test=$testcount";
             run_test_stop_hana_system($sid, $phost, $testcount);
         }
-        else   { 
+        else   {
             mysyslog $priority, "%s", "Uncovered test case number";}
         }
 }
@@ -321,6 +321,6 @@ while ( 1==1 ) {
     }
     sleep 10;
 }
-  
+
 #$oldmask = setlogmask $mask_priority;
 closelog;
