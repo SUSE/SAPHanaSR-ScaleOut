@@ -1,10 +1,12 @@
 #!/usr/bin/perl
 #
+#
 # fh_test_driver
-# (c) 2014 SUSE Linux Products GmbH
+# (c) 2014 SUSE Linux Products GmbH, Nuremberg, Germany
+# (c) 2015 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel
 # License: GPL v2+
-# Version: 0.8.2015.04.14.1-scale-out
+# Version: 0.9.2015.05.07.1-scale-out
 #
 ##################################################################
 # THIS PROGRAM IS NOT INTENDED TO RUN IN PRODUCTIVE ENVIRONMENTS
@@ -18,10 +20,12 @@ use strict;
 use Sys::Syslog;
 use Sys::Hostname;
 use File::Path;
+use Switch;
 use Getopt::Long;
+use SAPHanaSRTools;
 
 ###################################
-## this part is not for scale out and currently NOT zero-config
+## this part is not for scale up and currently NOT zero-config
 
 my $ClusterNodes=6;
 my $ClusterPrimaries=1;
@@ -79,281 +83,13 @@ sub init()
     while (<crmRList>) {
         #printf "%s", $_;
         if (/^\s*Master.Slave Set:\s+(\S+)\s+/) {
-           printf "master-slave resource found: <%s> \n", $1;
+           printf "master-slave resource found: <%s>\n", $1;
            $msl=$1;
         }
     }
     close crmRList;
     close STATFILE;
     return 0;
-}
-
-
-sub max { # thanks to http://www.perlunity.de/perl/forum/thread_018329.shtml
- my $a = shift;
- my $b = shift;
- return $a > $b ? $a : $b;
-}
-
-sub mysyslog ( $$$ ) {
-   my ($prio, $form, @param) = ( @_ );
-   printf "$form", @param;
-   syslog $prio, $form, @param;
-
-
-}
-
-sub get_nodes_online() 
-{
-    my $rc=0;
-    my $match="Ok:\s+([0-9])\s+nodes online";
-    my $match="Ok:\s+([0-9]+)\s+nodes? online";
-    my $match="Ok: ([0-9]+) ";
-    open crm, "crm_mon -s |";
-    while (<crm>) {
-        if (/$match/) {
-           $rc=$1
-        }
-    }
-    close crm;
-    return $rc;
-}
-
-sub get_node_status($)
-{
-    # typically returns online, standby or offline
-    my $result="offline";
-    my $node=shift;
-    open crm, "crm_mon -1 |";
-    #- case one offline/standby and one online
-    # Node fscs99: OFFLINE (standby)
-    # Online: [ fscs98 ]
-    #- case both standby
-    # Node fscs99: standby
-    # Node fscs98: standby
-    #- case one standby one online
-    # Node fscs99: standby
-    # Online: [ fscs98 ]
-    #- case both online
-    # Online: [ fscs98 fscs99 ]
-    while (<crm>) {
-        if ( /^Online:.*\s$node\s/ ) {
-           #printf("O: %s\n", $_);
-           $result="online";
-        } elsif ( /^Node\s+$node:\s+(\S+)/  ) {
-           #printf("N: %s: %s\n", $_, $1);
-           $result=tolower($1);
-
-        }
-    }
-    close crm;
-    return $result;
-}
-
-#
-# works only, if ONE SAPinstance (here HANA) is installed on the cluster
-#
-sub get_sid_and_InstNr()
-{
-    my $sid=""; my $Inr="";
-    open ListInstances, "/usr/sap/hostctrl/exe/saphostctrl -function ListInstances|";
-    while (<ListInstances>) {
-       # try to catch:  Inst Info : LNX - 42 - lv9041 - 740, patch 36, changelist 1444691
-       chomp;
-       if ( $_ =~ /:\s+([A-Z][A-Z0-9][A-Z0-9])\s+-\s+([0-9][0-9])/ ) {
-          $sid=tolower("$1");
-          $Inr=$2;
-       }
-    }
-    close ListInstances;
-    return ( $sid, $Inr );
-}
-
-sub insertAttribute($$$$$$) { 
-    my ($sid, $refHash, $refN, $object, $attribute, $value) = @_;
-    my $table_titleH="";
-    if ( $attribute =~ /hana_${sid}_(.*)/ ) {
-       $attribute =  $1;
-    }
-       #
-       # handle the hosts name and table-title
-       #
-       $$refHash{$object}->{$attribute}=${value};
-       if ( defined ($$refN{_hosts}->{_length})) {
-          $$refN{_hosts}->{_length} = max($$refN{_hosts}->{_length}, length($object ));
-       } else {
-          $$refN{_hosts}->{_length} = length($object );
-       }
-       $$refN{_hosts}->{_length} = max($$refN{_hosts}->{_length}, length( $table_titleH));
-       #
-       # now handle the attributes name and value
-       #
-       $$refN{$attribute}->{$object}=${value};
-    #   $$refN{$attribute}->{$object}=${value};
-       if ( defined ($$refN{$attribute}->{_length})) {
-          $$refN{$attribute}->{_length} = max($$refN{$attribute}->{_length}, length($value ));
-       } else {
-          $$refN{$attribute}->{_length} = length($value );
-       }
-       $$refN{$attribute}->{_title} = $attribute; 
-       $$refN{$attribute}->{_length} = max($$refN{$attribute}->{_length}, length( $$refN{$attribute}->{_title}));
-       # printf "%-8s %-20s %-30s\n", $1, $2, $3;
-}
-
-sub get_hana_attributes($)
-{
-    my $sid = shift;
-open CIB, "cibadmin -Ql |";
-while (<CIB>) {
-   chomp;
-   my ($host, $name, $site, $value);
-   if ( $_ =~ /nvpair.*name="([a-zA-Z0-9\_\-]+_${sid}_([a-zA-Z0-9\-\_]+))"/ ) {
-      $name=$1;
-      if ( $_ =~ /id=.(status|nodes)-([a-zA-Z0-9\_\-]+)-/ ) {
-         # found attribute in nodes forever and reboot store
-         $host=$2;
-         if ( $_ =~ /value="([^"]+)"/ ) {
-             $value=$1;
-#print "insertAttribute(Host, HName, $host, $name, $value)\n";
-             insertAttribute($sid, \%Host, \%HName, $host, $name, $value);
-         }
-      } elsif ( $_ =~ /id=.SAPHanaSR-[a-zA-Z0-9\_\-]+_site_[a-zA-Z0-9\-]+_([a-zA-Z0-9\_\-]+)/) {
-         # found a site attribute
-         $site=$1;
-         if ( $name =~ /[a-zA-Z0-9\_\-]+_site_([a-zA-Z0-9\-]+)/ ) {
-            $name = $1;
-         }
-         if ( $_ =~ /value="([^"]+)"/ ) {
-             $value=$1;
-#print "insertAttribute(Site, SName, $site, $name, $value)";
-             insertAttribute($sid, \%Site, \%SName, $site, $name, $value);
-         }
-      } elsif ( $_ =~ /id=.SAPHanaSR-[a-zA-Z0-9\_\-]+_glob_[a-zA-Z0-9\_\-]+/) {
-         # found a global attribute
-         $host="GLOBAL";
-         if ( $name =~ /([a-zA-Z0-9\_\-]+)_glob_([a-zA-Z0-9\_\-]+)/ ) {
-            $name = $2;
-         }
-         if ( $_ =~ /value="([^"]+)"/ ) {
-             $value=$1;
-             insertAttribute($sid, \%Global, \%GName, "global", $name, $value);
-         }
-      }
-   }
-
-}
-close CIB;
-   #my $dumpk;
-   #foreach $dumpk ( keys %HName ) { print "host:$dumpk\n"; }
-   #foreach $dumpk ( keys %SName ) { print "site:$dumpk\n"; }
-   #foreach $dumpk ( keys %GName ) { print "glob:$dumpk\n"; }
-    return 0;
-}
-
-sub get_hana_sync_state($)
-{
-    my $sid=shift;
-    my $result="";
-    my $h;
-    
-    $result = $GName{sync_state}->{"global"};
-    return $result;
-}
-
-sub get_number_primary($ $)
-{
-    my $sid=shift;
-    my $lss=shift;
-    my $rc=0;
-    my $s;
-    foreach $s ( keys(%{$SName{"srr"}}) ) {
-        if ( ( $SName{"srr"}->{$s} =~ /P/ ) && ( $SName{"lss"}->{$s} =~ /[$lss]/ )) {
-           $rc++;
-        }
-    }
-    return $rc;
-}
-
-sub get_number_secondary($ $)
-{
-    my $sid=shift;
-    my $lss=shift;
-    my $rc=0;
-    my $s;
-    foreach $s ( keys(%{$SName{"srr"}}) ) {
-        if ( ( $SName{"srr"}->{$s} =~ /S/ ) && ( $SName{"lss"}->{$s} =~ /[$lss]/ )) {
-           $rc++;
-        }
-    }
-    return $rc;
-}
-
-sub get_host_primary($ $)
-{
-    my $sid=shift;
-    my $lss=shift;
-    my $result="";
-    my $s;
-    foreach $s ( keys(%{$SName{"srr"}}) ) {
-        if ( ( $SName{"srr"}->{$s} =~ /P/ ) && ( $SName{"lss"}->{$s} =~ /[$lss]/ )) {
-           $result=$SName{"mns"}->{$s};
-        }
-    }
-    return $result;
-}
-
-sub get_host_secondary($ $)
-{
-    my $sid=shift;
-    my $lss=shift;
-    my $result="";
-    my $s;
-    foreach $s ( keys(%{$SName{"srr"}}) ) {
-        if ( ( $SName{"srr"}->{$s} =~ /S/ ) && ( $SName{"lss"}->{$s} =~ /[$lss]/ )) {
-           $result=$SName{"mns"}->{$s};
-        }
-    }
-    return $result;
-}
-
-sub get_site_by_host($ $)
-{
-    my $result="";
-    my $sid=shift;
-    my $h = shift;
-# print "get_site_by_host($sid, $h)";
-    $result = $HName{"site"}->{$h};
-    $result = $Host{$h}->{"site"};
-    return $result;                                                                                                                                                                                                
-}
-
-sub check_all_ok($)
-{
-    my $sid=shift;
-    my $rc=0;
-    my $failed="";
-    my $result;
-    $result=get_nodes_online;
-    if ( $result != $ClusterNodes ) {
-         $rc++;  
-         $failed .= " #N=$result"; 
-    }
-    $result=get_hana_sync_state($sid);
-    if ( $result ne "SOK" ) {
-         $rc++;  
-         $failed .= " sync=$result ";
-    }
-    $result=get_number_primary($sid, "34");
-    if ( $result != $ClusterPrimaries ) {
-         $rc++;  
-         $failed .= " #P=$result ";
-    }
-    $result=get_number_secondary($sid, "34");
-    if ( $result != $ClusterSecondaries ) {
-         $rc++;  
-         $failed .= " #S=$result ";
-    }
-    return ($rc, $failed);
 }
 
 my $ident = "fhTD";
@@ -367,51 +103,6 @@ my $INr="";
     
 ( $sid, $INr ) = get_sid_and_InstNr();
 
-#if (get_nodes_online(2)) {
-#    printf "Both online\n";
-#}
-#if (get_nodes_online(1)) {
-#    printf "One  online\n";
-#}
-#
-#printf "status=%s\n",get_node_status("fscs99");
-#
-#printf "sync=%s\n", get_hana_sync_state($sid);
-#printf "ok_prims=%s\n", get_number_primary($sid, "34");
-#printf "ok_secs=%s\n", get_number_secondary($sid, "34");
-#printf "warn_prims=%s\n", get_number_primary($sid, "2");
-
-
-# TODO: For all tests we need to define the pre-requisite, the test action and the expected-test-result
-#       Like: STOP_HANA_PRIMARY  :  ALL_OK :   TAKEOVER + ALL_OK (after some time ;-)
-#             STOP_HANA_SECONDARY : ALL_OK :   NOTAKEOVER + ALL_OK (after some time ;-)
-#             STANDBY_NODE_PRIMARY : ALL_OK :  TAKEOVER + ALL_OK, lost secondary, one node standby
-#             ONLINE_NODE : ALL_OK, lost secondary, node standby : NOTAKEOVER + ALL_OK
-#             STANDBY_NODE_SECONDARY: ALL_OK : NOTAKEOVER + ALL_OK, lost secondary, node standby
-#             KILL_DEAMON_PRIMARY : ALL_OK ....
-#             KILL_DAEMON_SECONDARY : ALL_OK ...
-#             KILL_DAEMON_BOTH :
-#             STANDBY_NODE_BOTH :
-#             ONLINE_NODE_BOTH :
-#             FENCE_NODE_PRIMARY :
-#             FENCE_NODE_SECONDARY :
-#             STOP_CLUSTER_PRIMARY :
-#             START_CLUSTER :
-#             STOP_CLUSTER_SECONDARY :
-#             BREAK_SYNC :
-#             REPAIR_SYNC :
-#             UNMANAGE_RESOURCE :
-#             MANAGE_RESOURCE : 
-#     Either we use tests like the above - defined one per line - or we use complete test modules which tests a 
-#     failere, messures the reaction (immediate not-ALL_OK) than doing a "anti-dot-action" and checking if ALL_OK
-#     comes back and than to run the next test module.
-#     A test module would be:
-#             STOP_HANA_PRIMARY + WAIT + CHECK
-#             STANDBY_NODE_PRIMARY + WAIT + ONLINE_NODE + WAIT + CHECK
-#             FENCE_NODE_PRIMARY + WAIT + START_CLUSTER + WAIT + CHECK
-#     For all FENCE, CLUSTER, BOOT ACTIONS we need to run either without cluster interaction (as fallback) and we need to
-#     run exactly on one node per time only (maybe we use DC)
-#             
 
 sub run_test_stop_hana( $ $ $ ) 
 {
@@ -441,13 +132,13 @@ sub run_test_stop_hana_system( $ $ $ )
     my $testNr=shift;
     my $rc=0;
        my $SID=toupper($sid);
-    mysyslog $priority, "%s", "TEST Try to stop HANA SYSTEM at $theHost test=$testNr\n";
+    mysyslog $priority, "%s", "TEST Try to stop HANA SYSTEM at $theHost test=$testNr";
     if ( $theHost eq $host ) {
        # local
 	    mysyslog $priority, "%s", "TEST su - ${sid}adm -c \"sapcontrol -nr $INr -function StopSystem\" test=$testNr";
        system("su - ${sid}adm -c \"sapcontrol -nr $INr -function StopSystem\"");
     } else {
-            mysyslog $priority, "%s", "TEST ssh ${sid}adm\@$theHost sapcontrol -nr $INr -function StopSystem test=$testNr\n";
+            mysyslog $priority, "%s", "TEST ssh ${sid}adm\@$theHost sapcontrol -nr $INr -function StopSystem test=$testNr";
        # remote
        system("ssh ${sid}adm\@$theHost \"/usr/sap/$SID/HDB$INr/exe/sapcontrol -nr $INr -function StopSystem\"");
     }
@@ -576,7 +267,7 @@ sub run_testCase($)
 }
 
 init();
-mysyslog $priority, "fhTD: Tests running. Next TestNr=%i\n", $testcount;
+mysyslog $priority, "fhTD: Tests running. Next TestNr=%i", $testcount;
 my $goodloops=0;
 my $badloops=0;
 my $testActive=0;
@@ -586,20 +277,20 @@ while ( 1==1 ) {
     $shost=get_host_secondary($sid, "1234");
     $pSite=get_site_by_host($sid, $phost);
     $sSite=get_site_by_host($sid, $shost);
-    my ($checkOK, $failures ) = check_all_ok($sid);
+    my ($checkOK, $failures ) = check_all_ok($sid, $ClusterNodes);
     if ( ( $checkOK == 0 ) && ( $testActive==0 ) ) {
         #
         # OK back again after it failed
         #
         $badloops=0;
         $goodloops++;
-        $message="All checks passed - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$goodloops testnr=$testcount\n";
+        $message="All checks passed - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$goodloops testnr=$testcount";
         mysyslog $priority, "%s", $message;
         if ( ( $goodloops >= 12 ) || ( $first_test == 1 )  ) {
             $testcount++;
             $first_test=0;
             # TODO: Later add other values for writing the status file (now only testnr)
-            $message="STATUS primary=$phost ($pSite) secondary=$shost ($sSite) testnr=$testcount\n";
+            $message="STATUS primary=$phost ($pSite) secondary=$shost ($sSite) testnr=$testcount";
             mysyslog $priority, "%s", $message;
             open(STATFILE, ">", "$varlib/$testfile");
             printf STATFILE "testnr=%i\n", $testcount;
@@ -616,20 +307,19 @@ while ( 1==1 ) {
         # STILL OK after a test, so cluster did not already catched the problem
         #
         $goodloops++;
-        $message="Still all checks passed - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$goodloops testnr=$testcount\n";
+        $message="Still all checks passed - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$goodloops testnr=$testcount";
         mysyslog $priority, "%s", $message;
     } else {
         $goodloops=0;
         $badloops++;
         $testActive=0;
         if ( $checkOK == 1 ) {
-		$message="$checkOK check failed ($failures) - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$badloops test=$testcount\n";
+		$message="$checkOK check failed ($failures) - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$badloops test=$testcount";
         } else {
-		$message="$checkOK checks failed ($failures) - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$badloops test=$testcount\n";
+		$message="$checkOK checks failed ($failures) - primary=$phost ($pSite) secondary=$shost ($sSite) loop=$badloops test=$testcount";
         }
         mysyslog $priority, "%s", $message;
     }
-    #printf "%s\n", $message;
     sleep 10;
 }
   
