@@ -1,0 +1,8 @@
+SAPHana/SAPHana
+SAPHana/SAPHanaTopology
+SAPHana/SAPHanaSR-monitor
+SAPHana/show_SAPHanaSR_attributes
+SAPHana/test/fh_mini_mon
+SAPHana/test/fh_test_driver-scale-out
+SAPHana/test/Makefile
+SAPHana/test/deploy

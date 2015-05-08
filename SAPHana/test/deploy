@@ -33,7 +33,8 @@ if [ $? -gt 0 ]; then
 fi
 
 echo "* Dowloading SAPHanaSR files"
-for file in $(cat ${DEPLOYDIR}/filelist); do
+for pathfile in $(cat ${DEPLOYDIR}/filelist); do
+	file=$(basename $pathfile)
         rm ${DEPLOYDIR}/${file}
         wget --directory-prefix=${DEPLOYDIR} ${BASEURL}/${file}
         if [ $? -gt 0 ]; then
