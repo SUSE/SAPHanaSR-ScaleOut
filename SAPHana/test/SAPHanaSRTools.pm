@@ -5,7 +5,7 @@
 # (c) 2015 SUSE Linux GmbH
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.14.2015.05.07.2
+# Version: 0.15.2015.05.08.1
 #
 ##################################################################
 
@@ -26,13 +26,18 @@ use vars qw(@ISA @EXPORT @EXPORT_OK);
 @ISA = qw(Exporter);
 
     # Init immediately so their contents can be used in the 'use vars' below.
-    @EXPORT    = qw(max get_nodes_online mysyslog max mysyslog get_nodes_online get_node_status get_sid_and_InstNr get_hana_attributes get_hana_sync_state get_number_primary check_node_status check_node_mode get_number_secondary get_host_primary get_host_secondary check_lpa_status check_all_ok host_attr2string $newAttributeModel get_lpa_by_host get_site_by_host print_attr_host print_host_attr set_new_attribute_model);
+    @EXPORT    = qw(max get_nodes_online mysyslog max mysyslog get_nodes_online get_node_status get_sid_and_InstNr get_hana_attributes get_hana_sync_state get_number_primary check_node_status check_node_mode get_number_secondary get_host_primary get_host_secondary check_lpa_status check_all_ok host_attr2string get_lpa_by_host get_site_by_host print_attr_host print_host_attr set_new_attribute_model get_new_attribute_model);
 
 #    @EXPORT_OK    = qw(max  mysyslog get_nodes_online);
 
 sub set_new_attribute_model()
 {
     $newAttributeModel=1;
+}
+
+sub get_new_attribute_model()
+{
+    return $newAttributeModel;
 }
 
 sub max { 
@@ -477,6 +482,7 @@ sub check_all_ok($$)
          $failed .= " #N=$result"; 
     }
     $result=get_hana_sync_state($sid);
+#printf "get_hana_sync_state($sid): %s\n", get_hana_sync_state($sid);
     if ( $result ne "SOK" ) {
          $rc++;  
          $failed .= " sync=$result ";
