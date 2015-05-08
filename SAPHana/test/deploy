@@ -26,7 +26,7 @@ mkdir -p ${DEPLOYDIR}
 # Download files
 echo "* Dowloading SAPHanaSR files list"
 rm ${DEPLOYDIR}/filelist
-wget --directory-prefix=${DEPLOYDIR} ${BASEURL}/filelist
+wget --no-check-certificate --directory-prefix=${DEPLOYDIR} ${BASEURL}/filelist
 if [ $? -gt 0 ]; then
         echo "Error while downloading SAPHanaSR files list from $BASEURL"
         exit 1
@@ -36,7 +36,7 @@ echo "* Dowloading SAPHanaSR files"
 for pathfile in $(cat ${DEPLOYDIR}/filelist); do
 	file=$(basename $pathfile)
         rm ${DEPLOYDIR}/${file}
-        wget --directory-prefix=${DEPLOYDIR} ${BASEURL}/${file}
+        wget --no-check-certificate --directory-prefix=${DEPLOYDIR} ${BASEURL}/${file}
         if [ $? -gt 0 ]; then
                 echo "Error while downloading SAPHanaSR file ${file} from ${BASEURL}"
                 exit 1

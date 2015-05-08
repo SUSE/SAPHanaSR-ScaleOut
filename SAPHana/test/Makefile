@@ -10,4 +10,4 @@ install:
 	install show_SAPHanaSR_attributes /usr/share/SAPHanaSR/tests/show_SAPHanaSR_attributes
 	install fh_mini_mon /usr/sbin/fh_mini_mon
 	install fh_test_driver-scale-out /usr/sbin/fh_test_driver-scale-out
-	install SAPHanaSR-monitor /usr/sbin/SAPHanaSR-monitor
+	#install SAPHanaSR-monitor /usr/sbin/SAPHanaSR-monitor
