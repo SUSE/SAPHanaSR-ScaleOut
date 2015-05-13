@@ -1,7 +1,11 @@
 SAPHana/SAPHana
 SAPHana/SAPHanaTopology
-SAPHana/show_SAPHanaSR_attributes
-SAPHana/test/fh_mini_mon
+SAPHana/SAPHanaController
+SAPHana/test/SAPHanaSR-checks
+SAPHana/test/SAPHanaSR-miniMon
+SAPHana/test/SAPHanaSR-monitor
+SAPHana/test/SAPHanaSR-showAttr
+SAPHana/test/SAPHanaSR-testDriver
+SAPHana/test/SAPHanaSRTools.pm
 SAPHana/test/Makefile
 SAPHana/test/deploy
-SAPHana/test/filelist

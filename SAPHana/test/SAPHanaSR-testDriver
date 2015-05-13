@@ -71,6 +71,7 @@ sub init()
          $testcount=$1;
       }
     }
+    set_new_attribute_model;
     $msl="msl_";
     #$msl="msl_SAPHana_SLE_HDB00";
 #crm resource list
