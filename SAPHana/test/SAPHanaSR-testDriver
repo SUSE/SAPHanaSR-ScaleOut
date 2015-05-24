@@ -110,17 +110,20 @@ sub run_test_stop_hana( $ $ $ )
     my $theHost=shift;
     my $testNr=shift;
     my $rc=0;
-       my $SID=toupper($sid);
+    my $SID=toupper($sid);
+    my $command="HDB stop";
     mysyslog $priority, "%s", "TEST Try to stop HDB at $theHost test=$testNr";
-    if ( $theHost eq $host ) {
-       # local
-	    mysyslog $priority, "%s", "TEST su - ${sid}adm -c \"HDB stop\" test=$testNr";
-       system("su - ${sid}adm -c \"HDB stop\"");
-    } else {
-            mysyslog $priority, "%s", "TEST ssh ${sid}adm\@$theHost HDB stop test=$testNr";
-       # remote
-       system("ssh ${sid}adm\@$theHost \"/usr/sap/$SID/HDB$INr/HDB stop\"");
-    }
+    mysyslog $priority, "%s", "TEST ssh root@$theHost \"su - ${sid}adm -c '$command'\"";
+    system("ssh root@$theHost \"su - ${sid}adm -c '$command'\"");
+#    if ( $theHost eq $host ) {
+#       # local
+#	    mysyslog $priority, "%s", "TEST su - ${sid}adm -c \"HDB stop\" test=$testNr";
+#       system("su - ${sid}adm -c \"HDB stop\"");
+#    } else {
+#            mysyslog $priority, "%s", "TEST ssh ${sid}adm\@$theHost HDB stop test=$testNr";
+#       # remote
+#       system("ssh ${sid}adm\@$theHost \"/usr/sap/$SID/HDB$INr/HDB stop\"");
+#    }
     mysyslog $priority, "%s", "TEST Stopped HDB at $theHost test=$testNr";
     return $rc;
 }
