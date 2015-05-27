@@ -5,7 +5,7 @@
 # (c) 2015 SUSE Linux GmbH
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.15.2015.05.08.1
+# Version: 0.15.2015.05.27.1
 #
 ##################################################################
 
@@ -26,7 +26,7 @@ use vars qw(@ISA @EXPORT @EXPORT_OK);
 @ISA = qw(Exporter);
 
     # Init immediately so their contents can be used in the 'use vars' below.
-    @EXPORT    = qw(max get_nodes_online mysyslog max mysyslog get_nodes_online get_node_status get_sid_and_InstNr get_hana_attributes get_hana_sync_state get_number_primary check_node_status check_node_mode get_number_secondary get_host_primary get_host_secondary check_lpa_status check_all_ok host_attr2string get_lpa_by_host get_site_by_host print_attr_host print_host_attr set_new_attribute_model get_new_attribute_model);
+    @EXPORT    = qw(max get_nodes_online mysyslog max mysyslog get_nodes_online get_node_status get_sid_and_InstNr get_hana_attributes get_hana_sync_state get_number_primary check_node_status check_node_mode get_number_secondary get_host_primary get_host_secondary check_lpa_status check_all_ok host_attr2string get_lpa_by_host get_site_by_host print_attr_host print_host_attr set_new_attribute_model get_new_attribute_model get_number_HANA_standby get_HANA_nodes);
 
 #    @EXPORT_OK    = qw(max  mysyslog get_nodes_online);
 
@@ -287,6 +287,43 @@ sub get_number_primary($ $)
         }
     }
     return $rc;
+}
+
+sub get_number_HANA_standby($$)
+{
+    my $sid=shift;
+    my $site=shift;
+    my $standby=0;
+    if ( $newAttributeModel == 1 ) {
+        my $h;
+        foreach $h ( keys(%{$HName{"roles"}}) ) {
+            my $hSite=$HName{"site"}->{$h};
+            if ( $hSite eq $site ) {
+                my $role=$HName{"roles"}->{$h};
+                if ( $role =~ /:standby/ ) {
+                    $standby++;
+                }
+            }
+        }
+    }
+    return $standby;
+}
+
+sub get_HANA_nodes($$)
+{
+    my $sid=shift;
+    my $site=shift;
+    @nodes;
+    if ( $newAttributeModel == 1 ) {
+        my $h;
+        foreach $h ( keys(%{$HName{"site"}}) ) {
+            my $hSite=$HName{"site"}->{$h};
+            if ( $hSite eq $site ) {
+                push (@nodes, $h);
+            }
+        } 
+    }
+    return @nodes;
 }
 
 sub check_node_status($$$)
