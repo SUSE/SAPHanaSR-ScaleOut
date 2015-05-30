@@ -178,7 +178,7 @@ sub run_test_kill_hanas( $ $ $ $ $ )
     my $count;
     for ($count=0; $count<=$standbyHana+1; $count++) {
         my $node = shift (@$theNodeList);
-    #    printf "run_test_kill_hanas: kill HANA at %s\n", $node ;
+        mysyslog $priority, "run_test_kill_hanas: Now handle instance %s", "$node";
         run_test_kill_hana($sid, $node, $testNr, $signal);
     }
     return $rc;
@@ -298,8 +298,11 @@ while ( 1==1 ) {
     #mysyslog $priority, "%s", "hanaStandby=$hanaStandby";
     @primaryHanaList = sort(get_HANA_nodes($sid, $pSite));
     @secondaryHanaList = sort(get_HANA_nodes($sid, $sSite));
-    #my $primaryHanaList = join (" ", sort(get_HANA_nodes($sid, $pSite)));
-    #$message="HANA nodes site $pSite: $sHanaList";
+    my $primaryHanaList = join (" ", @primaryHanaList);
+    my $secondaryHanaList = join (" ", @secondaryHanaList);
+    $message="HANA nodes primary site $pSite: $primaryHanaList";
+    mysyslog $priority, "%s", $message;
+    $message="HANA nodes secondary site $sSite: $secondaryHanaList";
     mysyslog $priority, "%s", $message;
     my ($checkOK, $failures ) = check_all_ok($sid, $ClusterNodes);
     if ( ( $checkOK == 0 ) && ( $testActive==0 ) ) {
