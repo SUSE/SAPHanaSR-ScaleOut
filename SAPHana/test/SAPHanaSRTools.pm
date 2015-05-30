@@ -313,7 +313,7 @@ sub get_HANA_nodes($$)
 {
     my $sid=shift;
     my $site=shift;
-    @nodes;
+    my @nodes;
     if ( $newAttributeModel == 1 ) {
         my $h;
         foreach $h ( keys(%{$HName{"site"}}) ) {
