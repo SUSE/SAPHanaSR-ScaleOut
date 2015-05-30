@@ -9,3 +9,4 @@ SAPHana/test/SAPHanaSR-testDriver
 SAPHana/test/SAPHanaSRTools.pm
 SAPHana/test/Makefile
 SAPHana/test/deploy
+SAPHana/test/filelist
