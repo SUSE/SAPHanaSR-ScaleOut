@@ -5,7 +5,7 @@
 # (c) 2015 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel
 # License: GPL v2+
-# Version: 0.11.2015.06.01.3-scale-out
+# Version: 0.11.2015.06.01.4-scale-out
 #
 ##################################################################
 # THIS PROGRAM IS NOT INTENDED TO RUN IN PRODUCTIVE ENVIRONMENTS
@@ -42,7 +42,8 @@ my %GName;
 my $varlib='/var/lib/SAPHanaTD';
 my $testfile='SAPHanaTD.status';
 my $testcount=0;
-my $testCase=0;
+my $testCase="all";
+my @testCaseSet = ("kpi2","ksi2","kpi11","ksi11");
 my $standbyHanas=0;
 my $msl;
 my $first_test=1;
@@ -53,18 +54,25 @@ my @primaryHanaList;
 my @secondaryHanaList;
 my $testName="";
 
-	my $result = GetOptions ("sid=s" => \$sid,
+my $result = GetOptions ("sid=s" => \$sid,
 	                      "ino=s" => \$ino,
 	                      "nodes=s" => \$ClusterNodes,
 	                      "case=s" => \$testCase,
-		 );
+	 );
 
+if ( $testCase ne "all" ) {
+       @testCaseSet = split("," , $testCase);
+}
 
-    my $message;
-    my $phost;
-    my $shost;
-    my $sSite="";
-    my $pSite="";
+printf "Testcases: %s\n", join (",", @testCaseSet);
+
+    
+
+my $message;
+my $phost;
+my $shost;
+my $sSite="";
+my $pSite="";
 
 my $testActive=0;
 
@@ -335,7 +343,12 @@ while ( 1==1 ) {
             # $testCase=$testcount % $maxTestCase + 1 ;
             #$testCase=1;
             $testActive=1;
-            run_testCase($testCase);
+            my $testCaseMaxIndex = @testCaseSet;
+            my $testCaseIndex = int(rand($testCaseMaxIndex));
+            my $theTestCase = $testCaseSet[$testCaseIndex];
+            $message="TestCase=$theTestCase testnr=$testcount";
+            mysyslog $priority, "%s", $message;
+            run_testCase($theTestCase);
             $goodloops=0;
         }
     } elsif ( ( $checkOK == 0 ) && ( $testActive==1 ) ) {
