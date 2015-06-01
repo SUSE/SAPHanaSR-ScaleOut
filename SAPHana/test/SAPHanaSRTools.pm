@@ -5,7 +5,7 @@
 # (c) 2015 SUSE Linux GmbH
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.15.2015.05.27.1
+# Version: 0.16.2015.06.01.1
 #
 ##################################################################
 
@@ -49,7 +49,6 @@ sub max {
 
 sub mysyslog ( $$$ ) {
    my ($prio, $form, @param) = ( @_ );
-   printf "$form\n", @param;
    syslog $prio, $form, @param;
 }
 
