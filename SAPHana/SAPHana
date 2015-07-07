@@ -231,7 +231,7 @@ The resource agent uses the following four interfaces provided by SAP:
         <shortdesc lang="en">Time difference needed between to primary time stamps, if a dual-primary situation occurs</shortdesc>
         <longdesc lang="en">Time difference needed between to primary time stamps,
         if a dual-primary situation occurs. If the time difference is
-        less than the time gap, than the cluster holds one or both instances in a "WAITING" status. This is to give an admin
+        less than the time gap, then the cluster holds one or both instances in a "WAITING" status. This is to give an admin
         a chance to react on a failover. A failed former primary will be registered after the time difference is passed. After
         this registration to the new primary all data will be overwritten by the system replication.
         </longdesc>
