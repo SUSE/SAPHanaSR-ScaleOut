@@ -55,6 +55,8 @@ HANA_STATE_SECONDARY=1
 HANA_STATE_STANDALONE=2
 HANA_STATE_DEFECT=3
 
+debug_attributes=0
+
 SH=/bin/sh
 
 #
@@ -144,24 +146,24 @@ function backup_global_and_nameserver() {
 function saphana_meta_data() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
-# TODO PRIO2: Description including parameters to be reviwed for scale-out
+# TODO PRIO2: Description including parameters to be reviewed for scale-out
     cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.6.2</version>
+<version>0.160.7.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
 The SAPHanaSR resource agent manages two SAP Hana instances (databases) which are configured
-in system replication. This first version is limitted to the scale-up scenario. Scale-Up is
+in system replication. This first version is limited to the scale-up scenario. Scale-Up is
 not supported in this version.
 
 Managing the two SAP HANA instances means that the resource agent controls the start/stop of the
 instances. In addition the resource agent is able to monitor the SAP HANA databases to check their
 availability on landscape host configuration level. For this monitoring the resource agent relies on interfaces
 provided by SAP. A third task of the resource agent is to also check the synchronisation status
-of the two SAP HANA databases. If the synchronisation is not "SOK", than the cluster avoids to
+of the two SAP HANA databases. If the synchronisation is not "SOK", then the cluster avoids to
 failover to the secondary side, if the primary fails. This is to improve the data consistency.
 
 The resource agent uses the following four interfaces provided by SAP:
@@ -179,14 +181,14 @@ The resource agent uses the following four interfaces provided by SAP:
 
 3. hdbnsutil
    The interface hdbnsutil is used to check the "topology" of the system replication as well as the current configuration
-   (primary/secondary) of a SAP HANA database instance. A second task of the interface is the posibility to run a
+   (primary/secondary) of a SAP HANA database instance. A second task of the interface is the possibility to run a
    system replication takeover (sr_takeover) or to register a former primary to a newer one (sr_register).
 
 4. hdbsql / systemReplicationStatus
    Interface is SQL query into HANA (system replication table).  The hdbsql query will be replaced by a python script
    "systemReplicationStatus.py" in SAP HANA SPS8 or 9.
    As long as we need to use hdbsql you need to setup secure store users for linux user root to be able to
-   access the SAP HANA database. You need to configure a secure store user key "SLEHALOC" which can connect the SAP
+   access the SAP HANA database. You need to configure a secure store user key "SAPHANA${SID}SR" which can connect the SAP
    HANA database:
 
 5. saphostctrl
@@ -220,7 +222,7 @@ The resource agent uses the following four interfaces provided by SAP:
     </parameter>
     <parameter name="AUTOMATED_REGISTER"  unique="0" required="0">
         <shortdesc lang="en">Define, if a former primary should automatically be registered.</shortdesc>
-        <longdesc lang="en">The parameter AUTOMATED_REGISTER defines, wether a former primary instance should
+        <longdesc lang="en">The parameter AUTOMATED_REGISTER defines, whether a former primary instance should
              be registered automatically by the resource agent during cluster/resource start, if  the DUPLICATE_PRIMARY_TIMEOUT is expired... TDB
         </longdesc>
         <content type="boolean" default="false" />
@@ -229,7 +231,7 @@ The resource agent uses the following four interfaces provided by SAP:
         <shortdesc lang="en">Time difference needed between to primary time stamps, if a dual-primary situation occurs</shortdesc>
         <longdesc lang="en">Time difference needed between to primary time stamps,
         if a dual-primary situation occurs. If the time difference is
-        less than the time gap, than the cluster hold one or both instances in a "WAITING" status. This is to give a admin
+        less than the time gap, than the cluster holds one or both instances in a "WAITING" status. This is to give an admin
         a chance to react on a failover. A failed former primary will be registered after the time difference is passed. After
         this registration to the new primary all data will be overwritten by the system replication.
         </longdesc>
@@ -334,7 +336,7 @@ function remoteHost2remoteNode()
 # descript: is_clone : find out if we are configured to run in a Master/Slave configuration
 # rc: 0: it is a clone, 1: it is not a clone
 #
-# DONE: PRIO2: For the first shippment (scale-out) we need to limit the clones to 2
+# DONE: PRIO2: For the first shipment (scale-out) we need to limit the clones to 2
 #
 function is_clone() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
@@ -376,6 +378,7 @@ function get_hana_attribute()
     local attr_store=${3:-reboot} # DONE: PRIO5 get this (optional) from parameter
     local attr_default=${4:-}
     local dstr
+    local attr_val=""
     dstr=$(date)
     case "$attr_store" in
         reboot | forever )
@@ -488,7 +491,7 @@ scoring_crm_master()
     local roles="$1"
     local sync="$2"
     local skip=0
-    local myScore=-22 # TODO: PRIO3: Change back to -1 later
+    local myScore=""
     for scan in "${SCORING_TABLE_PREFERRED_SITE_TAKEOVER[@]}"; do
         if [ $skip -eq 0 ]; then
             read rolePatt syncPatt score <<< $scan
@@ -501,7 +504,10 @@ scoring_crm_master()
         fi
     done
     super_ocf_log debug "DBG: scoring_crm_master adjust score $myScore"
-    set_crm_master $myScore
+    # TODO: PRIO1: DO Not Score, If we did not found our role/sync at this moment - bsc#919925
+    if [ -n "$myScore" ]; then
+        set_crm_master $myScore
+    fi
 }
 
 #
@@ -524,7 +530,7 @@ function get_crm_master()
 # globals:  sr_name(w), remoteHost(w), otherNodes(w), remSR_name(w)
 # globals:  ATTR_NAME_HANA_SEC_SYNC_STATUS(w), ATTR_NAME_HANA_CLONE_STATE(w)
 # globals:  DIR_EXECUTABLE(w), SAPSTARTSRV(w), SAPCONTROL(w), DIR_PROFILE(w), SAPSTARTPROFILE(w), LD_LIBRARY_PATH(w), PATH(w)
-# globals:  LPA_DIRECTORY(w), SIDInstanceName(w), remoteNode(w)
+# globals:  LPA_DIRECTORY(w), SIDInstanceName(w), remoteNode(w), hdbSrQueryTimeout(w)
 # saphana_init : Define global variables with default values, if optional parameters are not set
 #
 function saphana_init() {
@@ -543,6 +549,8 @@ function saphana_init() {
     super_ocf_log debug "DBG: Used new method to get SID ($SID) and InstanceNr ($InstanceNr)"
     sid=$(echo "$SID" | tr [:upper:] [:lower:])
     sidadm="${sid}adm"
+    # TODO PRIO3: Do we need a parameter for the RA to be able to adjust hdbSrQueryTimeout?
+    hdbSrQueryTimeout=180
     # DONE: PRIO4: SAPVIRHOST might be different to NODENAME
     # DONE: PRIO1: ASK: Is the output format of ListInstances fix? Could we take that as an API? Answer: Yes
     # try to catch:  Inst Info : LNX - 42 - lv9041 - 740, patch 36, changelist 1444691
@@ -934,37 +942,37 @@ function analyze_hana_sync_statusSQL()
     local vHost=""
     local n=""
     local hana_sync_status="" what_does_the_chamelion_say=""
-    local secUser="slehaLoc"
+    local secUser="SLEHALOC"
     local rc=0
     local sqlrc=0
-#    local query_state='select distinct REPLICATION_STATUS from SYS.M_SERVICE_REPLICATION'
+# local query_state='select distinct REPLICATION_STATUS from SYS.M_SERVICE_REPLICATION'
 # select distinct REPLICATION_STATUS from SYS.M_SERVICE_REPLICATION where SITE_NAME='"SITE1"'"
     local query_state="select distinct REPLICATION_STATUS from SYS.M_SERVICE_REPLICATION where SITE_NAME='"${sr_name}"'"
     local query_secondaries='select distinct  SECONDARY_HOST from SYS.M_SERVICE_REPLICATION'
     local query_failed_secondaries="select distinct SECONDARY_HOST from SYS.M_SERVICE_REPLICATION  where SECONDARY_SITE_NAME = (select distinct  SECONDARY_SITE_NAME from SYS.M_SERVICE_REPLICATION WHERE REPLICATION_STATUS != 'ACTIVE')"
     local all_cluster_hosts all_secondary_hosts all_broken_secondaries
-    # TODO: PRIO4: remove check_secstore_users later
-    check_secstore_users SLEHALOC; chkusr=$?
+#
+#####################################################################################################
+#
+# select distinct SITE_NAME, HOST, REPLICATION_STATUS, SECONDARY_SITE_NAME, SECONDARY_HOST from SYS.M_SERVICE_REPLICATION
+#
+# ===> "Walldorf", "sap-app-8"  "ACTIVE", "Rot",  "sap-app-5"
+#      "Rot",      "sap-app-5", "ACTIVE", "oslo", "sap-app-7"
+#
+#####################################################################################################
+#
+    secUser=$(check_secstore_users SAPHANA${SID}SR SLEHALOC RHELHALOC) ; chkusr=$?
     if [ $chkusr -ne 0 ]; then
-         check_secstore_users RHELHALOC; chkusr=$?
-         if [ $chkusr -ne 0 ]; then
-              super_ocf_log err  "ACT: Secure store users are missing (see best practice manual how to setup the users)"
-              rc=$OCF_ERR_CONFIGURED
-         else
-             secUser="RHELHALOC"
-         fi
-    else
-         secUser="SLEHALOC"
+        super_ocf_log err  "ACT: Secure store users are missing (see best practice manual how to setup the users)"
+        rc=$OCF_ERR_CONFIGURED
     fi
-    hana_sync_status=$(timeout 60 $DIR_EXECUTABLE/hdbsql -a -x -U $secUser  $query_state); sqlrc=$?
+    hana_sync_status=$(timeout $hdbSrQueryTimeout $DIR_EXECUTABLE/hdbsql -a -x -U $secUser  $query_state); sqlrc=$?
     hana_sync_status=$(echo $hana_sync_status | dequote)
     super_ocf_log debug "DBG: hdbsql rc=$sqlrc hana_sync_status=\"$hana_sync_status\""
-super_ocf_log info "DEC: hdbsql rc=$sqlrc hana_sync_status=\"$hana_sync_status\""
     if [ "$sqlrc" -eq 0 -a "$hana_sync_status" != "" ]; then
         #
         # UNKNOWN, ACTIVE, ERROR, INITIALIZING
         #
-super_ocf_log info "DEC: remoteNode=$remoteNode; HANA SYNC STATUS is: ${hana_sync_status}"
         if [ "${hana_sync_status}" == "ACTIVE" ]; then
             set_hana_attribute "X" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
             super_ocf_log info "ACT site=$sr_name, seting SOK for secondary (3)"
@@ -974,9 +982,9 @@ super_ocf_log info "DEC: remoteNode=$remoteNode; HANA SYNC STATUS is: ${hana_syn
             super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (4)"
         fi
     else
-        # return codes 19: license error -> set SFAIL!
         case "$sqlrc" in
             19 )
+                # return codes 19: license error -> set SFAIL!
                 # DONE: PRIO1: We should NOT set SFAIL, if HDB is exactly broken now
                 #       When HDB breaks during monitor this could prevent a prositive remote failover
                 super_ocf_log warn "ACT: Was not able to fetch HANA SYNC STATUS - set sync status to SFAIL for ALL OTHER cluster hosts"
@@ -1022,10 +1030,10 @@ function register_hana_secondary()
            # TODO: PRIO1 change from remoteHost to remoteMSN (remote MasterNameServer)
            # TODO: PRIO2 How to get the remoteHost without cluster attribute remoteHost - could we use the master-list attribute?
            super_ocf_log info "ACT: SAPHANA REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"
-                backup_global_and_nameserver
-                set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
+           backup_global_and_nameserver
+           set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
            su - $sidadm -c "hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"; rc=$?
-                backup_global_and_nameserver
+           backup_global_and_nameserver
         else
            super_ocf_log info "ACT: SAPHANA DROP REGISTER because AUTOMATED_REGISTER is set to FALSE"
            rc=1
@@ -1186,6 +1194,8 @@ function saphana_start_primary()
     # DONE: PRIO2: Do we need to differ 0 and 1 here? While 0 is a fatal SAP error, 1 for down/error
     if [ $lss -eq 0 ]; then
        super_ocf_log err "ACT: get_hana_landscape_status reports FATAL"
+       # DONE: PRIO1: what to do for lss=0?
+       # TODO: PRIO3: Check, if OCF_ERR_GENERIC is best reaction
        lpa_advice="skip"
        rc=$OCF_ERR_GENERIC
     fi
@@ -1234,28 +1244,28 @@ function saphana_start_primary()
                     ;;
                 1 ) # lets try to register
                     # DONE: PRIO2: Like Action in start_secondary
-                        super_ocf_log info "LPA: landcape: DOWN, LPA: register ==> try to register"
-                        super_ocf_log info "DEC: AN OTHER HANA IS AVAILABLE ==> LETS REGISTER"
-                        set_crm_master  0
-                        if wait_for_primary_master 1; then
-                            register_hana_secondary
-                            check_for_primary; primary_status=$?
-                            if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
-                                super_ocf_log info "ACT: Register successful"
-                                lpa_push_lpt 10
-                                lpa_set_lpt  10 "$sr_name"
-                                set_crm_master  0
-                                saphana_start_secondary
-                                rc=$?
-                                lpa_set_lpt  10 "$sr_name"
-                            else
-                                super_ocf_log err "ACT: Register failed"
-                                rc=$OCF_NOT_RUNNING
-                            fi
+                    super_ocf_log info "LPA: landcape: DOWN, LPA: register ==> try to register"
+                    super_ocf_log info "DEC: AN OTHER HANA IS AVAILABLE ==> LETS REGISTER"
+                    set_crm_master  0
+                    if wait_for_primary_master 1; then
+                        register_hana_secondary
+                        check_for_primary; primary_status=$?
+                        if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
+                            super_ocf_log info "ACT: Register successful"
+                            lpa_push_lpt 10
+                            lpa_set_lpt  10 "$sr_name"
+                            set_crm_master  0
+                            saphana_start_secondary
+                            rc=$?
+                            lpa_set_lpt  10 "$sr_name"
                         else
-                            # lets check next monitor, if we can register
-                            rc=$OCF_SUCCESS
+                            super_ocf_log err "ACT: Register failed"
+                            rc=$OCF_NOT_RUNNING
                         fi
+                    else
+                        # lets check next monitor, if we can register
+                        rc=$OCF_SUCCESS
+                    fi
                     ;;
             esac
             ;;
@@ -1666,26 +1676,26 @@ function lpa_check_lpt_status() {
     fi
     LPTrem=$(lpa_get_lpt $remSR_name); lparc=$?
     super_ocf_log info "DEC: LPTloc=$LPTloc LPTrem=$LPTrem"
-            if [ $lparc -ne 0 ]; then
-                # LPT of the other node could not be evaluated - LPA says WAIT
-                super_ocf_log debug "DBG: LPA: LPTloc=$LPTloc, LPTrem undefined ==> WAIT"
-                rc=2
-            else
-                super_ocf_log debug "DBG: LPA: LPTloc ($LPTloc) LPTrem ($LPTrem) delta ($delta)"
-                if [ $LPTloc -lt $LPTMark -a $LPTrem -lt $LPTMark ]; then
-                   delta=0   # both lpts are not a real timestamp so just take the greater one
-                else
-                   delta=$DUPLICATE_PRIMARY_TIMEOUT   # at least one of the lpts is a real timestamp so include delta-gap
-                fi
-                if (( delta < LPTloc - LPTrem )); then
-                    # We are the winner - LPA says STARTUP
-                    super_ocf_log debug "DBG: LPA: LPTloc wins $LPTloc > $LPTrem + $delta ==> START"
-                    if [ $rc -le 0 ]; then rc=0; fi
-                elif (( delta < LPTrem - LPTloc )); then
-                    if ocf_is_true "$AUTOMATED_REGISTER" ; then
-                        # The other one has won - LPA says REGISTER
-                        super_ocf_log debug "DBG: LPA: LPTrem wins $LPTrem > $LPTloc + $delta ==> REGISTER"
-                        if [ $rc -le 1 ]; then rc=1; fi
+    if [ $lparc -ne 0 ]; then
+        # LPT of the other node could not be evaluated - LPA says WAIT
+        super_ocf_log debug "DBG: LPA: LPTloc=$LPTloc, LPTrem undefined ==> WAIT"
+        rc=2
+    else
+        super_ocf_log debug "DBG: LPA: LPTloc ($LPTloc) LPTrem ($LPTrem) delta ($delta)"
+        if [ $LPTloc -lt $LPTMark -a $LPTrem -lt $LPTMark ]; then
+           delta=0   # both lpts are not a real timestamp so just take the greater one
+        else
+           delta=$DUPLICATE_PRIMARY_TIMEOUT   # at least one of the lpts is a real timestamp so include delta-gap
+        fi
+        if (( delta < LPTloc - LPTrem )); then
+            # We are the winner - LPA says STARTUP
+            super_ocf_log debug "DBG: LPA: LPTloc wins $LPTloc > $LPTrem + $delta ==> START"
+            if [ $rc -le 0 ]; then rc=0; fi
+        elif (( delta < LPTrem - LPTloc )); then
+            if ocf_is_true "$AUTOMATED_REGISTER" ; then
+                # The other one has won - LPA says REGISTER
+                super_ocf_log debug "DBG: LPA: LPTrem wins $LPTrem > $LPTloc + $delta ==> REGISTER"
+                if [ $rc -le 1 ]; then rc=1; fi
                     else
                         super_ocf_log debug "DBG: LPA: LPTrem wins $LPTrem > $LPTloc + $delta BUT AUTOMATED_REGISTER='false' ==> WAIT"
                         rc=2
@@ -1967,7 +1977,6 @@ function saphana_monitor_primary()
                     else
                        super_ocf_log info "LPA: Dual primary detected and AUTOMATED_REGISTER='false' ==> WAITING"
                     fi
-
                     return $OCF_SUCCESS
                 fi
                 promoted=0;
