@@ -1,24 +1,24 @@
 .\" Version: 0.148.1
 .\"
-.TH ocf_suse_SAPHana 7 "04 Jun 2014" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "04 Jun 2014" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHana \- Manages two single SAP HANA databases with system replication.
 .\"
 .SH SYNOPSYS
 .br
-\fBSAPHana\fP [start | stop | status | monitor | promote | demote | notify | meta\-data | validate\-all | methods | usage ]
+\fBSAPHanaController\fP [start | stop | status | monitor | promote | demote | notify | meta\-data | validate\-all | methods | usage ]
 .\"
 .SH DESCRIPTION
 
-\fBSAPHana\fP is a resource agent for SAP HANA databases. It manages a SAP HANA database
+\fBSAPHanaController\fP is a resource agent for SAP HANA databases. It manages a SAP HANA database
 with system replication in an OCF master/slave configuration.
 
 System replication will help to replicate the database data from one computer
 to another computer in order to compensate for database failures.
 With this mode of operation, internal SAP HANA high-availability (HA) mechanisms
 and the resource agent must work together.
-The SAPHana resource agent (RA) performs the actual check of the SAP HANA
+The SAPHanaController resource agent (RA) performs the actual check of the SAP HANA
 database instances and is configured as a master/slave resource.
 Managing the two SAP HANA instances means that the resource agent controls
 the start/stop of the instances. In addition the resource agent is able to monitor
@@ -43,7 +43,7 @@ The resource agent uses the following five interfaces provided by SAP:
    and node roles. For our monitor the overall status is relevant. This overall 
    status is reported by the returncode of the script:
    0: Internal Fatal, 1: ERROR, 2: WARNING, 3: INFO, 4: OK
-   The SAPHana resource agent will interpret returncodes 0 as FATAL, 1 as not-running
+   The SAPHanaController resource agent will interpret returncodes 0 as FATAL, 1 as not-running
    (or ERROR) and and returncodes 2+3+4 as RUNNING.
 
 3. hdbnsutil
@@ -145,7 +145,7 @@ Default value: false\&.
 .PP
 \fBSAPHanaFilter\fR
 .RS 4
-Define SAPHana resource agent messages to be printed.
+Define SAPHanaController resource agent messages to be printed.
 This parameter should only be set of been requested by support engineers.
 The default is sufficient for normal operation.
 .br
@@ -233,18 +233,18 @@ The return codes are defined by the OCF cluster framework.
 Please refer to the OCF definition on the website mentioned below. 
 
 In addition, log entries are written, which can be scanned by using a pattern
-like "SAPHana.*RA.*rc=[1-7,9]".
+like "SAPHanaController.*RA.*rc=[1-7,9]".
 .PP
 .\"
 .SH EXAMPLES
 .PP
-* Below is an example configuration for a SAPHana resource.
+* Below is an example configuration for a SAPHanaController resource.
 .RS 2 
 In addition, a SAPHanaTopology resource is needed to make this work.
 .RE
 .PP
 .RS 4
-primitive rsc_SAPHana_SLE_HDB00 ocf:suse:SAPHana \\
+primitive rsc_SAPHanaController_SLE_HDB00 ocf:suse:SAPHanaController \\
 .br
 operations $id="rsc_sap_SLE_HDB00-operations" \\
 .br
@@ -262,7 +262,7 @@ params SID="SLE" InstanceNumber="00" PREFER_SITE_TAKEOVER="true" \\
 .br
 DUPLICATE_PRIMARY_TIMEOUT="7200" AUTOMATED_REGISTER="false"
 .PP
-ms msl_SAPHana_SLE_HDB00 rsc_SAPHana_SLE_HDB00 \\
+ms msl_SAPHanaController_SLE_HDB00 rsc_SAPHanaController_SLE_HDB00 \\
 .br
 clone-max="2" clone-node-max="1"
 .RE
@@ -270,7 +270,7 @@ clone-max="2" clone-node-max="1"
 * Search for log entries of the resource agent:
 .PP
 .RS 4
-# grep "SAPHana.*RA.*rc=[1-7,9]" /var/log/messages
+# grep "SAPHanaController.*RA.*rc=[1-7,9]" /var/log/messages
 .\" TODO: output
 .RE
 .PP
@@ -289,7 +289,7 @@ clone-max="2" clone-node-max="1"
 .\"
 .SH FILES
 .TP
-/usr/lib/ocf/resource.d/suse/SAPHana
+/usr/lib/ocf/resource.d/suse/SAPHanaController
     the resource agent itself
 .TP
 /usr/lib/ocf/resource.d/suse/SAPHanaTopology
@@ -305,7 +305,7 @@ clone-max="2" clone-node-max="1"
 .\"
 .SH LIMITATIONS
 .br
-For the current version of the SAPHana resource agent software package the
+For the current version of the SAPHanaController resource agent software package the
 support is limited to the following scenarios and parameters:
 .br
 1. Two-node clusters with single-box to single-box system replication.
@@ -341,7 +341,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2014 SUSE Linux Products GmbH, Germany.
 .br
-The resource agent SAPHana comes with ABSOLUTELY NO WARRANTY.
+The resource agent SAPHanaController comes with ABSOLUTELY NO WARRANTY.
 .br
 For details see the GNU General Public License at
 http://www.gnu.org/licenses/gpl.html
