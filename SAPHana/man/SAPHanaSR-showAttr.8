@@ -1,0 +1,86 @@
+.\" Version: 0.160.11
+.\"
+.TH SAPHanaSR-showAttr 8 "14 Jul 2015" "" "SAPHanaSR-ScaleOut"
+.\"
+.SH NAME
+SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
+.\"
+.SH SYNOPSYS
+.br
+\fBSAPHanaSR-showAttr\fR [ --help | --version | --sort ]
+.br
+\fBSAPHanaSR-showAttr \fIOPTION VALUE\fR
+.\"
+.SH DESCRIPTION
+.br
+SAPHanaSR-showAttr shows Linux cluster attributes for SAP HANA system replication automation.
+The overall system replication (SR) state is shown as well as the HANA state on each node.
+.\" TODO sit ino sort
+.\"
+.SH OPTIONS
+.HP
+\fB --help\fR
+        show help.
+.HP
+\fB --version\fR
+        show version.
+.HP
+\fB --ino \fINUM\fR
+.br
+	use SAP instance number \fINUM\fR.
+.HP
+\fB --sid \fISID\fR
+.br
+	use SAP system ID \fISID\fR.
+.HP
+\fB --sort\fR
+.br
+	sort TODO.
+.\"
+.SH RETURN CODES
+.br
+.B 0
+Successful program execution.
+.br
+.B >0
+Usage, syntax or execution errors.
+.\"
+.SH EXAMPLES
+.TP
+TODO
+.\"
+.SH FILES
+.TP
+/usr/bin/SAPHanaSR-showAttr
+	the program itself.
+.TP
+/usr/sap/hostctrl/exe/saphostctrl
+	the sap host control command.
+.\"
+.SH BUGS
+.br
+Formatting and content of this script's output will change, since this
+script is under development.
+Feedback is welcome, please mail to feedback@suse.com.
+.\"
+.SH SEE ALSO
+.br
+\fBocf_suse_SAPHanaController\fP(7) , \fBocf_suse_SAPHanaTopology\fP(7) ,
+\fBSAPHanaSR-monitor\fP(8) , \fBcibadmin\fP(8) , 
+.br
+https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
+.br
+http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
+.\"
+.SH AUTHORS
+.br
+F.Herschel, L.Pinne.
+.\"
+.SH COPYRIGHT
+(c) 2015 SUSE Linux Products GmbH, Germany.
+.br
+SAPHanaSR-showAttr comes with ABSOLUTELY NO WARRANTY.
+.br
+For details see the GNU General Public License at
+http://www.gnu.org/licenses/gpl.html
+.\"
