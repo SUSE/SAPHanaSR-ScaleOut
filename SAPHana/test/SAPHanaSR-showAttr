@@ -11,6 +11,8 @@
 use POSIX;
 use strict;
 use Getopt::Long;
+#use lib '/usr/lib/SAPHanaSR-ScaleOut';
+#use SAPHanaSRTools;
 
 my $sid="";
 my $ino="";
