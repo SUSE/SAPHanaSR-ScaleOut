@@ -39,7 +39,7 @@ my $INr="";
 my $Format="txt";
 my $Continuous="no";
 my $HtmlPage="/srv/www/hawk/public/herschel/index.html";
-my $Intervall=10;
+my $Interval=10;
 
 sub init() 
 {
@@ -48,7 +48,7 @@ sub init()
 	                      "format=s" => \$Format,
 	                      "cont=s" => \$Continuous,
                           "out=s" => \$HtmlPage,
-                          "intervall=s" => \$Intervall,
+                          "interval=s" => \$Interval,
                           "nodes=s" => \$ClusterNodes,
 	);
      set_new_attribute_model;
@@ -314,7 +314,7 @@ sub processMonitor() {
   
 processMonitor;
 while ( $Continuous eq "yes" ) {
-    sleep $Intervall;
+    sleep $Interval;
     processMonitor;
 }
  
