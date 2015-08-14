@@ -151,7 +151,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.7.1</version>
+<version>0.160.9.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -1886,6 +1886,24 @@ function saphana_start_clone() {
             saphana_start_secondary; rc=$?
         fi
     else
+        local start=0
+        local lss=0
+        local my_role=0
+        if saphana_check_local_instance; then
+            super_ocf_log info "Local SAP HANA instance already up and running"
+        else
+            # IF LS>=2 AND ROLE STANDBY "RESTART" INSTANCE
+            get_hana_landscape_status; lss=$?
+            if [ $lss -gt 2 ]; then
+                #
+                # only restart standby instances
+                #
+                my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
+                echo "$my_role" | grep -q ":standby" && start=1
+                output=$($SAPCONTROL -nr $InstanceNr -function RestartInstance)
+            fi
+            #
+        fi
         set_crm_master -10000
         rc=$OCF_SUCCESS
     fi
@@ -2322,20 +2340,42 @@ function saphana_monitor_clone() {
             fi
         fi
     else
-        # TODO: PRIO2: Check, if we need to (re) start a failed SAP HANA instance in a swarm
         nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
-        scoring_crm_master "$my_role" "$my_sync"
-        # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
-        #              This reflects the situation that swarm members get be started (as resource)
-        #              before the master nameserver runs the StartSystem command
-        #           => However we need to check, if it could happen that NO started (warm) master namerver
-        #              is available and we miss to monitor the degraded HANA on a other node
-        case "$nState" in
-            DEMOTED ) rc=$OCF_SUCCESS;;
-            PROMOTED ) rc=$OCF_RUNNING_MASTER;;
-            UNDEFINED ) rc=$OCF_NOT_RUNNING;;
-            * ) rc=$OCF_NOT_RUNNING;;
-        esac
+        # TODO: PRIO2: Check, if we need to (re) start a failed SAP HANA instance in a swarm
+        if ! saphana_check_local_instance; then
+            # IF LS>=2 AND ROLE STANDBY "RESTART" INSTANCE
+            get_hana_landscape_status; lss=$?
+            if [ $lss -gt 2 ]; then
+                case "$nState" in
+                    DEMOTED ) rc=$OCF_NOT_RUNNING;;
+                    PROMOTED ) rc=$OCF_NOT_RUNNING;;
+                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+                    * ) rc=$OCF_NOT_RUNNING;;
+                esac
+            else
+                case "$nState" in
+                    DEMOTED ) rc=$OCF_NOT_RUNNING;;
+                    PROMOTED ) rc=$OCF_NOT_RUNNING;;
+                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+                    * ) rc=$OCF_NOT_RUNNING;;
+                esac
+            fi
+            #
+        else
+            scoring_crm_master "$my_role" "$my_sync"
+            # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
+            #              This reflects the situation that swarm members get be started (as resource)
+            #              before the master nameserver runs the StartSystem command
+            #           => However we need to check, if it could happen that NO started (warm) master namerver
+            #              is available and we miss to monitor the degraded HANA on a other node
+            case "$nState" in
+                DEMOTED ) rc=$OCF_SUCCESS;;
+                PROMOTED ) rc=$OCF_RUNNING_MASTER;;
+                UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+                * ) rc=$OCF_NOT_RUNNING;;
+            esac
+        fi
+       
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
