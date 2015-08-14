@@ -1,0 +1,98 @@
+node vm-majority
+node vm01 \
+	attributes hana_hae_site="RZ1"
+node vm02 \
+	attributes hana_hae_site="RZ1"
+node vm03 \
+	attributes hana_hae_site="RZ1"
+node vm04 \
+	attributes hana_hae_site="RZ1"
+node vm05 \
+	attributes hana_hae_site="RZ1"
+node vm06 \
+	attributes hana_hae_site="RZ1"
+node vm07 \
+	attributes hana_hae_site="RZ1"
+node vm08 \
+	attributes hana_hae_site="RZ1"
+node vm09 \
+	attributes hana_hae_site="RZ1"
+node vm11 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+node vm12 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+node vm13 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+node vm14 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+node vm15 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+node vm16 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+node vm17 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+node vm18 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+node vm19 \
+	attributes hana_hae_site="RZ2" maintenance="on"
+primitive rsc_SAPHanaTopology_HAE_HDB96 ocf:suse:SAPHanaTopology \
+	operations $id="rsc_sap2_HAE_HDB96-operations" \
+	op monitor interval="10" timeout="600" \
+	op start interval="0" timeout="3600" \
+	op stop interval="0" timeout="300" \
+	params SID="HAE" InstanceNumber="96"
+primitive rsc_SAPHana_HAE_HDB96 ocf:suse:SAPHana \
+	operations $id="rsc_sap_HAE_HDB96-operations" \
+	op start interval="0" timeout="3600" \
+	op stop interval="0" timeout="3600" \
+	op promote interval="0" timeout="3600" \
+	op monitor interval="15" role="Master" timeout="700" \
+	op monitor interval="20" role="Slave" timeout="700" \
+	params SID="HAE" InstanceNumber="96" PREFER_SITE_TAKEOVER="true" DUPLICATE_PRIMARY_TIMEOUT="600" AUTOMATED_REGISTER="true"
+primitive rsc_ip_hae ocf:heartbeat:IPaddr2 \
+	params ip="10.210.4.234" \
+	op monitor interval="60" timeout="20" on_fail="restart" \
+	meta target-role="Started"
+primitive rsc_stonith_sbd stonith:external/sbd \
+	op start interval="0" timeout="15" start-delay="10"
+ms msl_SAPHana_HAE_HDB96 rsc_SAPHana_HAE_HDB96 \
+	meta master-node-max="1" master-max="1" clone-node-max="1" interleave="true" target-role="Started"
+clone cln_SAPHanaTopology_HAE_HDB96 rsc_SAPHanaTopology_HAE_HDB96 \
+	meta clone-node-max="1" interleave="true" target-role="Started"
+location SAPHanaTopology_not_on_majority_maker cln_SAPHanaTopology_HAE_HDB96 -inf: vm-majority
+location SAPHana_not_on_majority_maker msl_SAPHana_HAE_HDB96 -inf: vm-majority
+location loc_ip_not_on_majority_maker rsc_ip_hae -inf: vm-majority
+colocation col_ip_on_sr-primary 2000: rsc_ip_hae:Started msl_SAPHana_HAE_HDB96:Master
+order TOPfirst 1000: cln_SAPHanaTopology_HAE_HDB96 msl_SAPHana_HAE_HDB96
+property $id="SAPHanaSR" \
+	hana_hae_site_lss_RZ2="2" \
+	hana_hae_site_srr_RZ2="S" \
+	hana_hae_site_lss_RZ1="4" \
+	hana_hae_site_srr_RZ1="P" \
+	hana_hae_glob_srmode="sync" \
+	hana_hae_site_mns_RZ1="vm01" \
+	hana_hae_site_mns_RZ2="vm11" \
+	hana_hae_site_lpt_RZ1="1436366150" \
+	hana_hae_glob_sync_state="SFAIL" \
+	hana_hae_glob_sec="RZ2" \
+	hana_hae_site_lpt_RZ2="10" \
+	hana_hae_glob_prim="RZ1"
+property $id="cib-bootstrap-options" \
+	no-quorum-policy="stop" \
+	default-resource-stickiness="1000" \
+	stonith-enabled="true" \
+	stonith-timeout="187" \
+	stonith-action="reboot" \
+	expected-quorum-votes="19" \
+	dc-version="1.1.11-3ca8c3b" \
+	cluster-infrastructure="classic openais (with plugin)" \
+	last-lrm-refresh="1436364387" \
+	maintenance-mode="false"
+rsc_defaults $id="rsc_defaults-options" \
+	resource-stickiness="1000" \
+	migration-threshold="3000"
+op_defaults $id="op-options" \
+	record-pending="false" \
+	timeout="600"
+op_defaults $id="op_defaults-options" \
+	timeout="120s"
