@@ -2,4 +2,4 @@
 
 export OCF_ROOT=$(pwd)
 
-./SAPHana $1
+./SAPHanaController $1
