@@ -22,8 +22,11 @@ HANA_INST_DIR="/hana/shared/SPS09_rev95/SAP_HANA_DATABASE"
 function unmanage()
 {
     local res=$1
+    local rc=0
     logger -s -i -t $TAG "unmanage $res"
-    crm resource unmanage $res
+    crm resource unmanage $res; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 
@@ -32,8 +35,11 @@ function unmanage()
 function manage()
 {
     local res=$1
+    local rc=0
     logger -s -i -t $TAG "manage $res"
-    crm resource manage $res
+    crm resource manage $res; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 #
@@ -41,8 +47,9 @@ function manage()
 function cleanup()
 {
     local res=$1
+    local rc=0
     logger -s -i -t $TAG "cleanup $res"
-    crm resource cleanup $res
+    crm resource cleanup $res; rc=$?
 }
 
 
@@ -51,9 +58,12 @@ function cleanup()
 #
 function stop_secondary()
 {
+    local rc=0
     logger -s -i -t $TAG "stop_secondary"
     COMMAND="hostname; sapcontrol -nr $ino -function StopSystem; sapcontrol -nr $ino -function WaitforStopped 300 10; hostname"
-    ssh root@$secn "su - ${sid}adm -c '$COMMAND'"
+    ssh root@$secn "su - ${sid}adm -c '$COMMAND'"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 #
@@ -61,102 +71,191 @@ function stop_secondary()
 #
 function stop_primary()
 {
+    local rc=0
     logger -s -i -t $TAG "stop_primary"
     COMMAND="hostname; sapcontrol -nr $ino -function StopSystem; sapcontrol -nr $ino -function WaitforStopped 300 10; hostname"
-    ssh root@$prim "su - ${sid}adm -c '$COMMAND'"
+    ssh root@$prim "su - ${sid}adm -c '$COMMAND'"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 ###
 # Uninstall primary
 function uninstall_primary()
 { 
+    local rc=0
     logger -s -i -t $TAG "uninstall_primary"
-    COMMAND="$HANA_INST_DIR/hdbuninst --sid=LNX"
-    ssh root@$prim "$COMMAND"
+    COMMAND="$HANA_INST_DIR/hdbuninst -b --sid=LNX"
+    ssh root@$prim "$COMMAND"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 ###
 # Uninstall secondary
 function uninstall_secondary()
 {
+    local rc=0
     logger -s -i -t $TAG "uninstall_secondary"
-    COMMAND="$HANA_INST_DIR/hdbuninst --sid=LNX"
-    ssh root@$secn "$COMMAND"
+    COMMAND="$HANA_INST_DIR/hdbuninst -b --sid=LNX"
+    ssh root@$secn "$COMMAND"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 ###
 # Install primary
 function install_primary()
 {
+    local rc=0
     logger -s -i -t $TAG "install_primary"
     COMMAND="cat fhSAPHanaPasswords | $HANA_INST_DIR/hdbinst --addhosts=\"$primList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
-    ssh root@$prim "$COMMAND"
+    ssh root@$prim "$COMMAND"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 ###
 # Install secondary
 function install_secondary()
 {
+    local rc=0
     logger -s -i -t $TAG "install_secondary"
     COMMAND="cat fhSAPHanaPasswords | $HANA_INST_DIR/hdbinst --addhosts=\"$secnList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
-    ssh root@$secn "$COMMAND"
+    ssh root@$secn "$COMMAND"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 ####
 # BACKUP PRIMARY SYSTEM
 function backup_primary()
 {
+    local rc=0
     logger -s -i -t $TAG "backup_primary"
     # TODO: need to start that via ssh
     COMMAND="/usr/sap/$SID/HDB${ino}/exe/hdbsql -u system -p manager -i ${ino} \"backup data using file ('lala')\""
     ssh root@$prim "$COMMAND"
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 ####
 # ENABLE AT PRIMARY
 function enable_primary()
 { 
+    local rc=0
     logger -s -i -t $TAG "enable_primary"
     COMMAND="hostname; hdbnsutil -sr_enable --name=${primSite}"
-    ssh root@$prim "su - ${sid}adm -c '$COMMAND'"
+    ssh root@$prim "su - ${sid}adm -c '$COMMAND'"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 ####
 # REGISTER SECONDARY
 function register_secondary()
 {
+    local rc=0
     logger -s -i -t $TAG "register_secondary"
     COMMAND="hostname; hdbnsutil -sr_register --remoteHost=${prim} --remoteInstance=${ino} --mode=sync --name=${secnSite} --force_full_replica"
-    ssh root@$secn "su - ${sid}adm -c '$COMMAND'"
+    ssh root@$secn "su - ${sid}adm -c '$COMMAND'"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
+}
+
+function cleanup_primary()
+{
+    local rc=0
+    logger -s -i -t $TAG "cleanup_primary"
+    COMMAND="hostname; hdbnsutil -sr_cleanup --force; hostname"
+    ssh root@$secn "su - ${sid}adm -c '$COMMAND'"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
+}
+
+####
+# START PRIMARY
+function start_primary()
+{ 
+    local rc=0
+    logger -s -i -t $TAG "start_primary"
+    COMMAND="hostname; hostname; sapcontrol -nr $ino -function StartSystem; sapcontrol -nr $ino -function WaitforStarted 300 10; hostname"
+    ssh root@$prim "su - ${sid}adm -c '$COMMAND'"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
 ####
 # START SECONDARY
 function start_secondary()
 { 
+    local rc=0
     logger -s -i -t $TAG "start_secondary"
     COMMAND="hostname; hostname; sapcontrol -nr $ino -function StartSystem; sapcontrol -nr $ino -function WaitforStarted 300 10; hostname"
-    ssh root@$secn "su - ${sid}adm -c '$COMMAND'"
+    ssh root@$secn "su - ${sid}adm -c '$COMMAND'"; rc=$?
+    logger -s -i -t $TAG "rc=$rc"
+    return $rc
 }
 
+function manually_check_nameserver_ini()
+{
+    local rc=1
+    logger -s -i -t $TAG "manually_check_nameserver_ini"
+    ok=0
+    COMMAND="hostname; cat /hana/shared/$SID/global/hdb/custom/config/nameserver.ini"
+    ssh root@$secn "su - ${sid}adm -c '$COMMAND'"
+    echo "is this nameserver.ini correct?"
+    read yn
+    case "$yn" in
+      "y" | "yes" | "j" | "ja" ) ok=1;;
+    esac
+ 
+    if [ $ok -eq 0 ]; then
+       echo "EXIT"
+       exit 1
+    fi
+}
+
+check_n_press()
+{
+   echo "CHECK AND PRESS ENTER"; read
+}
+
+#
+# cluster
+#
 unmanage msl_SAPHana_${SID}_HDB${ino}
 unmanage cln_SAPHanaTopology_${SID}_HDB${ino}
 
-#stop_secondary
-#stop_primary
-#uninstall_primary
-#uninstall_secondary
+# stop all
+#
+stop_secondary
+stop_primary
 
-#install_primary
-#backup_primary
-#enable_primary
+# primary
+#
+uninstall_primary || check_n_press
+install_primary
+backup_primary
+enable_primary
+check_n_press
 
-#install_secondary
-#stop_secondary
-#register_secondary
-#start_secondary
+# secondary
+#
+uninstall_secondary || check_n_press
+install_secondary
+check_n_press
+stop_secondary
+check_n_press
+register_secondary
+check_n_press
+start_secondary
+check_n_press
 
-
+#
+# cluster (2/2)
+#
 cleanup cln_SAPHanaTopology_LNX_HDB42
 manage cln_SAPHanaTopology_LNX_HDB42
 cleanup msl_SAPHana_LNX_HDB42
