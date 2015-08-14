@@ -62,11 +62,12 @@ Number of the SAP HANA database.
 For system replication also Instance Number+1 is blocked.
 .RE
 .PP
-\fBSAPHanaFilter\fR
+.\"
+.SH SUPPORTED PROPERTIES
+.br
+\fBhana_${sid}_glob_filter\fR
 .RS 4
-Deprecated - do not use it anymore.
-Now the filter for log messages can be set with the global cluster property
-\fBhana_${sid}_glob_filter\fR .
+Global cluster property \fBhana_${sid}_glob_filter\fR .
 This property should only be set if requested by support engineers.
 The default is sufficient for normal operation.
 .RE
@@ -131,9 +132,7 @@ In addition, a SAPHanaController resource is needed to make this work.
 .RE
 .PP
 .RS 4
-primitive rsc_SAPHanaTopology_SLE_HDB00 ocf:suse:SAPHanaTopology \\
-.br
-operations $id="rsc_sap2_SLE_HDB00-operations" \\
+primitive rsc_SAPHT_SLE_HDB00 ocf:suse:SAPHanaTopology \\
 .br
 op start interval="0" timeout="600" \\
 .br
@@ -143,7 +142,7 @@ op monitor interval="10" timeout="600" \\
 .br
 params SID="SLE" InstanceNumber="00"
 .PP
-clone cln_SAPHanaTopology_SLE_HDB00 rsc_SAPHanaTopology_SLE_HDB00 \\
+clone cln_SAPHT_SLE_HDB00 rsc_SAPHT_SLE_HDB00 \\
 .br
 notify="true" interleave="true" clone-node-max="1"
 .RE
@@ -156,9 +155,7 @@ In addition, a SAPHanaController resource is needed to make this work.
 .RE
 .PP
 .RS 4
-primitive rsc_SAPHanaTopology_SLE_HDB00 ocf:suse:SAPHanaTopology \\
-.br
-operations $id="rsc_sap2_SLE_HDB00-operations" \\
+primitive rsc_SAPHT_SLE_HDB00 ocf:suse:SAPHanaTopology \\
 .br
 op start interval="0" timeout="600" \\
 .br
@@ -168,13 +165,13 @@ op monitor interval="10" timeout="600" \\
 .br
 params SID="SLE" InstanceNumber="00" 
 .PP
-clone cln_SAPHanaTopology_SLE_HDB00 rsc_SAPHanaTopology_SLE_HDB00 \\
+clone cln_SAPHT_SLE_HDB00 rsc_SAPHT_SLE_HDB00 \\
 .br
 notify="true" interleave="true" clone-node-max="1"
 .PP
-location SAPHanaTopology_not_on_majority_maker cln_SAPHanaTopology_HAE_HDB00 -inf: vm-majority
+location SAPHT_not_on_majority_maker cln_SAPHT_HAE_HDB00 -inf: vm-majority
 .PP
-order SAPHanaTopology_first 1000: cln_SAPHanaTopology_SLE_HDB00 msl_SAPHanaController_SLE_HDB00
+order SAPHT_first 1000: cln_SAPHT_SLE_HDB00 msl_SAPHC_SLE_HDB00
 .RE
 .PP
 .\"
@@ -249,9 +246,11 @@ F.Herschel, L.Pinne.
 .PP
 .\"
 .SH COPYRIGHT
-(c) 2014-2015 SUSE Linux Products GmbH, Germany.
+(c) 2014 SUSE Linux Products GmbH, Germany.
 .br
-SAPHana comes with ABSOLUTELY NO WARRANTY.
+(c) 2015 SUSE Linux GmbH, Germany.
+.br
+SAPHanaTopology comes with ABSOLUTELY NO WARRANTY.
 .br
 For details see the GNU General Public License at
 http://www.gnu.org/licenses/gpl.html

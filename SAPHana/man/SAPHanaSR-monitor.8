@@ -41,13 +41,14 @@ The overall system replication (SR) state is shown in an summarized manner.
 .br
 	use SAP instance number \fINUM\fR.
 .HP
-\fB --node\fR
+\fB --nodes \fINUM\fR
 .br
-	TODO
+	number of nodes which should be in the cluster. Usually detected automatically.
 .HP
 \fB --out \fIFILE\fR
 .br
-	use output file \fIFILE\fR, default is /srv/www/hawk/public/herschel/index.html.
+	use output file \fIFILE\fR, default is /srv/www/hawk/public/SAPHanaSR/index.html.
+    The directory is not created by the package.
 .HP
 \fB --sid \fISID\fR
 .br
@@ -74,7 +75,7 @@ show status of SAP HANA system replication one time.
 /usr/lib/SAPHanaSR-ScaleOut
 	directory with function libraries.
 .TP
-/srv/www/hawk/public/herschel/index.html
+/srv/www/hawk/public/SAPHanaSR/index.html
 	default path for output web page.
 .TP
 /var/log/messages
@@ -100,7 +101,9 @@ http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-
 F.Herschel, L.Pinne.
 .\"
 .SH COPYRIGHT
-(c) 2015 SUSE Linux Products GmbH, Germany.
+(c) 2014 SUSE Linux Products GmbH, Germany.
+.br
+(c) 2015 SUSE Linux GmbH, Germany.
 .br
 SAPHanaSR-monitor comes with ABSOLUTELY NO WARRANTY.
 .br

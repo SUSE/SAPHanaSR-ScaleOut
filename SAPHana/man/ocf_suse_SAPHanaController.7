@@ -25,12 +25,12 @@ agent have to work together.
 An HANA scale-out setup already is, to some degree, an HA cluster on its own.
 The HANA is able to replace failing nodes with standby nodes or to restart
 certain sub-systems on other nodes. As long as the HANA landscape status is
-OK the Linux cluster will not act. The main purpose of the Linux cluster is
+not "ERROR" the Linux cluster will not act. The main purpose of the Linux cluster is
 to handle the take-over to the other site. Only if the HANA landscape status
 indicates that HANA can not recover from the failure and the replication is
 ins sync, than Linux will act. As an exception, the Linux cluster will 
 locally start former master nameservers as standby nodes after HANA has
-move the master nameserver role to another candidate.
+moved the master nameserver role to another candidate.
 
 The SAPHanaController resource agent (RA) performs the actual check of the
 SAP HANA database instances and is configured as a master/slave resource.
@@ -66,12 +66,10 @@ The resource agent uses the following five interfaces provided by SAP:
    replication take-over (sr_takeover) or to register a former primary to a newer one
    (sr_register).
 
-4. hdbsql / systemReplicationStatus
-   Interface is SQL query into HANA (system replication table). The hdbsql query has
-   been replaced by a python script "systemReplicationStatus.py" in SAP HANA SPS9.
-   If you need to use hdbsql you need to set up secure store users for Linux
-   user root to be able to access the SAP HANA database. You need to configure a secure
-   store user key "SLEHALOC" which can connect the SAP HANA database. 
+4. systemReplicationStatus
+   The Interface is systemReplicationStatus is a special query into HANA 
+   (system replication table) via a python library. 
+   This interface exists since SAP HANA SPS9.
 
 5. saphostctrl
    The interface saphostctrl uses the function ListInstances to figure out the virtual
@@ -131,8 +129,7 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to switchover to slave instance instead of restarting master locally.
-This currently only works with scale-up single-box to single-box system replication.
+Defines whether RA should prefer to switchover to slave instance instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR".
 .br
 Optional. Default value: true\&.
 .RE
@@ -158,11 +155,12 @@ is expired.
 Default value: false\&.
 .RE
 .PP
-\fBSAPHanaFilter\fR
+.\"
+.SH SUPPORTED PROPERTIES
+.br
+\fBhana_${sid}_glob_filter\fR
 .RS 4
-Deprecated - do not use it anymore.
-Now the filter for log messages can be set with the global cluster property
-\fBhana_${sid}_glob_filter\fR .
+Global cluster property \fBhana_${sid}_glob_filter\fR .
 This property should only be set if requested by support engineers.
 The default is sufficient for normal operation.
 .RE
@@ -187,7 +185,7 @@ Suggested minimum timeout: 3600\&.
 \fBpromote\fR
 .RS 4
 Either runs a take-nover for a secondary or a just-nothing for a primary.
-Suggested minimum timeout: 320\&.
+Suggested minimum timeout: 900\&.
 .RE
 .PP
 \fBdemote\fR
@@ -291,9 +289,7 @@ In addition, a SAPHanaController resource is needed to make this work.
 .RE
 .PP
 .RS 4
-primitive rsc_SAPHanaController_SLE_HDB00 ocf:suse:SAPHanaController \\
-.br
-operations $id="rsc_sap_SLE_HDB00-operations" \\
+primitive rsc_SAPHC_SLE_HDB00 ocf:suse:SAPHanaController \\
 .br
 op start interval="0" timeout="3600" \\
 .br
@@ -309,11 +305,11 @@ params SID="SLE" InstanceNumber="00" PREFER_SITE_TAKEOVER="false" \\
 .br
 DUPLICATE_PRIMARY_TIMEOUT="7200" AUTOMATED_REGISTER="false"
 .PP
-ms msl_SAPHanaController_SLE_HDB00 rsc_SAPHanaController_SLE_HDB00 \\
+ms msl_SAPHC_SLE_HDB00 rsc_SAPHC_SLE_HDB00 \\
 .br
 master-node-max="1" master-max="1" clone-node-max="1" interleave="true"
 .PP
-location SAPHanaController_not_on_majority_maker msl_SAPHanaController_HAE_HDB00 -inf: vm-majority
+location SAPHC_not_on_majority_maker msl_SAPHC_HAE_HDB00 -inf: vm-majority
 .RE
 .PP
 * The following shows the filter for log messages set to the defaults.
@@ -413,7 +409,9 @@ F.Herschel, L.Pinne.
 .PP
 .\"
 .SH COPYRIGHT
-(c) 2014-2015 SUSE Linux Products GmbH, Germany.
+(c) 2014 SUSE Linux Products GmbH, Germany.
+.br
+(c) 2015 SUSE Linux GmbH, Germany.
 .br
 The resource agent SAPHanaController comes with ABSOLUTELY NO WARRANTY.
 .br

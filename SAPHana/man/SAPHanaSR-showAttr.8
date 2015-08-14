@@ -33,9 +33,9 @@ The overall system replication (SR) state is shown as well as the HANA state on 
 .br
 	use SAP system ID \fISID\fR.
 .HP
-\fB --sort\fR
+\fB --sort \fiFIELD\fR
 .br
-	sort TODO.
+	sort attribute out table by field. Allowed values: roles, site
 .\"
 .SH RETURN CODES
 .br
@@ -47,7 +47,8 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .TP
-TODO
+# SAPHanaSR-showAttr --sort roles
+show all SAPHanaSR attributes in the cluster and sort host table output by roles
 .\"
 .SH FILES
 .TP
@@ -77,7 +78,9 @@ http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-
 F.Herschel, L.Pinne.
 .\"
 .SH COPYRIGHT
-(c) 2015 SUSE Linux Products GmbH, Germany.
+(c) 2014 SUSE Linux Products GmbH, Germany.
+.br
+(c) 2015 SUSE Linux GmbH, Germany.
 .br
 SAPHanaSR-showAttr comes with ABSOLUTELY NO WARRANTY.
 .br
