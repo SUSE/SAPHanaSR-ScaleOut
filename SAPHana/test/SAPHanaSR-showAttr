@@ -5,7 +5,7 @@
 # license: GPL
 # author:  fabian.herschel@suse.com
 # date:    2015-04-14
-# version: 0.4
+my $Version="0.4.2015.04.14.1";
 # 
 #
 use POSIX;
@@ -25,11 +25,25 @@ my %Global;
 my %HName;
 my %SName;
 my %GName;
+my $help;
+my $version;
 
 	my $result = GetOptions ("sid=s" => \$sid,
 	                      "ino=s" => \$ino,
 	                      "sort=s" => \$sortBy,
+                          "version" => \$version,
+                          "help" => \$help,
 		 );
+
+
+if ( $help ) {
+   printf "Nice try\n";
+   exit 0;
+}
+if ( $version ) {
+   printf "%s\n", $Version;
+   exit 0;
+}
 
 sub max { # thanks to http://www.perlunity.de/perl/forum/thread_018329.shtml
  my $a = shift;
