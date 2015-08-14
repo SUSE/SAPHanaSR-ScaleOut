@@ -24,17 +24,19 @@ Version:        0.160
 Release:        <RELEASE1>
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 #Release:      1
-Source0:        SAPHana
+Source0:        SAPHanaController
 Source1:        SAPHanaTopology
 Source2:        README
 Source3:        LICENSE
-Source4:        show_SAPHanaSR_attributes
+Source4:        SAPHanaSR-showAttr
 Source5:        SAPHanaSR-Setup-Guide.pdf
 Source6:        SAPHanaSR.xml
 Source7:        90-SAPHanaSR.xml
-Source8:        ocf_suse_SAPHana.7
+Source8:        ocf_suse_SAPHanaController.7
 Source9:        ocf_suse_SAPHanaTopology.7
 Source10:       SAPHanaSR-monitor
+Source11:       SAPHanaSRTools.pm
+Source12:       20150708-hana-scale-out.crm
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 Requires:       pacemaker > 1.1.1
@@ -79,7 +81,9 @@ cp %{S:7} .
 cp %{S:8} .
 cp %{S:9} .
 cp %{S:10} .
-gzip ocf_suse_SAPHana.7
+cp %{S:11} .
+cp %{S:12} .
+gzip ocf_suse_SAPHanaController.7
 gzip ocf_suse_SAPHanaTopology.7
 
 %clean
@@ -88,30 +92,38 @@ test "$RPM_BUILD_ROOT" != "/" && rm -rf $RPM_BUILD_ROOT
 %install
 mkdir -p %{buildroot}/usr/lib/ocf/resource.d/suse
 mkdir -p %{buildroot}%{_docdir}/%{name}
+mkdir -p %{buildroot}/usr/lib/%{name}
+mkdir -p %{buildroot}/usr/bin
 mkdir -p %{buildroot}/usr/share/%{name}/tests
+mkdir -p %{buildroot}/usr/share/%{name}/samples
 mkdir -p %{buildroot}/usr/share/man/man7
 mkdir -p %{buildroot}/srv/www/hawk/config/wizard/templates
 mkdir -p %{buildroot}/srv/www/hawk/config/wizard/workflows
-install -m 0755 SAPHana         %{buildroot}/usr/lib/ocf/resource.d/suse
-install -m 0755 SAPHanaTopology %{buildroot}/usr/lib/ocf/resource.d/suse
+install -m 0755 SAPHanaController %{buildroot}/usr/lib/ocf/resource.d/suse
+install -m 0755 SAPHanaTopology  %{buildroot}/usr/lib/ocf/resource.d/suse
 install -m 0444 LICENSE         %{buildroot}/%{_docdir}/%{name}
 install -m 0444 README          %{buildroot}/%{_docdir}/%{name}
 install -m 0444 SAPHanaSR-Setup-Guide.pdf %{buildroot}/%{_docdir}/%{name}
-install -m 0555 show_SAPHanaSR_attributes %{buildroot}/usr/share/%{name}/tests
-install -m 0555 SAPHanaSR-monitor %{buildroot}/usr/share/%{name}/tests
+install -m 0555 SAPHanaSR-showAttr %{buildroot}/usr/bin
+install -m 0444 SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}
+install -m 0555 SAPHanaSR-monitor %{buildroot}/usr/bin
 install -m 0444 SAPHanaSR.xml   %{buildroot}/srv/www/hawk/config/wizard/templates
 install -m 0444 90-SAPHanaSR.xml  %{buildroot}/srv/www/hawk/config/wizard/workflows
-install -m 0444 ocf_suse_SAPHana.7.gz %{buildroot}/usr/share/man/man7
+install -m 0444 ocf_suse_SAPHanaController.7.gz %{buildroot}/usr/share/man/man7
 install -m 0444 ocf_suse_SAPHanaTopology.7.gz %{buildroot}/usr/share/man/man7
+install -m 0444 20150708-hana-scale-out.crm %{buildroot}/usr/share/%{name}/samples
 
 %files
 %defattr(-,root,root)
 %dir /usr/lib/ocf
 %dir /usr/lib/ocf/resource.d
 %dir /usr/lib/ocf/resource.d/suse
-/usr/lib/ocf/resource.d/suse/SAPHana
+/usr/lib/ocf/resource.d/suse/SAPHanaController
 /usr/lib/ocf/resource.d/suse/SAPHanaTopology
 /usr/share/%{name}
+/usr/lib/%{name}
+/usr/bin/SAPHanaSR-monitor
+/usr/bin/SAPHanaSR-showAttr
 %dir /srv/www/hawk
 %dir /srv/www/hawk/config
 %dir /srv/www/hawk/config/wizard
@@ -126,7 +138,10 @@ install -m 0444 ocf_suse_SAPHanaTopology.7.gz %{buildroot}/usr/share/man/man7
 %files doc
 %defattr(-,root,root)
 %doc %{_docdir}/%{name}/SAPHanaSR-Setup-Guide.pdf
-%doc /usr/share/man/man7/ocf_suse_SAPHana.7.gz
+%doc /usr/share/man/man7/ocf_suse_SAPHanaController.7.gz
 %doc /usr/share/man/man7/ocf_suse_SAPHanaTopology.7.gz
+# %doc /usr/share/%{name}/samples
+# %doc /usr/share/man/man8/SAPHanaSR-monitor.8.gz
+# %doc /usr/share/man/man8/SAPHanaSR-showAttr.8.gz
 
 %changelog
