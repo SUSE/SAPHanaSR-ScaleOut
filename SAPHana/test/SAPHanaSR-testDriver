@@ -24,7 +24,6 @@ use Getopt::Long;
 use SAPHanaSRTools;
 
 ###################################
-## this part is not for scale up and currently NOT zero-config
 
 my $ClusterNodes=6;
 my $ClusterPrimaries=1;
