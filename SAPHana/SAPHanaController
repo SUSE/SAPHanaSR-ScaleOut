@@ -151,7 +151,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.10.1</version>
+<version>0.160.11.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -661,7 +661,7 @@ function saphana_init() {
     for clN in ${otherNodes[@]}; do
 	    nodeSite=$(get_hana_attribute $clN ${ATTR_NAME_HANA_SITE[@]})
         super_ocf_log info "DEC: clN=$clN, nodeSite=$nodeSite"
-        if [ "$nodeSite" != "$site" ]; then
+        if [ -n "$nodeSite" -a "$nodeSite" != "$site" ]; then
             remSite=$nodeSite
             remSR_name=${remSite%%:*}
             remSR_id=${remSite#*:}
