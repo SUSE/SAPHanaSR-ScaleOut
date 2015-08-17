@@ -151,7 +151,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.9.1</version>
+<version>0.160.10.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -909,6 +909,7 @@ function analyze_hana_sync_statusSRS()
           set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
           super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (5) - srRc=$srRc lss=$lss"
           # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
+          super_ocf_log info "ACT: 001 * lpa_set_lpt 10 $remSR_name"
           lpa_set_lpt 10 "$remSR_name"
           rc1
        fi
@@ -917,6 +918,7 @@ function analyze_hana_sync_statusSRS()
        set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
        super_ocf_log info "ACT site=$sr_name, seting SFAIL for secondary (2) - srRc=$srRc"
        # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
+       super_ocf_log info "ACT: 002 * lpa_set_lpt 10 $remSR_name"
        lpa_set_lpt 10 "$remSR_name"
        rc=1;
     fi
@@ -1253,10 +1255,12 @@ function saphana_start_primary()
                         if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
                             super_ocf_log info "ACT: Register successful"
                             lpa_push_lpt 10
+                            super_ocf_log info "ACT: 003 * lpa_set_lpt 10 $sr_name"
                             lpa_set_lpt  10 "$sr_name"
                             set_crm_master  0
                             saphana_start_secondary
                             rc=$?
+                            super_ocf_log info "ACT: 004 * lpa_set_lpt 10 $sr_name"
                             lpa_set_lpt  10 "$sr_name"
                         else
                             super_ocf_log err "ACT: Register failed"
@@ -1376,6 +1380,7 @@ function saphana_start_secondary()
     ####### LPA - begin
     #
     lpa_push_lpt 10
+    super_ocf_log info "ACT: 005 * lpa_set_lpt 10 $sr_name"
     lpa_set_lpt  10 "$sr_name"
     #
     ####### LPA - end
@@ -1403,6 +1408,7 @@ function saphana_start_secondary()
                rc=$OCF_SUCCSESS
            fi
        else
+           super_ocf_log info "ACT: 006 * lpa_set_lpt 10 $sr_name"
            lpa_set_lpt  10 "$sr_name"
        fi
     else
@@ -1882,6 +1888,7 @@ function saphana_start_clone() {
         if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
             saphana_start_primary; rc=$?
         else
+            super_ocf_log info "ACT: 007 * lpa_set_lpt 10 $sr_name"
             lpa_set_lpt  10 "$sr_name"
             saphana_start_secondary; rc=$?
         fi
@@ -1925,6 +1932,7 @@ function saphana_stop_clone() {
     super_ocf_log info "RA: SET UNDEFINED"
     check_for_primary; primary_status=$?
     if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
+        super_ocf_log info "ACT: 008 * lpa_set_lpt 10 $sr_name"
         lpa_set_lpt  10 "$sr_name"
     fi
     saphana_stop; rc=$?
@@ -2134,6 +2142,7 @@ function saphana_monitor_primary()
                            lpa_check_lpt_status; again_lpa_rc=$?
                            if [ $again_lpa_rc -eq 2 ]; then
                               super_ocf_log info "DEC: Dual primary detected, other instance is PROMOTED and lpa stalemate ==> local restart"
+                              super_ocf_log info "ACT: 009 * lpa_set_lpt 10 $sr_name"
                               lpa_set_lpt 10 "$sr_name"
                               lpa_push_lpt 10
                               rc=$OCF_NOT_RUNNING
@@ -2177,6 +2186,7 @@ function saphana_monitor_secondary()
     # OK, we are running as HANA SECONDARY
     #
     if ! lpa_get_lpt ${sr_name}; then
+        super_ocf_log info "ACT: 010 * lpa_set_lpt 10 $sr_name"
         lpa_set_lpt  10 "$sr_name"
         lpa_push_lpt 10
     fi
@@ -2226,10 +2236,12 @@ function saphana_monitor_secondary()
         0 ) # FATAL
             # DONE: PRIO1: Maybe we need to differ between 0 and 1. While 0 is a fatal sap error, 1 is down/error
             # TODO: PRIO3: is OCF_ERR_GENERIC best option?
+            super_ocf_log info "ACT: 011 * lpa_set_lpt 10 $sr_name"
             lpa_set_lpt  10 "$sr_name"
             rc=$OCF_ERR_GENERIC
             ;;
         1 ) # ERROR
+            super_ocf_log info "ACT: 012 * lpa_set_lpt 10 $sr_name"
             lpa_set_lpt  10 "$sr_name"
             rc=$OCF_NOT_RUNNING
             ;;
@@ -2251,11 +2263,13 @@ function saphana_monitor_secondary()
                     scoring_crm_master "$my_role" "$my_sync"
                     ;;
                 "SFAIL" ) # This is currently NOT a possible node to promote
+                    super_ocf_log info "ACT: 013 * lpa_set_lpt 10 $sr_name"
                     lpa_set_lpt  10 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status FAILED ==> EXCLUDE as posible takeover node"
                     set_crm_master -INFINITY
                     ;;
                 "*" )     # Unknown sync status
+                    super_ocf_log info "ACT: 014 * lpa_set_lpt 10 $sr_name"
                     lpa_set_lpt  10 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status UKNOWN/UNDEFINED ==> EXCLUDE as posible takeover node"
                     set_crm_master -INFINITY
