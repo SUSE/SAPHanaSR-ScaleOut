@@ -151,7 +151,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.13.1</version>
+<version>0.160.14.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -546,6 +546,8 @@ function saphana_init() {
     InstanceNr=$OCF_RESKEY_InstanceNumber
     SIDInstanceName="${SID}_HDB${InstanceNr}"
     InstanceName="HDB${InstanceNr}"
+    HANA_CALL="HDBSettings.sh"
+    SAPSYSTEMNAME=$SID
     super_ocf_log debug "DBG: Used new method to get SID ($SID) and InstanceNr ($InstanceNr)"
     sid=$(echo "$SID" | tr [:upper:] [:lower:])
     sidadm="${sid}adm"
@@ -721,15 +723,7 @@ function saphana_init() {
     if is_master_nameserver; then master_walk $standbyFilter; fi
     super_ocf_log info "FLOW $FUNCNAME rc=$OCF_SUCCESS"
     #############################
-    # TODO: PRIO9: To be able to call landscapeHostConfig.py without su (so as root)
-    # TODO: PRIO9: Research for environment script .htacces or something like that
-    #export SAPSYSTEMNAME=ZLF
-    #export DIR_INSTANCE=/usr/sap/ZLF/HDB02
-    #export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DIR_INSTANCE/exe:$DIR_INSTANCE/exe/Python/lib
-    #export PYTHONPATH=$DIR_INSTANCE/$HOST:$DIR_INSTANCE/exe/python_support:$DIR_INSTANCE/exe
-    #export PYTHONHOME=$DIR_INSTANCE/exe/Python
-    #export SAP_RETRIEVAL_PATH=$DIR_INSTANCE/$HOST
-    #export DIR_EXECUTABLE=$DIR_INSTANCE/exe
+    # DONE: PRIO9: To be able to call landscapeHostConfig.py without su (so as root)
     #############################
     return $OCF_SUCCESS
 }
@@ -845,7 +839,8 @@ function cleanup_instance() {
 function check_for_primary() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=$HANA_STATE_DEFECT
-    node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
+    #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
+    node_full_status=$($DIR_EXECUTABLE/$HANA_CALL hdbnsutil -sr_state 2>/dev/null )
     node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
     super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
     # TODO: PRIO2: Maybe we need to use a fallback interface when hdbnsitil does not answer properly -> lookup in config files?
@@ -865,7 +860,8 @@ function check_for_primary() {
                super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: <$node_status>"
                dump=$( echo $node_status | hexdump -C );
                super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
-               node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
+               #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
+               node_full_status=$($DIR_EXECUTABLE/$HANA_CALL hdbnsutil -sr_state 2>/dev/null )
                node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
                super_ocf_log debug "DEC: check_for_primary: loop=$i: node_status=$node_status"
                # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
@@ -890,7 +886,8 @@ function analyze_hana_sync_statusSRS()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=-1 srRc=0 all_nodes_other_side="" local n=""
-    FULL_SR_STATUS=$(su - $sidadm -c "python $DIR_EXECUTABLE/python_support/systemReplicationStatus.py" 2>/dev/null); srRc=$?
+    #FULL_SR_STATUS=$(su - $sidadm -c "python $DIR_EXECUTABLE/python_support/systemReplicationStatus.py" 2>/dev/null); srRc=$?
+    FULL_SR_STATUS=$($DIR_EXECUTABLE/$HANA_CALL systemReplicationStatus.py 2>/dev/null); srRc=$?
     super_ocf_log info "FLOW $FUNCNAME systemReplicationStatus.py -> $srRc"
     #
     # TODO: PRIO2: Here we might also need to filter additional sites (if multi tier should be supported)
@@ -1013,7 +1010,8 @@ function get_hana_landscape_status()
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
     #
-    su - $sidadm -c "python $DIR_EXECUTABLE/python_support/landscapeHostConfiguration.py" 1>/dev/null 2>/dev/null; rc=$?
+    #su - $sidadm -c "python $DIR_EXECUTABLE/python_support/landscapeHostConfiguration.py" 1>/dev/null 2>/dev/null; rc=$?
+    $DIR_EXECUTABLE/$HANA_CALL landscapeHostConfiguration.py 1>/dev/null 2>/dev/null; rc=$?
     return $rc;
 }
 
