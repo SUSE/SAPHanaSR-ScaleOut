@@ -151,7 +151,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.12.1</version>
+<version>0.160.13.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -2376,16 +2376,16 @@ function saphana_monitor_clone() {
             get_hana_landscape_status; lss=$?
             if [ $lss -gt 2 ]; then
                 case "$nState" in
-                    DEMOTED ) rc=$OCF_NOT_RUNNING;;
-                    PROMOTED ) rc=$OCF_NOT_RUNNING;;
-                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+                    DEMOTED ) rc=$OCF_NOT_RUNNING;;      # landscape is up but local instance is down -> report NOT_RUNNING
+                    PROMOTED ) rc=$OCF_NOT_RUNNING;;     # same, but for MASTER -> report NOT_RUNNING
+                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;    # same is DEMOTED, but target should be down -> report NOT_RUNNING
                     * ) rc=$OCF_NOT_RUNNING;;
                 esac
             else
                 case "$nState" in
-                    DEMOTED ) rc=$OCF_NOT_RUNNING;;
-                    PROMOTED ) rc=$OCF_NOT_RUNNING;;
-                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+                    DEMOTED ) rc=$OCF_SUCCESS;;          # landscape is down and local instance is down -> report SUCCESS
+                    PROMOTED ) rc=$OCF_NOT_RUNNING;;     # same, but for MASTER -> report NOT_RUNNING
+                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;    # same is DEMOTED, but target should be down -> report NOT_RUNNING
                     * ) rc=$OCF_NOT_RUNNING;;
                 esac
             fi
@@ -2398,9 +2398,9 @@ function saphana_monitor_clone() {
             #           => However we need to check, if it could happen that NO started (warm) master namerver
             #              is available and we miss to monitor the degraded HANA on a other node
             case "$nState" in
-                DEMOTED ) rc=$OCF_SUCCESS;;
-                PROMOTED ) rc=$OCF_RUNNING_MASTER;;
-                UNDEFINED ) rc=$OCF_NOT_RUNNING;;
+                DEMOTED ) rc=$OCF_SUCCESS;;              # local instance is up -> report SUCCESS
+                PROMOTED ) rc=$OCF_RUNNING_MASTER;;      # same but state is MASTER -> report RUNNING_MASTER
+                UNDEFINED ) rc=$OCF_NOT_RUNNING;;        # same but state is DOWN -> report NOT_RUNNING 
                 * ) rc=$OCF_NOT_RUNNING;;
             esac
         fi
