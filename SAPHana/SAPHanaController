@@ -151,7 +151,7 @@ function saphana_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHana">
-<version>0.160.11.1</version>
+<version>0.160.12.1</version>
 
 <shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
 <longdesc lang="en">
@@ -713,7 +713,12 @@ function saphana_init() {
         export LD_LIBRARY_PATH
     fi
     PATH=${PATH}:${DIR_EXECUTABLE}; export PATH
-    if is_master_nameserver; then master_walk; fi
+
+    local standbyFilter=""
+    if [ $ACTION = "stop" ]; then
+       standbyFilter="--standbyFilter=off"
+    fi
+    if is_master_nameserver; then master_walk $standbyFilter; fi
     super_ocf_log info "FLOW $FUNCNAME rc=$OCF_SUCCESS"
     #############################
     # TODO: PRIO9: To be able to call landscapeHostConfig.py without su (so as root)
@@ -1754,9 +1759,17 @@ function master_walk() {
  # scores ansehen:
  #
     super_ocf_log info "FLOW $FUNCNAME ($*)"
+
     local active_master="" master1="" master2="" master3=""
     local nSite="" nRole=""
     local best_cold_master="" rest=""
+    local standbyFilter=1
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --standbyFilter=off ) standbyFilter=0;;
+        esac
+        shift
+    done
     #
     # 2:S:master1:slave:worker:standby  MAINZ
     # 4:P:master1:master:worker:master  KOELN
@@ -1772,8 +1785,10 @@ function master_walk() {
             # node of same site found
             nStdBy=$(crm_attribute -N ${node} -n standby     -G -l forever -q -d off)
             nMaint=$(crm_attribute -N ${node} -n maintenance -G -l forever -q -d off)
-            if [ "$nStdBy" = "on" -o "$nMaint" = "on" ]; then
-                super_ocf_log info "DBG Filter node by cluster attributes maintenance and standby"
+            if [ "$nMaint" = "on" ]; then
+                super_ocf_log info "DBG Filter node by cluster node maintenance mode"
+            elif [ "$nStdBy" = "on" -a "$standbyFilter" = "1" ]; then
+                super_ocf_log info "DBG Filter node by cluster node standby mode"
             else
                 nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
                 read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
