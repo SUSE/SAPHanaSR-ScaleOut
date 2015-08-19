@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# SAPHana
+# SAPHanaController
 #
 # Description:  Manages two single SAP HANA Instance in System Replication
 #               Planned: do also manage scale-up scenarios
-#               currently the SAPHana is dependent of the analysis of
+#               currently the SAPHanaController is dependent of the analysis of
 #               SAPHanaTopology
 #               For supported scenarios please read the README file provided
 #               in the same software package (rpm)
@@ -150,16 +150,15 @@ function saphana_meta_data() {
     cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
-<resource-agent name="SAPHana">
-<version>0.160.14.1</version>
+<resource-agent name="SAPHanaController">
+<version>0.160.14.4</version>
 
-<shortdesc lang="en">Manages two SAP HANA instances in system replication (SR).</shortdesc>
+<shortdesc lang="en">Manages two SAP HANA database systems in system replication (SR).</shortdesc>
 <longdesc lang="en">
-The SAPHanaSR resource agent manages two SAP Hana instances (databases) which are configured
-in system replication. This first version is limited to the scale-up scenario. Scale-Up is
-not supported in this version.
+The SAPHanaSR resource agent manages two SAP HANA database systems which are configured
+in system replication. SAPHanaController supports Scale-Out scenarios.
 
-Managing the two SAP HANA instances means that the resource agent controls the start/stop of the
+Managing the two SAP HANA database systems means that the resource agent controls the start/stop of the
 instances. In addition the resource agent is able to monitor the SAP HANA databases to check their
 availability on landscape host configuration level. For this monitoring the resource agent relies on interfaces
 provided by SAP. A third task of the resource agent is to also check the synchronisation status
@@ -177,7 +176,7 @@ The resource agent uses the following four interfaces provided by SAP:
    and node roles. For our monitor the overall status is relevant. This overall
    status is reported by the returncode of the script:
    0: Internal Fatal, 1: ERROR, 2: WARNING, 3: INFO, 4: OK
-   The SAPHana resource agent will interpret returncodes 0 as FATAL, 1 as not-running or ERROR and and returncodes 2+3+4 as RUNNING.
+   The SAPHanaController resource agent will interpret returncodes 0 as FATAL, 1 as not-running or ERROR and and returncodes 2+3+4 as RUNNING.
 
 3. hdbnsutil
    The interface hdbnsutil is used to check the "topology" of the system replication as well as the current configuration
@@ -250,11 +249,6 @@ The resource agent uses the following four interfaces provided by SAP:
     <parameter name="INSTANCE_PROFILE" unique="1" required="0">
         <longdesc lang="en">The name of the SAP HANA instance profile. Specify this parameter, if you have changed the name of the SAP HANA instance profile after the default SAP installation. Normally you do not need to set this parameter.</longdesc>
         <shortdesc lang="en">HANA instance profile name</shortdesc>
-        <content type="string" default="" />
-    </parameter>
-    <parameter name="SAPHanaFilter" unique="0" required="0">
-        <shortdesc lang="en">OUTDATED PARAMETER</shortdesc>
-        <longdesc lang="en">OUTDATED PARAMETER</longdesc>
         <content type="string" default="" />
     </parameter>
 </parameters>
@@ -546,8 +540,8 @@ function saphana_init() {
     InstanceNr=$OCF_RESKEY_InstanceNumber
     SIDInstanceName="${SID}_HDB${InstanceNr}"
     InstanceName="HDB${InstanceNr}"
-    HANA_CALL="HDBSettings.sh"
-    SAPSYSTEMNAME=$SID
+    HANA_CALL="/usr/sap/$SID/$InstanceName/HDBSettings.sh"
+    export SAPSYSTEMNAME=$SID
     super_ocf_log debug "DBG: Used new method to get SID ($SID) and InstanceNr ($InstanceNr)"
     sid=$(echo "$SID" | tr [:upper:] [:lower:])
     sidadm="${sid}adm"
@@ -840,7 +834,7 @@ function check_for_primary() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=$HANA_STATE_DEFECT
     #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
-    node_full_status=$($DIR_EXECUTABLE/$HANA_CALL hdbnsutil -sr_state 2>/dev/null )
+    node_full_status=$($HANA_CALL hdbnsutil -sr_state 2>/dev/null )
     node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
     super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
     # TODO: PRIO2: Maybe we need to use a fallback interface when hdbnsitil does not answer properly -> lookup in config files?
@@ -861,7 +855,7 @@ function check_for_primary() {
                dump=$( echo $node_status | hexdump -C );
                super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
                #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
-               node_full_status=$($DIR_EXECUTABLE/$HANA_CALL hdbnsutil -sr_state 2>/dev/null )
+               node_full_status=$($HANA_CALL hdbnsutil -sr_state 2>/dev/null )
                node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
                super_ocf_log debug "DEC: check_for_primary: loop=$i: node_status=$node_status"
                # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
@@ -887,7 +881,7 @@ function analyze_hana_sync_statusSRS()
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=-1 srRc=0 all_nodes_other_side="" local n=""
     #FULL_SR_STATUS=$(su - $sidadm -c "python $DIR_EXECUTABLE/python_support/systemReplicationStatus.py" 2>/dev/null); srRc=$?
-    FULL_SR_STATUS=$($DIR_EXECUTABLE/$HANA_CALL systemReplicationStatus.py 2>/dev/null); srRc=$?
+    FULL_SR_STATUS=$($HANA_CALL systemReplicationStatus.py 2>/dev/null); srRc=$?
     super_ocf_log info "FLOW $FUNCNAME systemReplicationStatus.py -> $srRc"
     #
     # TODO: PRIO2: Here we might also need to filter additional sites (if multi tier should be supported)
@@ -1011,7 +1005,7 @@ function get_hana_landscape_status()
     local rc=0
     #
     #su - $sidadm -c "python $DIR_EXECUTABLE/python_support/landscapeHostConfiguration.py" 1>/dev/null 2>/dev/null; rc=$?
-    $DIR_EXECUTABLE/$HANA_CALL landscapeHostConfiguration.py 1>/dev/null 2>/dev/null; rc=$?
+    $HANA_CALL landscapeHostConfiguration.py 1>/dev/null 2>/dev/null; rc=$?
     return $rc;
 }
 
@@ -1523,17 +1517,21 @@ function lpa_set_lpt() {
     local crm_rc=1
     local lpt=$1
     local clpt=-1
-    local mysite=${2:-$sr_name}
+    local mysite=$2
     local -a ATTR
     ATTR=(${LPA_ATTR[@]})
     ATTR[0]="${LPA_ATTR[0]}_${mysite}"
     super_ocf_log info "DEC $FUNCNAME (set_hana_attribute X \"$lpt\" ${ATTR[@]})"
-    set_hana_attribute "X" "$lpt" ${ATTR[@]}; crm_rc=$?
-    clpt=$(lpa_get_lpt $mysite)
-    if [ "$lpt" != "$clpt" ]; then
-        rc=2
+    if [ -n "$mysite" ]; then
+        set_hana_attribute "X" "$lpt" ${ATTR[@]}; crm_rc=$?
+        clpt=$(lpa_get_lpt $mysite)
+        if [ "$lpt" != "$clpt" ]; then
+            rc=2
+        else
+            rc=0
+        fi
     else
-        rc=0
+       super_ocf_log info "DEC lpa_set_lpt - ignore changing lpt due to lost site name"
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
