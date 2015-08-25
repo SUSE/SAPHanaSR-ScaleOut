@@ -1,6 +1,6 @@
 .\" Version: 0.160.11
 .\"
-.TH ocf_suse_SAPHanaController 7 "19 Aug 2015" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "25 Aug 2015" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -25,12 +25,13 @@ agent have to work together.
 An HANA scale-out setup already is, to some degree, an HA cluster on its own.
 The HANA is able to replace failing nodes with standby nodes or to restart
 certain sub-systems on other nodes. As long as the HANA landscape status is
-not "ERROR" the Linux cluster will not act. The main purpose of the Linux cluster
-is to handle the take-over to the other site. Only if the HANA landscape status
-indicates that HANA can not recover from the failure and the replication is
-ins sync, than Linux will act. As an exception, the Linux cluster will react if
-HANA moves the master nameserver role to another candidate. In that case, the
-Linux cluster will locally start the former master nameserver as standby node.
+not "ERROR" the Linux cluster will not act. The main purpose of the Linux
+cluster is to handle the take-over to the other site. Only if the HANA
+landscape status indicates that HANA can not recover from the failure and the
+replication is in sync, than Linux will act. As an exception, the Linux
+cluster will react if HANA moves the master nameserver role to another
+candidate. In that case, the Linux cluster will locally start the former
+master nameserver as standby node.
 
 The SAPHanaController resource agent (RA) performs the actual check of the
 SAP HANA database instances and is configured as a master/slave resource.
@@ -46,25 +47,25 @@ is to improve the data consistency.
 The resource agent uses the following five interfaces provided by SAP:
 
 1. sapcontrol/sapstartsrv
-   The interface sapcontrol/sapstartsrv is used to start/stop a HANA database
-   instance/system
+   The interface sapcontrol/sapstartsrv is used to start/stop a HANA
+   database instance/system
 
 2. landscapeHostConfiguration
-   The interface is used to monitor a HANA system. The python script is named
-   landscapeHostConfiguration.py.
-   landscapeHostConfiguration.py has some detailed output about HANA system status
-   and node roles. For our monitor the overall status is relevant. This overall 
-   status is reported by the returncode of the script:
+   The interface is used to monitor a HANA system. The python script is
+   named landscapeHostConfiguration.py.
+   landscapeHostConfiguration.py has some detailed output about HANA system
+   status and node roles. For our monitor the overall status is relevant.
+   This overall status is reported by the returncode of the script:
    0: Internal Fatal, 1: ERROR, 2: WARNING, 3: INFO, 4: OK
    The SAPHanaController resource agent will interpret returncodes 0 as FATAL,
    1 as not-running (or ERROR) and and returncodes 2+3+4 as RUNNING.
 
 3. hdbnsutil
-   The interface hdbnsutil is used to check the "topology" of the system replication
-   as well as the current configuration (primary/secondary) of a SAP HANA database
-   instance. A second task of the interface is the posibility to run a system
-   replication take-over (sr_takeover) or to register a former primary to a newer one
-   (sr_register).
+   The interface hdbnsutil is used to check the "topology" of the system
+   replication as well as the current configuration (primary/secondary) of
+   a SAP HANA database instance. A second task of the interface is the
+   posibility to run a system replication take-over (sr_takeover) or to
+   register a former primary to a newer one (sr_register).
 
 4. systemReplicationStatus
    The Interface is systemReplicationStatus is a special query into HANA 
@@ -72,14 +73,15 @@ The resource agent uses the following five interfaces provided by SAP:
    This interface exists since SAP HANA SPS9.
 
 5. saphostctrl
-   The interface saphostctrl uses the function ListInstances to figure out the virtual
-   host name of the SAP HANA instance. This is the hostname used during the HANA
-   installation.
+   The interface saphostctrl uses the function ListInstances to figure out
+   the virtual host name of the SAP HANA instance. This is the hostname
+   used during the HANA installation.
 
 To make configuring the cluster as simple as possible, the additional
-SAPHanaTopology resource agent runs on all nodes of the Linux cluster and gathers
-information about the statuses and configurations of SAP HANA system replications.
-The SAPHanaTopology RA is designed as a normal (stateless) clone.
+SAPHanaTopology resource agent runs on all nodes of the Linux cluster and
+gathers information about the statuses and configurations of SAP HANA
+system replications. The SAPHanaTopology RA is designed as a normal
+(stateless) clone.
 
 Please see also the LIMITATIONS section below.
 .PP
@@ -102,8 +104,8 @@ For system replication also Instance Number+1 is blocked.
 \fBDIR_EXECUTABLE\fR
 .RS 4
 The full qualified path where to find sapstartsrv and sapcontrol.
-Specify this parameter, if you have changed the SAP kernel directory location
-after the default SAP installation.
+Specify this parameter, if you have changed the SAP kernel directory
+location after the default SAP installation.
 .br
 Optional, well known directories will be searched by default.
 .RE
@@ -111,8 +113,8 @@ Optional, well known directories will be searched by default.
 \fBDIR_PROFILE\fR
 .RS 4
 The full qualified path where to find the SAP START profile.
-Specify this parameter, if you have changed the SAP profile directory location
-after the default SAP installation.
+Specify this parameter, if you have changed the SAP profile directory
+location after the default SAP installation.
 .br
 Optional, well known directories will be searched by default.
 .RE
@@ -129,30 +131,31 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to switchover to the slave instance instead of restarting
-master locally. However a take-over will only be triggered, if the SAP HANA landscape
-status is on "ERROR".
+Defines whether RA should prefer to fail-over to the slave instance
+instead of restarting master locally. However a take-over will only
+be triggered, if the SAP HANA landscape status is on "ERROR".
 .br
 Optional. Default value: true\&.
 .RE
 .PP
 \fBDUPLICATE_PRIMARY_TIMEOUT\fR
 .RS 4
-Time difference needed between two primary time stamps, if a dual-primary situation occurs.
-If the time difference is less than the time gap, than the cluster holds one or both instances
-in a "WAITING" status. This is to give an admin a chance to react on a take-over.
-A failed former primary will be registered after the time difference is passed.
-After this registration to the new primary all data will be overwritten by the system
-replication.
+Time difference needed between two primary time stamps, if a
+dual-primary situation occurs. If the time difference is less than
+the time gap, than the cluster holds one or both instances in a
+"WAITING" status. This is to give an admin a chance to react on a
+take-over. A failed former primary will be registered after the time
+difference is passed. After this registration to the new primary all
+data will be overwritten by the system replication.
 .br
 Optional. Default value: 7200\&.
 .RE
 .PP
 \fBAUTOMATED_REGISTER\fR
 .RS 4
-Defines, whether a former primary instance should be registered automatically
-by the resource agent during cluster/resource start, if the DUPLICATE_PRIMARY_TIMEOUT
-is expired.
+Defines, whether a former primary instance should be registered
+automatically by the resource agent during cluster/resource start,
+if the DUPLICATE_PRIMARY_TIMEOUT is expired.
 .br
 Default value: false\&.
 .RE
@@ -210,16 +213,16 @@ Suggested minimum timeout: 60\&.
 .PP
 \fBmonitor (Master role)\fR
 .RS 4
-Reports whether the HANA instance seems to be working in master/slave it
-also needs to check the system replication status.
+Reports whether the HANA instance seems to be working in master/slave
+it also needs to check the system replication status.
 Suggested minimum timeout: 700\&.
 Suggested interval: 60\&.
 .RE
 .PP
 \fBmonitor (Slave role)\fR
 .RS 4
-Reports whether the HANA instance seems to be working in master/slave it
-also needs to check the system replication status.
+Reports whether the HANA instance seems to be working in master/slave
+it also needs to check the system replication status.
 Suggested minimum timeout: 700\&.
 Suggested interval: 61\&.
 .RE
@@ -247,9 +250,9 @@ Suggested minimum timeout: 5\&.
 The return codes are defined by the OCF cluster framework.
 Please refer to the OCF definition on the website mentioned below. 
 .br
-In addition, log entries are written, which can be scanned by using a pattern
-like "SAPHanaController.*RA.*rc=[1-7,9]" for errors. Regular operations might
-be found with "SAPHanaController.*RA.*rc=0".
+In addition, log entries are written, which can be scanned by using
+a pattern like "SAPHanaController.*RA.*rc=[1-7,9]" for errors.
+Regular operations might be found with "SAPHanaController.*RA.*rc=0".
 .PP
 .\"
 .SH EXAMPLES
@@ -283,15 +286,16 @@ be found with "SAPHanaController.*RA.*rc=0".
 .\" clone-max="2" clone-node-max="1"
 .\" .RE
 .PP
-* Below is an example configuration for a SAPHanaTopology resource for HANA scale-out.
+* Below is an example configuration for a SAPHanaTopology resource
+for HANA scale-out.
 .br
-The HANA consists of two sites with five nodes each. An additional cluster node is
-used as majority maker for split brain situations.
+The HANA consists of two sites with five nodes each. An additional
+cluster node is used as majority maker for split brain situations.
 In addition, a SAPHanaController resource is needed to make this work.
 .RE
 .PP
 .RS 4
-primitive rsc_SAPHC_SLE_HDB00 ocf:suse:SAPHanaController \\
+primitive rsc_SAPHanaCon_SLE_HDB00 ocf:suse:SAPHanaController \\
 .br
 op start interval="0" timeout="3600" \\
 .br
@@ -307,11 +311,11 @@ params SID="SLE" InstanceNumber="00" PREFER_SITE_TAKEOVER="false" \\
 .br
 DUPLICATE_PRIMARY_TIMEOUT="7200" AUTOMATED_REGISTER="false"
 .PP
-ms msl_SAPHC_SLE_HDB00 rsc_SAPHC_SLE_HDB00 \\
+ms msl_SAPHanaCon_SLE_HDB00 rsc_SAPHanaCon_SLE_HDB00 \\
 .br
 master-node-max="1" master-max="1" clone-node-max="1" interleave="true"
 .PP
-location SAPHC_not_on_majority_maker msl_SAPHC_HAE_HDB00 -inf: vm-majority
+location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_HAE_HDB00 -inf: vm-majority
 .RE
 .PP
 * The following shows the filter for log messages set to the defaults.
@@ -365,33 +369,39 @@ hana_SLE_glob_filter="ra-act-dec-lpa"
 .\"
 .SH LIMITATIONS
 
-For the current version of the SAPHanaController resource agent that comes with the
-software package SAPHanaSR-ScaleOut, the support is limited to the following scenarios
-and parameters:
+For the current version of the SAPHanaController resource agent that
+comes with the software package SAPHanaSR-ScaleOut, the support is
+limited to the following scenarios and parameters:
 
-1. HANA scale-out cluster with system replication. The two HANA instances (primary
-and secondary site) are managed by the same single Linux cluster. 
-The maximum number of nodes in that single Linux cluster is given by the Linux cluster
-limit. An odd number of nodes is needed to handle split-brain situations automatically.
+1. HANA scale-out cluster with system replication. The two HANA
+instances (primary and secondary site) are managed by the same
+single Linux cluster. The maximum number of nodes in that single
+Linux cluster is given by the Linux cluster limit. An odd number of
+nodes is needed to handle split-brain situations automatically.
 A dedictaed cluster node might be used as majority maker. 
 
-2. Technical users and groups such as sidadm are defined locally in the Linux system.
+2. Technical users and groups such as sidadm are defined locally in
+the Linux system.
 
 3. Time synchronization between the cluster nodes using NTP.
 
-4. For scale-out there is no other SAP HANA system (like QA) on the replicating node
-which needs to be stopped during take-over.
+4. For scale-out there is no other SAP HANA system (like QA) on the
+replicating node which needs to be stopped during take-over.
 
 5. Only one system replication for the SAP HANA database.
 
-6. Both SAP HANA instances have the same SAP Identifier (SID) and Instance Number.
+6. Both SAP HANA instances have the same SAP Identifier (SID) and
+Instance Number.
 
-7. Beside SAP HANA you need SAP hostagent to be installed on your system.
+7. Beside SAP HANA you need SAP hostagent to be installed on your
+system.
 
-8. Automated start of SAP HANA instances during system boot must be switched off.
+8. Automated start of SAP HANA instances during system boot must
+be switched off.
 
-9. For scale-out, the current resource agent supports SAP HANA in system replication
-beginning with HANA version 1.0 SPS 9 patch level 96.
+9. For scale-out, the current resource agent supports SAP HANA
+in system replication beginning with HANA version 1.0 SPS 9 patch
+level 96.
 .PP
 .\"
 .SH SEE ALSO
