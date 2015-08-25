@@ -2,20 +2,28 @@
 #
 ##########################################################################
 #
-prim="lv9042"
-secn="lv9041"
+version="0.1.2015.08.25.1"
+#
+########  PARAMETERS ######
+#
+prim="cisbwa008"
+secn="cisbwa013"
 sid="lnx"
 SID="LNX"
-ino="42"
+ino="00"
 primSite="ROT"
-secnSite="WALLDORF"
-primList="lv9049,lv9051,lv9084:role=standby,lv9086:role=standby"
-secnList="lv9048,lv9050,lv9083:role=standby,lv9085:role=standby"
-TAG="fh_reset_ScaleOut"
-HANA_INST_DIR="/hana/shared/SPS09_rev95/SAP_HANA_DATABASE"
+secnSite="WDF"
+primList="cisbwa009 cisbwa010 cisbwa011 cisbwa012"
+secnList="cisbwa014 cisbwa015 cisbwa016 cisbwa017"
+primRole_cisbwa011="standby"
+primRole_cisbwa012="standby"
+secnRole_cisbwa016="standby"
+secnRole_cisbwa017="standby"
+HANA_INST_DIR="/hana/shared/rev96/SAP_HANA_DATABASE"
 #
 ##########################################################################
 #
+TAG="fh_reset_ScaleOut"
 
 #
 # unmanage
@@ -108,9 +116,30 @@ function uninstall_secondary()
 function install_primary()
 {
     local rc=0
+    local hNode=""
+    local newPrimList=""
     logger -s -i -t $TAG "install_primary"
-    COMMAND="cat fhSAPHanaPasswords | $HANA_INST_DIR/hdbinst --addhosts=\"$primList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
+
+    for hNode in $primList; do
+        eval role=\$primRole_$hNode
+        if [ -n "$role" ]; then
+           if [ -n "$newPrimList" ]; then
+               newPrimList="$newPrimList,$hNode:role=$role"
+           else
+               newPrimList="$hNode:role=$role"
+           fi
+        else
+           if [ -n "$newPrimList" ]; then
+               newPrimList="$newPrimList,$hNode"
+           else
+               newPrimList="$hNode"
+           fi
+        fi
+    done 
+#primRole_cisbwa011
+    COMMAND="cat fhSAPHanaPasswords | $HANA_INST_DIR/hdbinst --addhosts=\"$newPrimList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
     ssh root@$prim "$COMMAND"; rc=$?
+    #echo newPrimList: $newPrimList
     logger -s -i -t $TAG "rc=$rc"
     return $rc
 }
@@ -120,9 +149,28 @@ function install_primary()
 function install_secondary()
 {
     local rc=0
+    local hNode=""
+    local newSecnList=""
     logger -s -i -t $TAG "install_secondary"
-    COMMAND="cat fhSAPHanaPasswords | $HANA_INST_DIR/hdbinst --addhosts=\"$secnList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
+    for hNode in $secnList; do
+        eval role=\$secnRole_$hNode
+        if [ -n "$role" ]; then
+           if [ -n "$newSecnList" ]; then
+               newSecnList="$newSecnList,$hNode:role=$role"
+           else
+               newSecnList="$hNode:role=$role"
+           fi
+        else
+           if [ -n "$newSecnList" ]; then
+               newSecnList="$newSecnList,$hNode"
+           else
+               newSecnList="$hNode"
+           fi
+        fi
+    done 
+    COMMAND="cat fhSAPHanaPasswords | $HANA_INST_DIR/hdbinst --addhosts=\"$newSecnList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
     ssh root@$secn "$COMMAND"; rc=$?
+    #echo newSecnList: $newSecnList
     logger -s -i -t $TAG "rc=$rc"
     return $rc
 }
@@ -225,42 +273,37 @@ check_n_press()
 #
 # cluster
 #
-unmanage msl_SAPHana_${SID}_HDB${ino}
-unmanage cln_SAPHanaTopology_${SID}_HDB${ino}
+#unmanage msl_SAPHana_${SID}_HDB${ino}
+#unmanage cln_SAPHanaTopology_${SID}_HDB${ino}
 
 # stop all
 #
-stop_secondary
-stop_primary
+#stop_secondary
+#stop_primary
 
 # primary
 #
-uninstall_primary || check_n_press
-install_primary
-backup_primary
-enable_primary
-check_n_press
+#uninstall_primary || check_n_press
+#install_primary || check_n_press
+backup_primary || check_n_press
+enable_primary || check_n_press
 
 # secondary
 #
-uninstall_secondary || check_n_press
-install_secondary
-check_n_press
-stop_secondary
-check_n_press
-register_secondary
-check_n_press
-start_secondary
-check_n_press
+#uninstall_secondary || check_n_press
+#install_secondary || check_n_press
+stop_secondary || check_n_press
+register_secondary || check_n_press
+start_secondary || check_n_press
 
 #
 # cluster (2/2)
 #
-cleanup cln_SAPHanaTopology_LNX_HDB42
-manage cln_SAPHanaTopology_LNX_HDB42
-cleanup msl_SAPHana_LNX_HDB42
-sleep 60
-manage msl_SAPHana_LNX_HDB42
+#cleanup cln_SAPHanaTopology_LNX_HDB42
+#manage cln_SAPHanaTopology_LNX_HDB42
+#cleanup msl_SAPHana_LNX_HDB42
+#sleep 60
+#manage msl_SAPHana_LNX_HDB42
 
 ####
 #
