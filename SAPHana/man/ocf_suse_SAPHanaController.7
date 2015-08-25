@@ -25,12 +25,12 @@ agent have to work together.
 An HANA scale-out setup already is, to some degree, an HA cluster on its own.
 The HANA is able to replace failing nodes with standby nodes or to restart
 certain sub-systems on other nodes. As long as the HANA landscape status is
-not "ERROR" the Linux cluster will not act. The main purpose of the Linux cluster is
-to handle the take-over to the other site. Only if the HANA landscape status
+not "ERROR" the Linux cluster will not act. The main purpose of the Linux cluster
+is to handle the take-over to the other site. Only if the HANA landscape status
 indicates that HANA can not recover from the failure and the replication is
-ins sync, than Linux will act. As an exception, the Linux cluster will 
-locally start former master nameservers as standby nodes after HANA has
-moved the master nameserver role to another candidate.
+ins sync, than Linux will act. As an exception, the Linux cluster will react if
+HANA moves the master nameserver role to another candidate. In that case, the
+Linux cluster will locally start the former master nameserver as standby node.
 
 The SAPHanaController resource agent (RA) performs the actual check of the
 SAP HANA database instances and is configured as a master/slave resource.
@@ -129,7 +129,9 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to switchover to slave instance instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR".
+Defines whether RA should prefer to switchover to the slave instance instead of restarting
+master locally. However a take-over will only be triggered, if the SAP HANA landscape
+status is on "ERROR".
 .br
 Optional. Default value: true\&.
 .RE
@@ -137,8 +139,8 @@ Optional. Default value: true\&.
 \fBDUPLICATE_PRIMARY_TIMEOUT\fR
 .RS 4
 Time difference needed between two primary time stamps, if a dual-primary situation occurs.
-If the time difference is less than the time gap, than the cluster hold one or both instances
-in a "WAITING" status. This is to give a admin a chance to react on a take-over.
+If the time difference is less than the time gap, than the cluster holds one or both instances
+in a "WAITING" status. This is to give an admin a chance to react on a take-over.
 A failed former primary will be registered after the time difference is passed.
 After this registration to the new primary all data will be overwritten by the system
 replication.
@@ -367,9 +369,11 @@ For the current version of the SAPHanaController resource agent that comes with 
 software package SAPHanaSR-ScaleOut, the support is limited to the following scenarios
 and parameters:
 
-1. HANA scale-out cluster with system replication. The maximum number of cluster nodes
-is given by the Linux cluster limit. An odd number of nodes is needed to handle split-brain
-situations. 
+1. HANA scale-out cluster with system replication. The two HANA instances (primary
+and secondary site) are managed by the same single Linux cluster. 
+The maximum number of nodes in that single Linux cluster is given by the Linux cluster
+limit. An odd number of nodes is needed to handle split-brain situations automatically.
+A dedictaed cluster node might be used as majority maker. 
 
 2. Technical users and groups such as sidadm are defined locally in the Linux system.
 
