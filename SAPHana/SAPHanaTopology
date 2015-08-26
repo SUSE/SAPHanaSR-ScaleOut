@@ -2,11 +2,10 @@
 #
 # SAPHanaTopology
 #
-# Description:	Clone resource to anylyze SAPHana-Topology
+# Description:	Clone resource to analyze SAPHana-Topology
 #
 ###########################################################################################################################
 #
-# SAPHanaTopology is a fork of SAPHana
 # Thanks to Alexander Krauth for providing SAPInstance and SAPDatabase
 #
 # SAPHanaTopology: (short sht)
@@ -23,9 +22,9 @@
 #   OCF_RESKEY_SID            (LNX, NDB, SLE)
 #   OCF_RESKEY_InstanceNumber (00..99)
 #	OCF_RESKEY_DIR_EXECUTABLE   (optional, well known directories will be searched by default)
-#   OCF_RESKEY_SAPHanaFilter
 #
 #######################################################################
+SAPHanaTopologyVersion="0.160.8.1"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -125,7 +124,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.160.7.4</version>
+    <version>$SAPHanaTopologyVersion</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -168,11 +167,6 @@ SAPHanaTopology scans the output table of landscapeHostConfiguration.py to ident
         While InstanceName is the string of "HDB" and \$InstanceNumber for SAP Hana databases.
         </longdesc>
         <shortdesc lang="en">Path to the SAP Hana Instance executable directory.</shortdesc>
-        <content type="string" default="" />
-    </parameter>
-    <parameter name="SAPHanaFilter" unique="0" required="0">
-        <shortdesc lang="en">OUTDATED</shortdesc>
-        <longdesc lang="en">OUTDATED</longdesc>
         <content type="string" default="" />
     </parameter>
 </parameters>
@@ -317,7 +311,6 @@ function HANA_CALL()
 {
     #
     # TODO: remove 'su - ${sidadm} later, when SAP HANA resoled issue with 
-    # root-user-called hdbnsutil -sr_state (which creates root-owned shared memory file in /var/lib/hdb/SID/shmgrp)
     su - ${sid}adm -c "/usr/sap/$SID/$InstanceName/HDBSettings.sh $*"
 }
 
@@ -422,8 +415,8 @@ function sht_init() {
     esac
     #### SAP-CALL
     # hdbnsutil was a bit unstable in some tests so we recall the tool, if it fails to report the srmode
-    for i in  1 2 3 4 5 6 7 8 9; do
-        hdbANSWER=$($HANA_CALL hdbnsutil -sr_state --sapcontrol=1 2>/dev/null)
+    for i in  1 2 3; do
+        hdbANSWER=$(timeout 60 $HANA_CALL hdbnsutil -sr_state --sapcontrol=1 2>/dev/null)
         super_ocf_log debug "DBG2: hdbANSWER=$hdbANSWER"
         srmode=$(echo "$hdbANSWER" | awk -F= '/mode/ {print $2}')
         case "$srmode" in
@@ -433,7 +426,7 @@ function sht_init() {
               ;;
             * )
               # lets pause a bit to give hdbnsutil a chance to answer next time
-              sleep 2
+              sleep 20
               ;;
         esac
     done
@@ -488,7 +481,7 @@ function check_for_primary() {
               super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP: <$dump>"
               #### SAP-CALL
               #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
-              node_full_status=$($HANA_CALL hdbnsutil -sr_state 2>/dev/null )
+              node_full_status=$(timeout 60 $HANA_CALL hdbnsutil -sr_state 2>/dev/null )
               node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
               super_ocf_log info "DEC: check_for_primary: loop=$i: node_status=$node_status"
               # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
@@ -814,7 +807,7 @@ function sht_monitor_clone() {
        vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]} "${NODENAME}")
     fi
     #hanaANSWER=$(su - $sidadm -c "python exe/python_support/landscapeHostConfiguration.py" 2>/dev/null); hanalrc="$?"
-    hanaANSWER=$($HANA_CALL landscapeHostConfiguration.py 2>/dev/null); hanalrc="$?"
+    hanaANSWER=$(timeout 60 $HANA_CALL landscapeHostConfiguration.py 2>/dev/null); hanalrc="$?"
     hanarole=$(echo "$hanaANSWER" | tr -d ' ' | awk -F'|' '$2 == host {  printf "%s:%s:%s:%s\n",$10,$11,$12,$13 }  ' host=${vName})
     #if [ -z "$MAPPING" ]; then
     #   super_ocf_log info "ACT: Did not find remote Host at this moment"
@@ -826,7 +819,7 @@ function sht_monitor_clone() {
     set_hana_attribute ${NODENAME} "$hanarole" ${ATTR_NAME_HANA_ROLES[@]}
 
     # TODO PRIO2: COULD/SHOULD WE LIMIT THE SET OF THE LSS/SRR ATTRIBUTE TO ONLY THE_MASTER nodes?
-    if [ -n "$site" ]; then
+    if [ -n "$site" -a "$hanalrc" != "124" ]; then
         ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$site"
         set_hana_attribute "X" "$hanalrc" ${ATTR[@]}
         ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$site"
@@ -835,7 +828,7 @@ function sht_monitor_clone() {
     fi
     case "$hanaPrim" in
         P ) ;;
-        S ) # only secondary may propargate its sync status
+        S ) # only secondary may propagate its sync status
         set_hana_attribute "X" "$srmode" ${ATTR_NAME_HANA_SRMODE2[@]}
           ;;
     esac
@@ -928,8 +921,7 @@ else
     fi
 fi
 
-THE_VERSION=$(sht_meta_data | grep '<version')
-super_ocf_log info "RA ==== begin action $ACTION$CLACT ($THE_VERSION) ===="
+super_ocf_log info "RA ==== begin action $ACTION$CLACT ($SAPHanaTopologyVersion) ===="
 ra_rc=$OCF_ERR_UNIMPLEMENTED
 case "$ACTION" in
     start|stop|monitor) # Standard controling actions
@@ -947,5 +939,5 @@ case "$ACTION" in
 esac
 timeE=$(date '+%s')
 (( timeR = timeE - timeB ))
-super_ocf_log info "RA ==== end action $ACTION$CLACT with rc=${ra_rc} ($THE_VERSION) (${timeR}s)===="
+super_ocf_log info "RA ==== end action $ACTION$CLACT with rc=${ra_rc} ($SAPHanaTopologyVersion) (${timeR}s)===="
 exit ${ra_rc}
