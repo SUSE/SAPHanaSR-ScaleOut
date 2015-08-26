@@ -347,7 +347,7 @@ function is_clone() {
             [ "$OCF_RESKEY_CRM_meta_master_node_max" -ne 1 ] || \
             [ "$OCF_RESKEY_CRM_meta_master_max" -ne 1 ]; then
                 super_ocf_log err "ACT: Clone options misconfigured. (expect: clone_node_max=1,master_node_max=1,master_max=1)"
-                exit $OCF_ERR_CONFIGURED
+                exit $OCF_NOT_RUNNING
         fi
         rc=0;
     else
@@ -438,7 +438,7 @@ function assert() {
     if ocf_is_probe; then
         default_exit=$OCF_NOT_RUNNING
     else
-        default_exit=$OCF_ERR_CONFIGURED
+        default_exit=$OCF_NOT_RUNNING
     fi
     if [ "$ACTION" = "stop" ]; then
         cleanup_instance
@@ -970,7 +970,7 @@ function analyze_hana_sync_statusSQL()
     secUser=$(check_secstore_users SAPHANA${SID}SR SLEHALOC RHELHALOC) ; chkusr=$?
     if [ $chkusr -ne 0 ]; then
         super_ocf_log err  "ACT: Secure store users are missing (see best practice manual how to setup the users)"
-        rc=$OCF_ERR_CONFIGURED
+        rc=$OCF_NOT_RUNNING
     fi
     hana_sync_status=$(timeout $hdbSrQueryTimeout $DIR_EXECUTABLE/hdbsql -a -x -U $secUser  $query_state); sqlrc=$?
     hana_sync_status=$(echo $hana_sync_status | dequote)

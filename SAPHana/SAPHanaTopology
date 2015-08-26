@@ -125,7 +125,7 @@ function sht_meta_data() {
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="SAPHanaTopology">
-    <version>0.160.7.3</version>
+    <version>0.160.7.4</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
         all nodes in the cluster. These attributes are taken by the SAPHana RA to control the SAP Hana Databases.
@@ -303,7 +303,7 @@ function is_clone() {
        #
         if [ "$OCF_RESKEY_CRM_meta_clone_node_max" -ne 1 ] ; then
                 super_ocf_log err "ACT: Clone options misconfigured. (expect: clone_node_max=1)"
-                exit $OCF_ERR_CONFIGURED
+                exit $OCF_NOT_RUNNING
         fi
         rc=0;
     else
@@ -392,8 +392,8 @@ function sht_init() {
     fi
 
     if [ -z "$DIR_EXECUTABLE" ]; then
-        super_ocf_log err "DEC: Can not determine DIR_EXECUTABLE. Please set this parameter. -> OCF_ERR_CONFIGURED"
-        rc=$OCF_ERR_CONFIGURED
+        super_ocf_log err "DEC: Can not determine DIR_EXECUTABLE. Please set this parameter. -> OCF_NOT_RUNNING"
+        rc=$OCF_NOT_RUNNING
     fi
 
     if [ -z "$OCF_RESKEY_DIR_PROFILE" ]
@@ -798,7 +798,7 @@ function sht_monitor_clone() {
         else
             hanaPrim="-"
             super_ocf_log warn "ACT: sht_monitor_clone: HANA_STATE_DEFECT"
-            rc=$OCF_ERR_CONFIGURED
+            rc=$OCF_NOT_RUNNING
         fi
     fi
     # DONE: PRIO1: ASK: Is the output format of ListInstances fix? Could we take that as an API?
