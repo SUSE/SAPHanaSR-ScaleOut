@@ -1,6 +1,6 @@
-.\" Version: 0.160.11
+.\" Version: 0.160.24
 .\"
-.TH ocf_suse_SAPHanaController 7 "25 Aug 2015" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "26 Aug 2015" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -44,6 +44,8 @@ of the two SAP HANA databases. If the synchronisation is not "SOK", then the
 cluster avoids to take-over to the secondary side, if the primary fails. This
 is to improve the data consistency.
 
+.\" TODO mention that Linux cluster will not start HANA after both sites have been down
+
 The resource agent uses the following five interfaces provided by SAP:
 
 1. sapcontrol/sapstartsrv
@@ -80,7 +82,7 @@ The resource agent uses the following five interfaces provided by SAP:
 To make configuring the cluster as simple as possible, the additional
 SAPHanaTopology resource agent runs on all nodes of the Linux cluster and
 gathers information about the statuses and configurations of SAP HANA
-system replications. The SAPHanaTopology RA is designed as a normal
+system replication. The SAPHanaTopology RA is designed as a normal
 (stateless) clone.
 
 Please see also the LIMITATIONS section below.
@@ -131,7 +133,7 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to fail-over to the slave instance
+Defines whether RA should prefer to take-over to the slave database
 instead of restarting master locally. However a take-over will only
 be triggered, if the SAP HANA landscape status is on "ERROR".
 .br
@@ -153,7 +155,7 @@ Optional. Default value: 7200\&.
 .PP
 \fBAUTOMATED_REGISTER\fR
 .RS 4
-Defines, whether a former primary instance should be registered
+Defines whether a former primary database should be registered
 automatically by the resource agent during cluster/resource start,
 if the DUPLICATE_PRIMARY_TIMEOUT is expired.
 .br
@@ -213,16 +215,16 @@ Suggested minimum timeout: 60\&.
 .PP
 \fBmonitor (Master role)\fR
 .RS 4
-Reports whether the HANA instance seems to be working in master/slave
-it also needs to check the system replication status.
+Reports whether the HANA database seems to be working in
+master/slave it also needs to check the system replication status.
 Suggested minimum timeout: 700\&.
 Suggested interval: 60\&.
 .RE
 .PP
 \fBmonitor (Slave role)\fR
 .RS 4
-Reports whether the HANA instance seems to be working in master/slave
-it also needs to check the system replication status.
+Reports whether the HANA database seems to be working in
+master/slave it also needs to check the system replication status.
 Suggested minimum timeout: 700\&.
 Suggested interval: 61\&.
 .RE
@@ -290,7 +292,7 @@ Regular operations might be found with "SAPHanaController.*RA.*rc=0".
 for HANA scale-out.
 .br
 The HANA consists of two sites with five nodes each. An additional
-cluster node is used as majority maker for split brain situations.
+cluster node is used as majority maker for split-brain situations.
 In addition, a SAPHanaController resource is needed to make this work.
 .RE
 .PP
@@ -374,34 +376,34 @@ comes with the software package SAPHanaSR-ScaleOut, the support is
 limited to the following scenarios and parameters:
 
 1. HANA scale-out cluster with system replication. The two HANA
-instances (primary and secondary site) are managed by the same
+database systems (primary and secondary site) are managed by the same
 single Linux cluster. The maximum number of nodes in that single
 Linux cluster is given by the Linux cluster limit. An odd number of
 nodes is needed to handle split-brain situations automatically.
-A dedictaed cluster node might be used as majority maker. 
+A dedicated cluster node might be used as majority maker. 
 
 2. Technical users and groups such as sidadm are defined locally in
 the Linux system.
 
-3. Time synchronization between the cluster nodes using NTP.
+3. Strict time synchronization between the cluster nodes, f.e. NTP.
 
 4. For scale-out there is no other SAP HANA system (like QA) on the
 replicating node which needs to be stopped during take-over.
 
 5. Only one system replication for the SAP HANA database.
 
-6. Both SAP HANA instances have the same SAP Identifier (SID) and
-Instance Number.
+6. Both SAP HANA database systems have the same SAP Identifier (SID)
+and Instance Number.
 
 7. Beside SAP HANA you need SAP hostagent to be installed on your
 system.
 
-8. Automated start of SAP HANA instances during system boot must
-be switched off.
+8. Automated start of SAP HANA database systems during system boot
+must be switched off.
 
 9. For scale-out, the current resource agent supports SAP HANA
 in system replication beginning with HANA version 1.0 SPS 9 patch
-level 96.
+level 97.
 .PP
 .\"
 .SH SEE ALSO
