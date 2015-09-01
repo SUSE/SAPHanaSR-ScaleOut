@@ -1,0 +1,246 @@
+.\" Version: 0.160.24
+.\"
+.TH SAPHanaSR-ScaleOut 7 "01 Sep 2015" "" "SAPHanaSR-ScaleOut"
+.\"
+.SH NAME
+SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in scale-out setups.
+.PP
+.\"
+.SH DESCRIPTION
+.\"
+\fBOverview\fR
+.PP
+The SAPHanaSR-ScaleOut package provides resource agents (RA) and tools for setting
+up and managing automation of SAP HANA system replication (SR) in scale-out setups.
+.pp
+System replication will help to replicate the database data from one site to
+another site in order to compensate for database failures. With this mode of
+operation, internal SAP HANA high-availability (HA) mechanisms and the Linux
+cluster have to work together.
+.PP
+An HANA scale-out setup already is, to some degree, an HA cluster on its own.
+The HANA is able to replace failing nodes with standby nodes or to restart
+certain sub-systems on other nodes. As long as the HANA landscape status is
+not "ERROR" the Linux cluster will not act. The main purpose of the Linux
+cluster is to handle the take-over to the other site. Only if the HANA
+landscape status indicates that HANA can not recover from the failure and the
+replication is in sync, then Linux will act.
+.\" TODO HANA handles site-internal fail-over, Linux cluster handles split-brain detection, node fencing on general errors, take-over from primary to secondary site including IP address
+.PP
+Note: To automate SAP HANA SR in scale-up setups, please use the package SAPHanaSR.
+.PP
+\fBScenarios\fR
+.PP
+.\" TODO
+In order to illustrate the meaning of the above overview, some important situations
+are described below. This is not a complete description of all situations. 
+.PP
+1. \fBLocal start of standby node\fR
+.br
+The Linux cluster will react if HANA moves the master nameserver role to another
+candidate. In that case, the Linux cluster will locally start the former master
+nameserver as standby node. This is one exception from the general rule, that the
+Linux cluster does nothing as long as the HANA landscape status is not "ERROR".
+.PP
+2. \fBPrevention against dual-primary\fR
+.br
+A primary absolutely must never be started, if the cluster does not know anything
+about the other node.
+If the two HANA databases went down by accident and the system replication
+status can not be determined automatically anymore, the Linux cluster will not
+start HANA.
+.PP
+The rational behind this is shown in the following scenario:
+.br
+1. site_A is primary, site_B is secondary - they are in sync.
+.br
+2. site_A crashes (remember the HANA ist still marked primary).
+.br
+3. site_B does the take-over and runs now as new primary.
+.br
+4. DATA GETS CHANGED ON NODE2 BY PRODUCTION
+.br
+5. The admin also stops the cluster on site_B (we have two HANAs both
+   internally marked down and primary now).
+.br
+6. What, if the admin would now restart the cluster on site_A?
+.br
+6.1 site_A would take its own CIB after waiting for the initial fencing
+    time for site_B.
+.br
+6.2 It would "see" its own (cold) primary and the fact that there was a
+    secondary.
+.br
+6.3 It would start the HANA from point of time of step 1.->2. (the crash),
+    so all data changed inbetween would be lost.
+.br
+This is why the Linux cluster needs to enforce a restart inhibit.
+.PP
+There are two options to get back both, SAP HANA SR and the Linux cluster,
+into a fully functional state:
+.br
+a) the admin starts both nodes again
+.br
+b) In the situation where the site_B is still down, the admin starts the
+   primary on site_A manually.
+.br
+The Linux cluster will follow this administrative decision.
+.\" TODO see \fBDUPLICATE_PRIMARY_TIMEOUT\fR ?
+.PP
+3. \fBAutomatic registration as secondary after site failure\fR
+.br
+The cluster can be configured to registered a former primary database
+automatically as secondary. If this option is set, the resource agent 
+will register a former primary database as secondary during cluster/resource
+start.
+.\" TODO see \fBAUTOMATED_REGISTER\fR
+.PP
+4. \fBSite take-over not preferred over local re-start\fR
+.br
+In opposite to the SAPHanaSR for scale-up setups, the Linux cluster does
+not allow to prefere site take-over over local restart. If the local master
+nameserver fails, always the HANA HA mechanism will re-act to restart another
+master nameserver. This happens according to HANA's configured node roles.
+Only if the HANA can not recover from the failure and gets into landscape
+status "ERROR", the Linux cluster will re-act with a site take-over.
+.\" see \fBPREFER_SITE_TAKEOVER\fR
+.PP
+5. \fBRecovering from failure of master nameserver\fR
+.br
+If the master nameserver of an HANA database system fails, the HANA will start
+the nameserver on another node. Therefor usually two nodes are configured as
+nameserver candidates. At least one of them should be a standby node. The Linux
+cluster will detect the change and move the IP address to the new nameserver.
+.br
+Note: If the node where the nameserver has failed comes back into the
+Linux cluster, it will be activated as standby node. See situation
+"Local start of standby node" above. 
+.PP
+\fBImplementation\fR
+.PP
+The two HANA database systems (primary and secondary site) are managed by the
+same single Linux cluster. The maximum number of nodes in that single Linux
+cluster is given by the Linux cluster limit. An odd number of nodes is needed
+to handle split-brain situations automatically.
+.PP
+The HANA consists of two sites with same number of nodes each. There are no
+HANA nodes outside the Linux cluster. An additional cluster node is used as
+majority maker for split-brain situations. This dedicated node does not need
+to have HANA installed.
+.\" TODO reason for majority maker
+.PP
+A common STONITH mechanism is set up for all nodes accross all the sites.
+.PP
+Since the IP address of the primary HANA database system is managed by the
+cluster, only that single IP address is needed to access any nameserver
+candidate.
+.PP
+\fBBest Practice\fR
+.\" TODO
+.PP
+\fB*\fR Use two independent corosync rings, at least one of them on bonded network.
+Resulting in at least three physical links.
+.PP
+\fB*\fR Use Stonith Block Device (SBD), shared LUNs across all nodes on all (three)
+sites. Of course, together with hardware watchdog.
+.PP
+\fB*\fR Align all timeouts in the Linux cluster with the timeouts of the underlying
+storage and multipathing.
+.PP
+\fB*\fR Check the installation of OS and Linux cluster on all nodes before doing
+any functional tests.
+.PP
+\fB*\fR Carefully define, perform, and document tests for all scenarios that should
+be covered. 
+.PP
+\fB*\fR Test HANA HA features without Linux cluster before doing the overall
+cluster tests.
+.PP
+\fB*\fR Test basic Linux cluster features without HANA before doing the overall
+cluster tests.
+.PP
+\fB*\fR Be patient. For detecting the overall HANA status, the Linux cluster needs
+a certain amount of time, depending on the HANA and the configured intervalls and
+timeouts.
+.PP
+\fB*\fR Before doing anything, always check for the Linux cluster's idle status,
+the HANA landscape status, and the HANA SR status.
+.PP
+./"
+.SH REQUIREMENTS
+.PP
+For the current version of the package SAPHanaSR-ScaleOut, the support is
+limited to the following scenarios and parameters:
+.PP
+1. HANA scale-out cluster with system replication. The two HANA database
+systems (primary and secondary site) are managed by the same single Linux
+cluster. The maximum number of nodes in that single Linux cluster is given
+by the Linux cluster limit. An odd number of nodes is needed to handle
+split-brain situations automatically.
+A dedicated cluster node might be used as majority maker. 
+.PP
+2. Technical users and groups such as sidadm are defined locally in the
+Linux system.
+.PP
+3. Strict time synchronization between the cluster nodes, f.e. NTP.
+.PP
+4. For scale-out there is no other SAP HANA system (like QA) on the
+replicating node which needs to be stopped during take-over.
+.PP
+5. Only one system replication for the SAP HANA database.
+.PP
+6. Both SAP HANA database systems have the same SAP Identifier (SID)
+and Instance Number.
+.PP
+7. Besides SAP HANA you need SAP hostagent to be installed on your system.
+.PP
+8. Automated start of SAP HANA database systems during system boot
+must be switched off.
+.PP
+9. For scale-out, the current resource agent supports SAP HANA in system
+replication beginning with HANA version 1.0 SPS 9 patch level 97.
+.PP
+10. For scale-out, if the shared storage is implemented with another cluster,
+that one does not interfere with the Linux cluster. All three clusters
+(HANA, storage, Linux) have to be aligned.
+.PP
+.\"
+.SH BUGS
+.\" TODO
+In case of any problem, please use your favourite SAP support process to open
+a request for the component BC-OP-LNX-SUSE.
+Please report any other feedback and suggestions to feedback@suse.com.
+.PP
+.\"
+.SH SEE ALSO
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
+\fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , 
+\fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBsbd\fP(8) , \fBsbd\fP(7) , \fBcrm\fP(8) ,
+\fBcorosync.conf\fP(5) ,
+\fBcs_precheck_for_hana\fP(8) , \fBcs_add_watchdog_to_initrd\fP(8)
+.br
+https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
+.br
+https://www.suse.com/releasenotes/ ,
+.br
+http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution ,
+.br
+http://www.saphana.com/docs/DOC-2775 ,
+.br
+http://scn.sap.com/docs/DOC-60334 ,
+.br
+http://scn.sap.com/docs/DOC-65899
+.PP
+.SH AUTHORS
+.br
+F.Herschel, L.Pinne.
+.PP
+.\"
+.SH COPYRIGHT
+(c) 2015 SUSE Linux GmbH, Germany.
+.br
+The package SAPHanaSR-ScaleOut comes with ABSOLUTELY NO WARRANTY.
+.br
+For details see the GNU General Public License at
+http://www.gnu.org/licenses/gpl.html
+.\"
