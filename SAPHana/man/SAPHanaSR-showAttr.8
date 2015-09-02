@@ -7,9 +7,9 @@ SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replica
 .\"
 .SH SYNOPSYS
 .br
-\fBSAPHanaSR-showAttr\fR [ --help | --version | --sort ]
+\fBSAPHanaSR-showAttr\fR [ --help | --version ]
 .br
-\fBSAPHanaSR-showAttr \fIOPTION VALUE\fR
+\fBSAPHanaSR-showAttr\fR [ --sid=SID ] [ --ino=INO ] [ --sort=KEY ]
 .\"
 .SH DESCRIPTION
 .br
@@ -27,15 +27,15 @@ The overall system replication (SR) state is shown as well as the HANA state on 
 .HP
 \fB --ino \fINUM\fR
 .br
-	use SAP instance number \fINUM\fR.
+	use SAP instance number \fINUM\fR. Should be autodetected, if there is only one SAP HANA instance installed on the local cluster node. The SAP instance number must be represented by a two digit numer like 00, 05 or 42.
 .HP
 \fB --sid \fISID\fR
 .br
-	use SAP system ID \fISID\fR.
+	use SAP system ID \fISID\fR. Should be autodetected, if there is only one SAP HANA instance installed on the local cluster node. The SAP system ID is a 3 alphanum string with a valid SAP system name like SLE, HAE, FH1 or P42.
 .HP
 \fB --sort \fIFIELD\fR
 .br
-	sort attribute out table by field. Allowed values: roles, site
+	sort attribute out table by field. Allowed values: roles, site. The default sort is by hostnames.
 .\"
 .SH RETURN CODES
 .br
