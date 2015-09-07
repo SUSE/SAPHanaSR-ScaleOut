@@ -1,6 +1,6 @@
 .\" Version: 0.160.24
 .\"
-.TH ocf_suse_SAPHanaController 7 "26 Aug 2015" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "07 Sep 2015" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -375,43 +375,12 @@ hana_SLE_glob_filter="ra-act-dec-lpa"
 .\" TODO: INSTANCE_PROFILE
 .PP
 .\"
-.SH LIMITATIONS
-
-For the current version of the SAPHanaController resource agent that comes
-with the software package SAPHanaSR-ScaleOut, the support is limited to the
-following scenarios and parameters:
-
-1. HANA scale-out cluster with system replication. The two HANA database
-systems (primary and secondary site) are managed by the same single Linux
-cluster. The maximum number of nodes in that single Linux cluster is given
-by the Linux cluster limit. An odd number of nodes is needed to handle
-split-brain situations automatically.
-A dedicated cluster node might be used as majority maker. 
-
-2. Technical users and groups such as sidadm are defined locally in the
-Linux system.
-
-3. Strict time synchronization between the cluster nodes, f.e. NTP.
-
-4. For scale-out there is no other SAP HANA system (like QA) on the
-replicating node which needs to be stopped during take-over.
-
-5. Only one system replication for the SAP HANA database.
-
-6. Both SAP HANA database systems have the same SAP Identifier (SID)
-and Instance Number.
-
-7. Besides SAP HANA you need SAP hostagent to be installed on your system.
-
-8. Automated start of SAP HANA database systems during system boot
-must be switched off.
-
-9. For scale-out, the current resource agent supports SAP HANA in system
-replication beginning with HANA version 1.0 SPS 9 patch level 97.
-
-10. For scale-out, if the shared storage is implemented with another cluster,
-that one does not interfere with the Linux cluster. All three clusters
-(HANA, storage, Linux) have to be aligned.
+.SH REQUIREMENTS
+.br
+For the current version of the SAPHanaController resource agent that comes with
+the software package SAPHanaSR-ScaleOut, the support is limited to the
+scenarios and parameters described in the respective manual page
+SAPHanaSR-ScaleOut(7).
 .PP
 .\"
 .SH SEE ALSO
