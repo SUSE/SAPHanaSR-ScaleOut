@@ -26,7 +26,7 @@
 #   OCF_RESKEY_DUPLICATE_PRIMARY_TIMEOUT (optional, time difference needed between two last-primary-tiemstampe (lpt))
 #
 #######################################################################
-SAPHanaControllerVersion="0.160.15.1"
+SAPHanaControllerVersion="0.160.15.2"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -516,7 +516,8 @@ function HANA_CALL()
     #
     # TODO: remove 'su - ${sidadm} later, when SAP HANA resoled issue with 
     # root-user-called hdbnsutil -sr_state (which creates root-owned shared memory file in /var/lib/hdb/SID/shmgrp)
-    su - ${sid}adm -c "/usr/sap/$SID/$InstanceName/HDBSettings.sh $*"
+    local timeOut=$1; shift
+    timeout $timeOut su - ${sid}adm -c "/usr/sap/$SID/$InstanceName/HDBSettings.sh $*"
 }
 
 #
@@ -836,7 +837,7 @@ function check_for_primary() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=$HANA_STATE_DEFECT
     #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
-    node_full_status=$(timeout 60 $HANA_CALL hdbnsutil -sr_state 2>/dev/null )
+    node_full_status=$($HANA_CALL 60 hdbnsutil -sr_state 2>/dev/null )
     node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
     super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
     # TODO: PRIO2: Maybe we need to use a fallback interface when hdbnsitil does not answer properly -> lookup in config files?
@@ -857,7 +858,7 @@ function check_for_primary() {
                dump=$( echo $node_status | hexdump -C );
                super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
                #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
-               node_full_status=$(timeout 60 $HANA_CALL hdbnsutil -sr_state 2>/dev/null )
+               node_full_status=$($HANA_CALL 60 hdbnsutil -sr_state 2>/dev/null )
                node_status=$(echo "$node_full_status" | awk '$1=="mode:" {print $2}')
                super_ocf_log debug "DEC: check_for_primary: loop=$i: node_status=$node_status"
                # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
@@ -884,7 +885,7 @@ function analyze_hana_sync_statusSRS()
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=-1 srRc=0 all_nodes_other_side="" local n=""
     #FULL_SR_STATUS=$(su - $sidadm -c "python $DIR_EXECUTABLE/python_support/systemReplicationStatus.py" 2>/dev/null); srRc=$?
-    FULL_SR_STATUS=$(timeout 60 $HANA_CALL systemReplicationStatus.py 2>/dev/null); srRc=$?
+    FULL_SR_STATUS=$($HANA_CALL 60 systemReplicationStatus.py 2>/dev/null); srRc=$?
     super_ocf_log info "FLOW $FUNCNAME systemReplicationStatus.py -> $srRc"
     #
     # TODO: PRIO2: Here we might also need to filter additional sites (if multi tier should be supported)
@@ -1008,11 +1009,11 @@ function get_hana_landscape_status()
     local rc=0
     #
     #su - $sidadm -c "python $DIR_EXECUTABLE/python_support/landscapeHostConfiguration.py" 1>/dev/null 2>/dev/null; rc=$?
-    timeout 60 $HANA_CALL landscapeHostConfiguration.py 1>/dev/null 2>/dev/null; rc=$?
+    $HANA_CALL 60 landscapeHostConfiguration.py 1>/dev/null 2>/dev/null; rc=$?
     if [ $rc -eq 124 ]; then
         # landscape timeout
         sleep 20
-        timeout 60 $HANA_CALL landscapeHostConfiguration.py 1>/dev/null 2>/dev/null; rc=$?
+        $HANA_CALL 60 landscapeHostConfiguration.py 1>/dev/null 2>/dev/null; rc=$?
         if [ $rc -eq 124 ]; then
            # TODO PRIO2: How to handle still hanging lss - current solution is to say "FATAL"
            rc=0
