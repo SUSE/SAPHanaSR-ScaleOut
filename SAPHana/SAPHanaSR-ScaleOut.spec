@@ -1,7 +1,8 @@
 #
-# spec file for package SAPHanaSR
+# spec file for package SAPHanaSR-ScaleOut
 #
 # Copyright (c) 2013-2014 SUSE LINUX Products GmbH, Nuernberg, Germany.
+# Copyright (c) 2015      SUSE LINUX GmbH, Nuernberg, Germany.
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -37,6 +38,9 @@ Source9:        ocf_suse_SAPHanaTopology.7
 Source10:       SAPHanaSR-monitor
 Source11:       SAPHanaSRTools.pm
 Source12:       20150708-hana-scale-out.crm
+Source13:       SAPHanaSR-ScaleOut.7
+Source14:       SAPHanaSR-monitor.8
+Source15:       SAPHanaSR-showAttr.8
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 Requires:       pacemaker > 1.1.1
@@ -83,8 +87,14 @@ cp %{S:9} .
 cp %{S:10} .
 cp %{S:11} .
 cp %{S:12} .
+cp %{S:13} .
+cp %{S:14} .
+cp %{S:15} .
 gzip ocf_suse_SAPHanaController.7
 gzip ocf_suse_SAPHanaTopology.7
+gzip SAPHanaSR-ScaleOut.7
+gzip SAPHanaSR-monitor.8
+gzip SAPHanaSR-showAttr.8
 
 %clean
 test "$RPM_BUILD_ROOT" != "/" && rm -rf $RPM_BUILD_ROOT
@@ -97,6 +107,7 @@ mkdir -p %{buildroot}/usr/bin
 mkdir -p %{buildroot}/usr/share/%{name}/tests
 mkdir -p %{buildroot}/usr/share/%{name}/samples
 mkdir -p %{buildroot}/usr/share/man/man7
+mkdir -p %{buildroot}/usr/share/man/man8
 mkdir -p %{buildroot}/srv/www/hawk/config/wizard/templates
 mkdir -p %{buildroot}/srv/www/hawk/config/wizard/workflows
 install -m 0755 SAPHanaController %{buildroot}/usr/lib/ocf/resource.d/suse
@@ -111,6 +122,9 @@ install -m 0444 SAPHanaSR.xml   %{buildroot}/srv/www/hawk/config/wizard/template
 install -m 0444 90-SAPHanaSR.xml  %{buildroot}/srv/www/hawk/config/wizard/workflows
 install -m 0444 ocf_suse_SAPHanaController.7.gz %{buildroot}/usr/share/man/man7
 install -m 0444 ocf_suse_SAPHanaTopology.7.gz %{buildroot}/usr/share/man/man7
+install -m 0444 SAPHanaSR-ScaleOut.7.gz %{buildroot}/usr/share/man/man7
+install -m 0444 SAPHanaSR-monitor.8.gz %{buildroot}/usr/share/man/man8
+install -m 0444 SAPHanaSR-showAttr.8.gz %{buildroot}/usr/share/man/man8
 install -m 0444 20150708-hana-scale-out.crm %{buildroot}/usr/share/%{name}/samples
 
 %files
@@ -140,6 +154,9 @@ install -m 0444 20150708-hana-scale-out.crm %{buildroot}/usr/share/%{name}/sampl
 %doc %{_docdir}/%{name}/SAPHanaSR-Setup-Guide.pdf
 %doc /usr/share/man/man7/ocf_suse_SAPHanaController.7.gz
 %doc /usr/share/man/man7/ocf_suse_SAPHanaTopology.7.gz
+%doc /usr/share/man/man7/SAPHanaSR-ScaleOut.7.gz
+%doc /usr/share/man/man8/SAPHanaSR-monitor.8.gz
+%doc /usr/share/man/man8/SAPHanaSR-showAttr.8.gz
 # %doc /usr/share/%{name}/samples
 # %doc /usr/share/man/man8/SAPHanaSR-monitor.8.gz
 # %doc /usr/share/man/man8/SAPHanaSR-showAttr.8.gz
