@@ -55,7 +55,7 @@ primitive rsc_ip_hae ocf:heartbeat:IPaddr2 \
 	meta target-role="Started"
 primitive rsc_stonith_sbd stonith:external/sbd \
 	op start interval="0" timeout="15" start-delay="10" \
-	params pmck_action_limit=-1
+	params pcmk_action_limit="-1"
 ms msl_SAPHana_HAE_HDB96 rsc_SAPHana_HAE_HDB96 \
 	meta master-node-max="1" master-max="1" clone-node-max="1" interleave="true" target-role="Started"
 clone cln_SAPHanaTopology_HAE_HDB96 rsc_SAPHanaTopology_HAE_HDB96 \
