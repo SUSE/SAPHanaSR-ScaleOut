@@ -24,7 +24,7 @@
 #	OCF_RESKEY_DIR_EXECUTABLE   (optional, well known directories will be searched by default)
 #
 #######################################################################
-SAPHanaTopologyVersion="0.160.8.3"
+SAPHanaTopologyVersion="0.160.9.1"
 #
 # Initialization:
 timeB=$(date '+%s')
