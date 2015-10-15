@@ -417,7 +417,7 @@ function sht_init() {
     #### SAP-CALL
     # hdbnsutil was a bit unstable in some tests so we recall the tool, if it fails to report the srmode
     for i in  1 2 3; do
-        hdbANSWER=$($HANA_CALL 60 hdbnsutil -sr_state --sapcontrol=1 2>/dev/null)
+        hdbANSWER=$($HANA_CALL 60 hdbnsutil -sr_state --sapcontrol=1 2>/dev/null); RC_hdbnsutil=$?
         super_ocf_log debug "DBG2: hdbANSWER=$hdbANSWER"
         srmode=$(echo "$hdbANSWER" | awk -F= '/mode/ {print $2}')
         case "$srmode" in
@@ -558,7 +558,12 @@ function sht_start() {
      start_saphostagent
   fi
 
-  rc=$OCF_SUCCESS
+  case "$RC_hdbnsutil" in
+      0 | 1 ) rc=$OCF_SUCCESS;;     # TODO: Prio 3: Need to check rc==1 - is that success or not_running?
+      2 )     rc=$OCF_NOT_RUNNING;; # rc==2 have been seen for bad persistancy layer
+      * )     rc=$OCF_SUCCESS;;     # TODO: Prio 3: Need to check "other" return codes
+  esac
+
 
   super_ocf_log info "FLOW $FUNCNAME rc=$rc"
   return $rc
