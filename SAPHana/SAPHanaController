@@ -26,7 +26,7 @@
 #   OCF_RESKEY_DUPLICATE_PRIMARY_TIMEOUT (optional, time difference needed between two last-primary-tiemstampe (lpt))
 #
 #######################################################################
-SAPHanaControllerVersion="0.160.15.2"
+SAPHanaControllerVersion="0.160.16.1"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -1047,7 +1047,7 @@ function register_hana_secondary()
            su - $sidadm -c "hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance --mode=$sr_mode --name=$sr_name"; rc=$?
            backup_global_and_nameserver
         else
-           super_ocf_log info "ACT: SAPHANA DROP REGISTER because AUTOMATED_REGISTER is set to FALSE"
+           super_ocf_log info "ACT: SAPHANA: DROP REGISTER because AUTOMATED_REGISTER is set to FALSE"
            rc=1
         fi
     fi
@@ -1093,14 +1093,14 @@ function saphana_start() {
             output=$($SAPCONTROL -nr $InstanceNr -function WaitforStarted 3600 1)
             if [ $? -eq 0 ]
             then
-                super_ocf_log info "ACT: SAPHANA: Instance $SID-$InstanceName started: $output"
+                super_ocf_log info "ACT: SAPHANA: System $SID-$InstanceName started: $output"
                 rc=$OCF_SUCCESS
             else
-                super_ocf_log err  "ACT: SAPHANA: Instance $SID-$InstanceName start failed: $output"
+                super_ocf_log err  "ACT: SAPHANA: System $SID-$InstanceName start failed: $output"
                 rc=$OCF_ERR_GENERIC
             fi
         else
-            super_ocf_log err "ACT: SAPHANA: Instance $SID-$InstanceName start failed: $output"
+            super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName start failed: $output"
             rc=$OCF_ERR_GENERIC
         fi
     else
@@ -1128,21 +1128,21 @@ function saphana_stop() {
           ## TODO: PRIO 2: Do we need a "last-man-switch-of-the-light" detection?
           output=$($SAPCONTROL -nr $InstanceNr -function StopSystem)
           rc=$?
-          super_ocf_log info "ACT: SAPHANA: STOP: Stopping SAP System $SID-$InstanceName: $output"
+          super_ocf_log info "ACT: SAPHANA STOP: Stopping System $SID-$InstanceName: $output"
        fi
        if [ $rc -eq 0 ]
        then
            output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped 3600 1)
            if [ $? -eq 0 ]
            then
-               super_ocf_log info "ACT: SAPHANA: SAP Instance $SID-$InstanceName stopped: $output"
+               super_ocf_log info "ACT: SAPHANA: System $SID-$InstanceName stopped: $output"
                rc=$OCF_SUCCESS
            else
-               super_ocf_log err "ACT: SAPHANA: SAP Instance $SID-$InstanceName stop failed: $output"
+               super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
                rc=$OCF_ERR_GENERIC
            fi
        else
-           super_ocf_log err "ACT: SAPHANA: SAP Instance $SID-$InstanceName stop failed: $output"
+           super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
            rc=$OCF_ERR_GENERIC
        fi
     else
@@ -2452,7 +2452,7 @@ function saphana_promote_clone() {
         case "$hana_sync" in
              SOK )
                 if is_the_master_nameserver; then
-                    super_ocf_log info "ACT: SAPHANA: TAKEOVER - Promote REPLICA $SID-$InstanceName to be primary."
+                    super_ocf_log info "ACT: SAPHANA TAKEOVER: - Promote REPLICA $SID-$InstanceName to be primary."
                     LPTloc=$(date '+%s')
                     # lpa_set_lpt 20 $remoteNode
                     lpa_set_lpt $LPTloc "$sr_name"
