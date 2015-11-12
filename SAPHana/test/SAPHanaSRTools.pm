@@ -333,7 +333,7 @@ sub check_node_status($$$)
     if ( $newAttributeModel == 1 ) {    
         my $site1=${$HName{"site"}}{$h};
         if ( ${$SName{"lss"}}{$site1} =~ /^[$lss]/ ) {
-            return 1
+            return 1;
         }
     } else {
         if ( $HName{"roles"}->{$h} =~ /^[$lss]:.:/ ) {
@@ -350,8 +350,8 @@ sub check_node_mode($$$)
     my $h=shift;
     if ( $newAttributeModel == 1 ) {    
         my $site1=${$HName{"site"}}{$h};
-        if ( ${$SName{"srr"}}{$site1} =~ /^$srr/ ) {
-            return 1
+        if ( ${$SName{"srr"}}{$site1} =~ /^$mode/ ) {
+            return 1;
         }
     } else {
         if ( $HName{"roles"}->{$h} =~ /[0-9]:$mode:/ ) {
