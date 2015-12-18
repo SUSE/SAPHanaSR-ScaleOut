@@ -26,7 +26,7 @@
 #   OCF_RESKEY_DUPLICATE_PRIMARY_TIMEOUT (optional, time difference needed between two last-primary-tiemstampe (lpt))
 #
 #######################################################################
-SAPHanaControllerVersion="0.160.16.1"
+SAPHanaControllerVersion="0.160.17.1"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -581,10 +581,10 @@ function saphana_init() {
     #
     ATTR_NAME_HANA_PRIM=("hana_${sid}_glob_prim" "props")                        # SITE
     ATTR_NAME_HANA_SEC=("hana_${sid}_glob_sec" "props")                          # SITE
-    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sec_sync_state" "props")   # SOK, SFAIL
-    ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props") # Not used so far
-    ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")    # sync syncmem async
-    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sync_state" "props")
+    ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props")          # Not used so far
+    ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")            # sync syncmem async
+    ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sync_state" "props")       # SOK, SFAIL
+    ATTR_NAME_HANA_SEC_SYNC_SRHOOK=("hana_${sid}_glob_srHook" "props")           # SOK, SFAIL
     ATTR_NAME_HANA_FILTER=("hana_${sid}_glob_filter" "props" "ra-act-dec-lpa")
     #
     # SITE based attributes
@@ -1216,7 +1216,7 @@ function saphana_start_primary()
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" ${ATTR[@]})
     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_SRHOOK[@]})
     my_role="${my_lss}:${my_srr}:${my_role}"
     case "$lpa_dec" in
         0) lpa_advice="start" ;;
@@ -2071,7 +2071,7 @@ function saphana_monitor_primary()
                         # TODO: PRIO4: Decide if penality (-9000) or weak (5) is better here to cover situations where other clone is gone
                         #
             # TODO PRIO1: REMOVE remoteNode dependency - get_sync_status
-                        remoteSync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+                        remoteSync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_SRHOOK[@]})
                         super_ocf_log info "DEC: PRIMDEFECT: remoteNode=$remoteNode SyncStatus=$remoteSync"
                         case "$remoteSync" in
                             SOK | PRIM )
@@ -2098,7 +2098,7 @@ function saphana_monitor_primary()
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" ${ATTR[@]})
     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_SRHOOK[@]})
     my_role="${my_lss}:${my_srr}:${my_role}"
                         scoring_crm_master "$my_role" "$my_sync"
                         rc=$OCF_FAILED_MASTER
@@ -2137,7 +2137,7 @@ function saphana_monitor_primary()
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" ${ATTR[@]})
     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_SRHOOK[@]})
     my_role="${my_lss}:${my_srr}:${my_role}"
                 case "$my_role" in
                     [12]:P:*:*:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status{SRS|SQL}
@@ -2271,7 +2271,7 @@ function saphana_monitor_secondary()
             ;;
         2 | 3 | 4 ) # WARN INFO OK
             rc=$OCF_SUCCESS
-            sync_attr=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+            sync_attr=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_SRHOOK[@]})
             super_ocf_log debug "DBG: sync_attr=$sync_attr"
             case "$sync_attr" in
                 "SOK"   ) # This is a possible node to promote, when primary is missing
@@ -2282,7 +2282,7 @@ function saphana_monitor_secondary()
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" ${ATTR[@]})
     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_SRHOOK[@]})
     my_role="${my_lss}:${my_srr}:${my_role}"
                     scoring_crm_master "$my_role" "$my_sync"
                     ;;
@@ -2335,7 +2335,7 @@ function saphana_monitor_clone() {
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" ${ATTR[@]})
     my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_SRHOOK[@]})
     my_role="${my_lss}:${my_srr}:${my_role}"
 
     # TODO: PRIO2: check where we need to differ probes and regulary monitor calls
@@ -2448,7 +2448,7 @@ function saphana_promote_clone() {
         #
         # we are SECONDARY/SLAVE and need to takeover ...  promote on the replica (secondary) side...
         #
-        hana_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+        hana_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_SRHOOK[@]})
         case "$hana_sync" in
              SOK )
                 if is_the_master_nameserver; then

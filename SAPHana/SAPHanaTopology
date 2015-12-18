@@ -24,7 +24,7 @@
 #	OCF_RESKEY_DIR_EXECUTABLE   (optional, well known directories will be searched by default)
 #
 #######################################################################
-SAPHanaTopologyVersion="0.160.9.1"
+SAPHanaTopologyVersion="0.160.10.1"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -365,6 +365,7 @@ function sht_init() {
     ATTR_NAME_HANA_PRIM=("hana_${sid}_glob_prim" "props")                        # SITE
     ATTR_NAME_HANA_SEC=("hana_${sid}_glob_sec" "props")                          # SITE
     ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sec_sync_state" "props")   # SOK, SFAIL
+    ATTR_NAME_HANA_SEC_SYNC_SRHOOK=("hana_${sid}_glob_sec_sync_state" "props")   # SOK, SFAIL
     ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props")          # Not used so far
     ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")            # sync syncmem async
     ATTR_NAME_HANA_FILTER=("hana_${sid}_glob_filter" "props" "ra-act-dec-lpa")
