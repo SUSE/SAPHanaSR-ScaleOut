@@ -4,7 +4,7 @@
 #
 # Description:	Clone resource to analyze SAPHana-Topology
 #
-###########################################################################################################################
+###################################################################################################################
 #
 # Thanks to Alexander Krauth for providing SAPInstance and SAPDatabase
 #
@@ -24,6 +24,7 @@
 #	OCF_RESKEY_DIR_EXECUTABLE   (optional, well known directories will be searched by default)
 #
 #######################################################################
+# TODO PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
 SAPHanaTopologyVersion="0.160.10.1"
 #
 # Initialization:

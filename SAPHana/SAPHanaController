@@ -42,6 +42,7 @@ timeB=$(date '+%s')
 # P002 - in the swarm non master-nameserver nodes may never set the lpt=date
 # P003 - in the swarm non master nodes may NOT do a full master-walk
 # P004 - Monitor on "dying" primary and failing systemReplicationStatus script set secondary to SFAIL, so local restart was proessed instead of takeover
+# TODO PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
 
 
 HANA_STATE_PRIMARY=0
