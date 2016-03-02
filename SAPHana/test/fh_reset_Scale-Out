@@ -2,24 +2,24 @@
 #
 ##########################################################################
 #
-version="0.1.2015.08.25.1"
+version="0.2.2016.02.13.1"
 #
 ########  PARAMETERS ######
 #
-prim="cisbwa008"
-secn="cisbwa013"
-sid="lnx"
-SID="LNX"
-ino="00"
-primSite="ROT"
-secnSite="WDF"
-primList="cisbwa009 cisbwa010 cisbwa011 cisbwa012"
-secnList="cisbwa014 cisbwa015 cisbwa016 cisbwa017"
-primRole_cisbwa011="standby"
-primRole_cisbwa012="standby"
-secnRole_cisbwa016="standby"
-secnRole_cisbwa017="standby"
-HANA_INST_DIR="/hana/shared/rev96/SAP_HANA_DATABASE"
+#prim="cisbwa008"
+#secn="cisbwa013"
+#sid="lnx"
+#SID="LNX"
+#ino="00"
+#primSite="ROT"
+#secnSite="WDF"
+#primList="cisbwa009 cisbwa010 cisbwa011 cisbwa012"
+#secnList="cisbwa014 cisbwa015 cisbwa016 cisbwa017"
+#primRole_cisbwa011="standby"
+#primRole_cisbwa012="standby"
+#secnRole_cisbwa016="standby"
+#secnRole_cisbwa017="standby"
+#HANA_INST_DIR="/hana/shared/rev96/SAP_HANA_DATABASE"
 #
 ##########################################################################
 #
@@ -93,7 +93,7 @@ function uninstall_primary()
 { 
     local rc=0
     logger -s -i -t $TAG "uninstall_primary"
-    COMMAND="$HANA_INST_DIR/hdbuninst -b --sid=LNX"
+    COMMAND="$HANA_INST_DIR/hdbuninst -b --sid=$SID"
     ssh root@$prim "$COMMAND"; rc=$?
     logger -s -i -t $TAG "rc=$rc"
     return $rc
@@ -105,7 +105,7 @@ function uninstall_secondary()
 {
     local rc=0
     logger -s -i -t $TAG "uninstall_secondary"
-    COMMAND="$HANA_INST_DIR/hdbuninst -b --sid=LNX"
+    COMMAND="$HANA_INST_DIR/hdbuninst -b --sid=$SID"
     ssh root@$secn "$COMMAND"; rc=$?
     logger -s -i -t $TAG "rc=$rc"
     return $rc
@@ -121,7 +121,9 @@ function install_primary()
     logger -s -i -t $TAG "install_primary"
 
     for hNode in $primList; do
-        eval role=\$primRole_$hNode
+        # if a hostname contents a dash like suse01-site1 than use variables name part suse01_site1 instead
+        hNode2=$(echo $hNode | tr "-" "_")
+        eval role=\$primRole_$hNode2
         if [ -n "$role" ]; then
            if [ -n "$newPrimList" ]; then
                newPrimList="$newPrimList,$hNode:role=$role"
@@ -137,7 +139,8 @@ function install_primary()
         fi
     done 
 #primRole_cisbwa011
-    COMMAND="cat fhSAPHanaPasswords | $HANA_INST_DIR/hdbinst --addhosts=\"$newPrimList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
+    rsync -va files/hana_passwords root@$prim:.
+    COMMAND="cat hana_passwords | $HANA_INST_DIR/hdbinst --addhosts=\"$newPrimList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
     ssh root@$prim "$COMMAND"; rc=$?
     #echo newPrimList: $newPrimList
     logger -s -i -t $TAG "rc=$rc"
@@ -153,7 +156,9 @@ function install_secondary()
     local newSecnList=""
     logger -s -i -t $TAG "install_secondary"
     for hNode in $secnList; do
-        eval role=\$secnRole_$hNode
+        # if a hostname contents a dash like suse01-site1 than use variables name part suse01_site1 instead
+        hNode2=$(echo $hNode | tr "-" "_")
+        eval role=\$primRole_$hNode2
         if [ -n "$role" ]; then
            if [ -n "$newSecnList" ]; then
                newSecnList="$newSecnList,$hNode:role=$role"
@@ -168,7 +173,8 @@ function install_secondary()
            fi
         fi
     done 
-    COMMAND="cat fhSAPHanaPasswords | $HANA_INST_DIR/hdbinst --addhosts=\"$newSecnList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
+    rsync -va files/hana_passwords root@$secn:.
+    COMMAND="cat hana_passwords | $HANA_INST_DIR/hdbinst --addhosts=\"$newSecnList\" --sid=${SID} --number=${ino} --batch --read_password_from_stdin=xml"
     ssh root@$secn "$COMMAND"; rc=$?
     #echo newSecnList: $newSecnList
     logger -s -i -t $TAG "rc=$rc"
@@ -182,7 +188,7 @@ function backup_primary()
     local rc=0
     logger -s -i -t $TAG "backup_primary"
     # TODO: need to start that via ssh
-    COMMAND="/usr/sap/$SID/HDB${ino}/exe/hdbsql -u system -p manager -i ${ino} \"backup data using file ('lala')\""
+    COMMAND="/usr/sap/$SID/HDB${ino}/exe/hdbsql -u system -p SuSE1234 -i ${ino} \"backup data using file ('lala')\""
     ssh root@$prim "$COMMAND"
     logger -s -i -t $TAG "rc=$rc"
     return $rc
@@ -270,6 +276,32 @@ check_n_press()
    echo "CHECK AND PRESS ENTER"; read
 }
 
+mode=all
+step=all
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --all )
+                mode=all;	
+                ;;
+        --primary )
+                mode=primary
+                ;;
+        --secondary )
+                mode=secondary
+                ;;
+        --step=* ) # all|uninstall|install|enable|register
+                step=${1#--step=}
+                ;;
+        --step )
+                step="$2"
+                shift
+                ;;
+    esac
+    shift
+done
+
+#echo mode=$mode step=$step; exit 99
 #
 # cluster
 #
@@ -283,27 +315,65 @@ check_n_press()
 
 # primary
 #
-#uninstall_primary || check_n_press
-#install_primary || check_n_press
-backup_primary || check_n_press
-enable_primary || check_n_press
+case "$mode" in
+    all | primary )
+        case "$step" in
+            all )
+                uninstall_primary || check_n_press
+	        install_primary || check_n_press
+	        backup_primary || check_n_press
+	        enable_primary || check_n_press
+                ;;
+            uninstall )
+                uninstall_primary || check_n_press
+                ;;
+            install )
+	        install_primary || check_n_press
+                ;;
+            enable )
+                start_primary
+	        backup_primary || check_n_press
+	        enable_primary || check_n_press
+                ;;
+        esac
+        ;;
+esac
 
-# secondary
-#
-#uninstall_secondary || check_n_press
-#install_secondary || check_n_press
-stop_secondary || check_n_press
-register_secondary || check_n_press
-start_secondary || check_n_press
+
+case "$mode" in
+    all | secondary )
+        # secondary
+        #
+        case "$step" in
+            all )
+                uninstall_secondary || check_n_press
+                install_secondary || check_n_press
+                stop_secondary || check_n_press
+                register_secondary || check_n_press
+                start_secondary || check_n_press
+                ;;
+            uninstall )
+                uninstall_secondary || check_n_press
+                ;;
+            install )
+                install_secondary || check_n_press
+                ;;
+            register )
+                register_secondary || check_n_press
+                start_secondary || check_n_press
+                ;;
+        esac
+        ;;
+esac
 
 #
 # cluster (2/2)
 #
-#cleanup cln_SAPHanaTopology_LNX_HDB42
-#manage cln_SAPHanaTopology_LNX_HDB42
-#cleanup msl_SAPHana_LNX_HDB42
+#cleanup cln_SAPHanaTopology_${SID}_HDB${ino}
+#manage cln_SAPHanaTopology_${SID}_HDB${ino}
+#cleanup msl_SAPHana_${SID}_HDB${ino}
 #sleep 60
-#manage msl_SAPHana_LNX_HDB42
+#manage msl_SAPHana_${SID}_HDB${ino}
 
 ####
 #
