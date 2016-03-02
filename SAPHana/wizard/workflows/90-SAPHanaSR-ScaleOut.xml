@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<workflow name="90-SAPHanaSR-ScaleOut">
+
+<shortdesc lang="en">SAPHanaSR-ScaleOut</shortdesc>
+<longdesc lang="en">
+The SAPHanaSR-ScaleOut HAWK wizard is capable to configure all needed resources,
+master slave and clone definitions as well as constraints.
+
+As SAPHanaSR-ScaleOut configurations are intended to be very standardized the
+wizard asks only three needed parameters: SID, InstanceNumber and ip 
+address.
+</longdesc>
+
+<templates>
+<template name="SAPHanaSR-ScaleOut" required="1">
+<stepdesc lang="en">
+SAPHanaController, SAPHanaTopology ...
+</stepdesc>
+</template>
+</templates>
+
+<crm_script>
+ms msl_SAPHanaCon_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/> rsc_SAPHanaCon_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/>
+    meta master-node-max="1" master-max="1" clone-node-max="1" interleave="true" 
+clone cln_SAPHanaTop_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/> rsc_SAPHanaTop_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/>
+	meta is-managed="true" clone-node-max="1" interleave="true"
+colocation col_SAPHanaSR_ip_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/> 2000: rsc_ip_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/>:Started msl_SAPHanaCon_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/>:Master
+order ord_SAPHanaSR_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/> 2000: cln_SAPHanaTop_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/> msl_SAPHanaCon_<insert param="sid" from_template="SAPHanaSR-ScaleOut"/>_HDB<insert param="ino" from_template="SAPHanaSR-ScaleOut"/>
+</crm_script>
+
+</workflow>
