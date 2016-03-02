@@ -1,6 +1,6 @@
 .\" Version: 0.160.24
 .\"
-.TH SAPHanaSR-ScaleOut 7 "01 Sep 2015" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "02 Mar 2016" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in scale-out setups.
@@ -25,6 +25,9 @@ not "ERROR" the Linux cluster will not act. The main purpose of the Linux
 cluster is to handle the take-over to the other site. Only if the HANA
 landscape status indicates that HANA can not recover from the failure and the
 replication is in sync, then Linux will act.
+In addition to the SAPHanaTopology RA, the SAPHanaSR-ScaleOut solution uses a
+hook provided by HANA to get informed about the current state of the system
+replication.
 .\" TODO HANA handles site-internal fail-over, Linux cluster handles split-brain detection, node fencing on general errors, take-over from primary to secondary site including IP address
 .PP
 Note: To automate SAP HANA SR in scale-up setups, please use the package SAPHanaSR.
@@ -32,8 +35,9 @@ Note: To automate SAP HANA SR in scale-up setups, please use the package SAPHana
 \fBScenarios\fR
 .PP
 .\" TODO
-In order to illustrate the meaning of the above overview, some important situations
-are described below. This is not a complete description of all situations. 
+In order to illustrate the meaning of the above overview, some important
+situations are described below. This is not a complete description of all
+situations. 
 .PP
 1. \fBLocal start of standby node\fR
 .br
@@ -44,8 +48,8 @@ Linux cluster does nothing as long as the HANA landscape status is not "ERROR".
 .PP
 2. \fBPrevention against dual-primary\fR
 .br
-A primary absolutely must never be started, if the cluster does not know anything
-about the other node.
+A primary absolutely must never be started, if the cluster does not know
+anything about the other node.
 If the two HANA databases went down by accident and the system replication
 status can not be determined automatically anymore, the Linux cluster will not
 start HANA.
@@ -198,12 +202,31 @@ and Instance Number.
 must be switched off.
 .PP
 9. For scale-out, the current resource agent supports SAP HANA in system
-replication beginning with HANA version 1.0 SPS 9 patch level 97.
+replication beginning with HANA version 1.0 SPS 11 patch level 111.
+Older versions do not provide the srHook method srConnectionChanged().
 .PP
 10. For scale-out, if the shared storage is implemented with another cluster,
 that one does not interfere with the Linux cluster. All three clusters
 (HANA, storage, Linux) have to be aligned.
 .PP
+.\"
+.SH FILES
+.TP
+/usr/lib/ocf/resource.d/suse/SAPHanaController
+	the resource agent
+.TP
+/usr/lib/ocf/resource.d/suse/SAPHanaTopology
+	the also needed topology resource agent
+.TP
+.\" TODO path? deliver within RPM?
+/hana/shared/srhook/SAPHanaSR.pyo
+	the hook provider
+.TP
+/hana/shared/$SID/global/hdb/custom/config/global.ini
+	the on-disk representation of HANA global system configuration
+.TP
+/etc/sudoers
+	the sudo permissions configuration
 .\"
 .SH BUGS
 .\" TODO
@@ -215,21 +238,29 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .SH SEE ALSO
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , 
-\fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBsbd\fP(8) , \fBsbd\fP(7) , \fBcrm\fP(8) ,
-\fBcorosync.conf\fP(5) ,
+\fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBsbd\fP(8) , \fBstonith_sbd\fP(7) ,
+\fBcrm\fP(8) , \fBcorosync.conf\fP(5) , \fBcrm_no_quorum_policy\fP(7) ,
 \fBcs_precheck_for_hana\fP(8) , \fBcs_add_watchdog_to_initrd\fP(8)
 .br
 https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
 .br
 https://www.suse.com/releasenotes/ ,
 .br
-http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution ,
+https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
-http://www.saphana.com/docs/DOC-2775 ,
+http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution ,
 .br
 http://scn.sap.com/docs/DOC-60334 ,
 .br
-http://scn.sap.com/docs/DOC-65899
+http://help.sap.com/saphelp_hanaplatform/helpdata/en/13/67c8fdefaa4808a7485b09815ae0f3/content.htm ,
+.br
+http://help.sap.com/saphelp_hanaplatform/helpdata/en/5d/f2e766549a405e95de4c5d7f2efc2d/content.htm ,
+.br
+http://help.sap.com/saphelp_hanaplatform/helpdata/en/12/00ab8ef0c54c54be2d0e7f5327f7ed/content.htm?frameset=/en/13/67c8fdefaa4808a7485b09815ae0f3/frameset.htm&current_toc=/en/00/0ca1e3486640ef8b884cdf1a050fbb/plain.htm&node_id=413
+.br
+http://scn.sap.com/community/hana-in-memory/blog/2015/12/14/sap-hana-sps-11-whats-new-ha-and-dr--by-the-sap-hana-academy
+.br
+https://help.sap.com/saphelp_hanaplatform/helpdata/en/3f/1a6a7dc31049409e1a9f9108d73d51/content.htm
 .PP
 .SH AUTHORS
 .br
@@ -237,7 +268,7 @@ F.Herschel, L.Pinne.
 .PP
 .\"
 .SH COPYRIGHT
-(c) 2015 SUSE Linux GmbH, Germany.
+(c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
 The package SAPHanaSR-ScaleOut comes with ABSOLUTELY NO WARRANTY.
 .br
