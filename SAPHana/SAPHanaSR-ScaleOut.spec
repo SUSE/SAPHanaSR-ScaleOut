@@ -21,7 +21,7 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.160
+Version:        0.160.beta
 Release:        <RELEASE1>
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 #Release:      1
@@ -31,8 +31,8 @@ Source2:        README
 Source3:        LICENSE
 Source4:        SAPHanaSR-showAttr
 Source5:        SAPHanaSR-Setup-Guide.pdf
-Source6:        SAPHanaSR.xml
-Source7:        90-SAPHanaSR.xml
+Source6:        SAPHanaSR-ScaleOut.xml
+Source7:        90-SAPHanaSR-ScaleOut.xml
 Source8:        ocf_suse_SAPHanaController.7
 Source9:        ocf_suse_SAPHanaTopology.7
 Source10:       SAPHanaSR-monitor
@@ -41,6 +41,8 @@ Source12:       20150708-hana-scale-out.crm
 Source13:       SAPHanaSR-ScaleOut.7
 Source14:       SAPHanaSR-monitor.8
 Source15:       SAPHanaSR-showAttr.8
+Source16:       SAPHanaSR.py
+Source17:       global.ini
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 Requires:       pacemaker > 1.1.1
@@ -90,6 +92,8 @@ cp %{S:12} .
 cp %{S:13} .
 cp %{S:14} .
 cp %{S:15} .
+cp %{S:16} .
+cp %{S:17} .
 gzip ocf_suse_SAPHanaController.7
 gzip ocf_suse_SAPHanaTopology.7
 gzip SAPHanaSR-ScaleOut.7
@@ -118,14 +122,16 @@ install -m 0444 SAPHanaSR-Setup-Guide.pdf %{buildroot}/%{_docdir}/%{name}
 install -m 0555 SAPHanaSR-showAttr %{buildroot}/usr/bin
 install -m 0444 SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}
 install -m 0555 SAPHanaSR-monitor %{buildroot}/usr/bin
-install -m 0444 SAPHanaSR.xml   %{buildroot}/srv/www/hawk/config/wizard/templates
-install -m 0444 90-SAPHanaSR.xml  %{buildroot}/srv/www/hawk/config/wizard/workflows
+install -m 0444 SAPHanaSR-ScaleOut.xml   %{buildroot}/srv/www/hawk/config/wizard/templates
+install -m 0444 90-SAPHanaSR-ScaleOut.xml  %{buildroot}/srv/www/hawk/config/wizard/workflows
 install -m 0444 ocf_suse_SAPHanaController.7.gz %{buildroot}/usr/share/man/man7
 install -m 0444 ocf_suse_SAPHanaTopology.7.gz %{buildroot}/usr/share/man/man7
 install -m 0444 SAPHanaSR-ScaleOut.7.gz %{buildroot}/usr/share/man/man7
 install -m 0444 SAPHanaSR-monitor.8.gz %{buildroot}/usr/share/man/man8
 install -m 0444 SAPHanaSR-showAttr.8.gz %{buildroot}/usr/share/man/man8
 install -m 0444 20150708-hana-scale-out.crm %{buildroot}/usr/share/%{name}/samples
+install -m 0755 SAPHanaSR.py %{buildroot}/usr/share/%{name}/
+install -m 0755 global.ini %{buildroot}/usr/share/%{name}/samples
 
 %files
 %defattr(-,root,root)
@@ -143,8 +149,8 @@ install -m 0444 20150708-hana-scale-out.crm %{buildroot}/usr/share/%{name}/sampl
 %dir /srv/www/hawk/config/wizard
 %dir /srv/www/hawk/config/wizard/templates
 %dir /srv/www/hawk/config/wizard/workflows
-/srv/www/hawk/config/wizard/templates/SAPHanaSR.xml
-/srv/www/hawk/config/wizard/workflows/90-SAPHanaSR.xml
+/srv/www/hawk/config/wizard/templates/SAPHanaSR-ScaleOut.xml
+/srv/www/hawk/config/wizard/workflows/90-SAPHanaSR-ScaleOut.xml
 %dir %{_docdir}/%{name}
 %doc %{_docdir}/%{name}/README
 %doc %{_docdir}/%{name}/LICENSE
