@@ -93,7 +93,8 @@ class SAPHanaSR(HADRBase):
             self.tracer.info("SAPHanaSR (%s) 002" % (self.__class__.__name__))
         else:
             myCMD="sudo /usr/sbin/crm_attribute -n hana_%s_glob_srHook -v %s -t crm_config -s SAPHanaSR" % ( mysid, mySRS )
-            rc=subprocess.call(myCMD.split())
+            #rc=subprocess.call(myCMD.split())
+            rc=os.system(myCMD)
             myMSG="CALLING CRM: <" + myCMD + "> rc=" + str(rc)
         self.tracer.info("SAPHanaSR %s.srConnectionChanged method called with Dict=%s ###\n" % (self.__class__.__name__, ParamDict))
         self.tracer.info("SAPHanaSR %s \n" % (myMSG))

@@ -1,6 +1,6 @@
 .\" Version: 0.160.24
 .\"
-.TH SAPHanaSR-ScaleOut 7 "02 Mar 2016" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "30 Mar 2016" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in scale-out setups.
@@ -143,7 +143,7 @@ candidate.
 .\" TODO
 .PP
 \fB*\fR Use two independent corosync rings, at least one of them on bonded network.
-Resulting in at least three physical links.
+Resulting in at least three physical links. Unicast is preferred. 
 .PP
 \fB*\fR Use Stonith Block Device (SBD), shared LUNs across all nodes on all (three)
 sites. Of course, together with hardware watchdog.
@@ -170,7 +170,7 @@ timeouts.
 \fB*\fR Before doing anything, always check for the Linux cluster's idle status,
 the HANA landscape status, and the HANA SR status.
 .PP
-./"
+.\"
 .SH REQUIREMENTS
 .PP
 For the current version of the package SAPHanaSR-ScaleOut, the support is
@@ -202,31 +202,13 @@ and Instance Number.
 must be switched off.
 .PP
 9. For scale-out, the current resource agent supports SAP HANA in system
-replication beginning with HANA version 1.0 SPS 11 patch level 111.
+replication beginning with HANA version 1.0 SPS 11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
 .PP
 10. For scale-out, if the shared storage is implemented with another cluster,
 that one does not interfere with the Linux cluster. All three clusters
 (HANA, storage, Linux) have to be aligned.
 .PP
-.\"
-.SH FILES
-.TP
-/usr/lib/ocf/resource.d/suse/SAPHanaController
-	the resource agent
-.TP
-/usr/lib/ocf/resource.d/suse/SAPHanaTopology
-	the also needed topology resource agent
-.TP
-.\" TODO path? deliver within RPM?
-/hana/shared/srhook/SAPHanaSR.pyo
-	the hook provider
-.TP
-/hana/shared/$SID/global/hdb/custom/config/global.ini
-	the on-disk representation of HANA global system configuration
-.TP
-/etc/sudoers
-	the sudo permissions configuration
 .\"
 .SH BUGS
 .\" TODO
@@ -237,7 +219,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .\"
 .SH SEE ALSO
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
-\fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , 
+\fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR.py\fP(7) , 
 \fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBsbd\fP(8) , \fBstonith_sbd\fP(7) ,
 \fBcrm\fP(8) , \fBcorosync.conf\fP(5) , \fBcrm_no_quorum_policy\fP(7) ,
 \fBcs_precheck_for_hana\fP(8) , \fBcs_add_watchdog_to_initrd\fP(8)
@@ -252,15 +234,7 @@ http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-
 .br
 http://scn.sap.com/docs/DOC-60334 ,
 .br
-http://help.sap.com/saphelp_hanaplatform/helpdata/en/13/67c8fdefaa4808a7485b09815ae0f3/content.htm ,
-.br
-http://help.sap.com/saphelp_hanaplatform/helpdata/en/5d/f2e766549a405e95de4c5d7f2efc2d/content.htm ,
-.br
-http://help.sap.com/saphelp_hanaplatform/helpdata/en/12/00ab8ef0c54c54be2d0e7f5327f7ed/content.htm?frameset=/en/13/67c8fdefaa4808a7485b09815ae0f3/frameset.htm&current_toc=/en/00/0ca1e3486640ef8b884cdf1a050fbb/plain.htm&node_id=413
-.br
 http://scn.sap.com/community/hana-in-memory/blog/2015/12/14/sap-hana-sps-11-whats-new-ha-and-dr--by-the-sap-hana-academy
-.br
-https://help.sap.com/saphelp_hanaplatform/helpdata/en/3f/1a6a7dc31049409e1a9f9108d73d51/content.htm
 .PP
 .SH AUTHORS
 .br

@@ -21,7 +21,7 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.160.beta
+Version:        0.161
 Release:        <RELEASE1>
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 #Release:      1
@@ -43,6 +43,7 @@ Source14:       SAPHanaSR-monitor.8
 Source15:       SAPHanaSR-showAttr.8
 Source16:       SAPHanaSR.py
 Source17:       global.ini
+Source18:       SAPHanaSR.py.7
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 Requires:       pacemaker > 1.1.1
@@ -94,11 +95,13 @@ cp %{S:14} .
 cp %{S:15} .
 cp %{S:16} .
 cp %{S:17} .
+cp %{S:18} .
 gzip ocf_suse_SAPHanaController.7
 gzip ocf_suse_SAPHanaTopology.7
 gzip SAPHanaSR-ScaleOut.7
 gzip SAPHanaSR-monitor.8
 gzip SAPHanaSR-showAttr.8
+gzip SAPHanaSR.py.7
 
 %clean
 test "$RPM_BUILD_ROOT" != "/" && rm -rf $RPM_BUILD_ROOT
@@ -127,6 +130,7 @@ install -m 0444 90-SAPHanaSR-ScaleOut.xml  %{buildroot}/srv/www/hawk/config/wiza
 install -m 0444 ocf_suse_SAPHanaController.7.gz %{buildroot}/usr/share/man/man7
 install -m 0444 ocf_suse_SAPHanaTopology.7.gz %{buildroot}/usr/share/man/man7
 install -m 0444 SAPHanaSR-ScaleOut.7.gz %{buildroot}/usr/share/man/man7
+install -m 0444 SAPHanaSR.py.7.gz %{buildroot}/usr/share/man/man7
 install -m 0444 SAPHanaSR-monitor.8.gz %{buildroot}/usr/share/man/man8
 install -m 0444 SAPHanaSR-showAttr.8.gz %{buildroot}/usr/share/man/man8
 install -m 0444 20150708-hana-scale-out.crm %{buildroot}/usr/share/%{name}/samples
@@ -161,6 +165,7 @@ install -m 0755 global.ini %{buildroot}/usr/share/%{name}/samples
 %doc /usr/share/man/man7/ocf_suse_SAPHanaController.7.gz
 %doc /usr/share/man/man7/ocf_suse_SAPHanaTopology.7.gz
 %doc /usr/share/man/man7/SAPHanaSR-ScaleOut.7.gz
+%doc /usr/share/man/man7/SAPHanaSR.py.7.gz
 %doc /usr/share/man/man8/SAPHanaSR-monitor.8.gz
 %doc /usr/share/man/man8/SAPHanaSR-showAttr.8.gz
 # %doc /usr/share/%{name}/samples

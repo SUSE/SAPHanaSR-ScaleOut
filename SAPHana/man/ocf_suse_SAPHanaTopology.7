@@ -1,6 +1,6 @@
 .\" Version: 0.160.23
 .\"
-.TH ocf_suse_SAPHanaTopology 7 "0i2 Mar 2016" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaTopology 7 "12 Mar 2016" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaTopology \- Helps to manage two SAP HANA databases with system replication.
@@ -57,7 +57,6 @@ Please see also the REQUIREMENTS section below.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
-.br
 This resource agent supports the following parameters:
 .PP
 \fBSID\fR
@@ -73,7 +72,6 @@ For system replication also Instance Number+1 is blocked.
 .PP
 .\"
 .SH SUPPORTED PROPERTIES
-.br
 \fBhana_${sid}_glob_filter\fR
 .RS 4
 Global cluster property \fBhana_${sid}_glob_filter\fR .
@@ -128,16 +126,14 @@ Suggested minimum timeout: 5\&.
 .PP
 .\"
 .SH RETURN CODES
-.br
 The return codes are defined by the OCF cluster framework.
 Please refer to the OCF definition on the website mentioned below.
 .PP
 .\"
 .SH EXAMPLES
-.br
 * This is an example configuration for a SAPHanaTopology resource for HANA scale-up.
 .br
-In addition, a SAPHanaController resource is needed to make this work.
+In addition, a SAPHana resource is needed to make this work.
 .RE
 .PP
 .RS 4
@@ -186,11 +182,14 @@ order SAPHanaTop_first 1000: cln_SAPHanaTop_SLE_HDB00 msl_SAPHC_SLE_HDB00
 .\"
 .SH FILES
 .TP
+/usr/lib/ocf/resource.d/suse/SAPHana
+    the resource agent for scale-up
+.TP
 /usr/lib/ocf/resource.d/suse/SAPHanaController
-    the resource agent
+    the resource agent for scale-out
 .TP
 /usr/lib/ocf/resource.d/suse/SAPHanaTopology
-    the also needed topology resource agent
+    the topology resource agent itself
 .TP
 /usr/sap/$SID/$InstanceName/exe
     default path for DIR_EXECUTABLE
@@ -202,7 +201,6 @@ order SAPHanaTop_first 1000: cln_SAPHanaTop_SLE_HDB00 msl_SAPHC_SLE_HDB00
 .\"
 .PP
 .SH REQUIREMENTS 
-.br
 For the current version of the SAPHanaTopology resource agent that comes with
 the software package SAPHanaSR or SAPHanaSR-ScaleOut, the support is limited
 to the scenarios and parameters described in the respective manual page
@@ -210,8 +208,9 @@ SAPHanaSR(7) or SAPHanaSR-ScaleOut(7).
 .PP
 .\"
 .SH SEE ALSO
-\fBocf_suse_SAPHanaController\fP(7) , \fBSAPHanaSR-monitor\fP(8) ,
-\fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
+\fBocf_suse_SAPHana\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
+\fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
+\fBSAPHanaSR\fP(7) , \fBSAPHanaSR-ScaleOut\fP(7) ,
 \fBntp.conf\fP(5) , \fBstonith\fP(8)
 .br
 https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
@@ -228,7 +227,6 @@ http://scn.sap.com/docs/DOC-65899
 .PP
 .\"
 .SH AUTHORS
-.br
 F.Herschel, L.Pinne.
 .PP
 .\"
