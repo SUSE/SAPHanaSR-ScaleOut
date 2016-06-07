@@ -1,0 +1,4 @@
+jump_host=laptop
+host=setrain01.tam-lab.suse.de
+file='hana-di-tester.pl'
+scp -o ProxyCommand="ssh cyber@$jump_host nc $host 22" $file root@$host:~

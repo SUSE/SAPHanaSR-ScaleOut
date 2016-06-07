@@ -1,0 +1,2 @@
+hana_di_tester.pl: Releae version of the data integrity checker
+hana_di_tester2.pl: Try, to increase the I/O troughput using a bi-directional communication with the hdbsql command, instead of sending each query via a dedicated command call
