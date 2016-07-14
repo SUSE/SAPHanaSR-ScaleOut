@@ -48,6 +48,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 Requires:       pacemaker > 1.1.1
 Requires:       resource-agents
+Conflicts:      SAPHanaSR
 
 %package doc
 Summary:        Setup-Guide for SAPHanaSR
