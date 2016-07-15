@@ -1,7 +1,0 @@
-
-# lv9049,lv9051,lv9084:role=standby,lv9086:role=standby
-cNodeList="lv9042 lv9049 lv9051 lv9084 lv9086"
-
-for clN in $cNodeList; do echo $clN; ssh $clN /hana/shared/SPS09_rev95/SAP_HANA_DATABASE/hdbuninst -b -sid LNX; done
-for clN in $cNodeList; do echo $clN; ssh $clN find /usr/sap /hana/shared /var/lib/hdb -name LNX; done
-for clN in $cNodeList; do echo $clN; ssh $clN rm -rf /var/lib/hdb/LNX ; done

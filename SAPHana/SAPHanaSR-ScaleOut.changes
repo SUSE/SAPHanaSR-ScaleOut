@@ -1,7 +1,9 @@
 -------------------------------------------------------------------
 Thu Jul 14 13:51:45 UTC 2016 - imanyugin@suse.com
 
-- Added a package conflict for SAPHanaSR
+- Version 0.161.1
+- Added a package conflict for SAPHanaSR, bsc#989162
+- Restructure package and the .spec file
 
 -------------------------------------------------------------------
 Mon Jun 13 14:12:40 UTC 2016 - imanyugin@suse.com
