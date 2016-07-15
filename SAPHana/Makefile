@@ -11,6 +11,7 @@ FILE_LIST = crmconfig \
 PKG = SAPHanaSR-ScaleOut
 SPECFILE = ${PKG}.spec
 VERSION = $(strip $(patsubst Version:,,$(shell grep '^Version:' $(SPECFILE))))
+TARBALL_NAME = ${PKG}-${VERSION}.tar.bz2
 
 # OBS local project path: set it as a command line argument or as an ENV variable
 OBSPROJ ?= "placeholder"
@@ -18,9 +19,9 @@ OBSPROJ ?= "placeholder"
 OBSTARG ?= "SLE_12_SP2"
 
 tarball:
-	@echo -e "\e[33mMaking ${PKG}-${VERSION}.tgz\e[0m"
+	@echo -e "\e[33mMaking ${TARBALL_NAME}\e[0m"
 	@echo
-	tar zcvf ${PKG}-${VERSION}.tgz ${FILE_LIST}
+	tar cvjf ${TARBALL_NAME} ${FILE_LIST}
 	@echo -e "\e[32mDone\e[0m"
 
 .ONESHELL:
@@ -32,7 +33,7 @@ copy: tarball
 	@echo -e "\e[33mCopying the SPEC file, CHANGES file and the tarball to ${OBSPROJ}\e[0m"
 	@cp ${PKG}.changes ${OBSPROJ}
 	@cp ${PKG}.spec ${OBSPROJ}
-	@cp ${PKG}-${VERSION}.tgz ${OBSPROJ}
+	@cp ${TARBALL_NAME} ${OBSPROJ}
 	@echo -e "\e[32mDone\e[0m"
 
 .ONESHELL:

@@ -23,9 +23,10 @@ Summary:        Resource agents to control the HANA database in system replicati
 Version:        0.161.1
 Release:        0
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
-Source0:        SAPHanaSR-ScaleOut-%{version}.tgz
+Source0:        SAPHanaSR-ScaleOut-%{version}.tar.bz2
 
 BuildArch:      noarch
+BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 Requires:       pacemaker > 1.1.1
 Requires:       resource-agents
