@@ -1,4 +1,4 @@
-.\" Version: 0.160.24
+.\" Version: v0.162.3
 .\"
 .TH ocf_suse_SAPHanaController 7 "26 Oct 2016" "" "OCF resource agents"
 .\"
@@ -38,8 +38,8 @@ timestamp (LPT). This is neccessary to ensure data integrity.
 The SAPHanaController resource agent (RA) performs the actual check of the
 SAP HANA database instances and is configured as a master/slave resource.
 The Linux cluster resource's master status will follow the HANA's active master
-name server role. Resources that need to run on the same node with that HANA
-role should be co-located with the master target.
+name server role. Resources (f.e. IP address) that need to run on the same node 
+with that HANA role should be co-located with the master target.
 .\" TODO sketch to show relation between roles
 .\" Linux Cluster (res) Linux Cluster (m/s)   HANA      
 .\" Follow    <=>       Master     ==         Primary Name Server    
@@ -58,12 +58,13 @@ The resource agent uses the following five interfaces provided by SAP:
 1. \fBsapcontrol/sapstartsrv\fP
 .br
 The interface sapcontrol/sapstartsrv is used to start/stop a HANA
-database instance/system
+database instance/system. SAPHanaController also checks via this interface
+the instance status to allow a start of HANA standby nodes.
 .PP
 2. \fBlandscapeHostConfiguration\fP
 .br
-The interface is used to monitor a HANA system. The python script is named
-landscapeHostConfiguration.py.
+The interface is used to monitor an entire HANA system. The python script
+is named landscapeHostConfiguration.py.
 landscapeHostConfiguration.py has some detailed output about HANA system status
 and node roles. For our monitor the overall status is relevant.
 This overall status is reported by the returncode of the script:
@@ -82,15 +83,15 @@ might take some time.
 .PP
 4. \fBsystemReplicationStatus\fP
 .br
-The Interface is systemReplicationStatus is a special query into HANA 
-(system replication table) via a python library. 
+The interface systemReplicationStatus is a special query to check the HANA 
+system replication status via a python library. 
 This interface exists since SAP HANA SPS9.
 .PP
 5. \fBsaphostctrl\fP
 .br
 The interface saphostctrl uses the function ListInstances to figure out the
-virtual host name of the SAP HANA instance. This is the hostname used during
-the HANA installation.
+virtual host name of the SAP HANA instance. This is typically the hostname
+used during the HANA installation.
 .PP
 To make configuring the cluster as simple as possible, the additional
 SAPHanaTopology resource agent runs on all nodes of the Linux cluster and
@@ -106,13 +107,15 @@ This resource agent supports the following parameters:
 .PP
 \fBSID\fR
 .RS 4
-SAP System Identifier. Has to be same on both instances.
+SAP System Identifier. Has to be same on both instances. 
+Example "SID=SLE".
 .RE
 .PP
 \fBInstanceNumber\fR
 .RS 4
 Number of the SAP HANA database.
-For system replication also Instance Number+1 is blocked.
+For system replication also Instance Number+1 is blocked. 
+Example "InstanceNumber=00".
 .RE
 .PP
 \fBDIR_EXECUTABLE\fR
@@ -148,6 +151,7 @@ Optional, well known directories will be searched by default.
 Defines whether RA should prefer to take-over to the slave database
 instead of restarting master locally. However a take-over will only
 be triggered, if the SAP HANA landscape status is on "ERROR".
+Example: "PREFER_SITE_TAKEOVER=true".
 .br
 Optional. Default value: true\&.
 .RE
@@ -156,11 +160,15 @@ Optional. Default value: true\&.
 .RS 4
 Time difference needed between two primary time stamps, if a
 dual-primary situation occurs. If the time difference is less than
-the time gap, than the cluster holds one or both instances in a
+the time gap, then the cluster holds one or both instances in a
 "WAITING" status. This is to give an admin a chance to react on a
-take-over. A failed former primary will be registered after the time
-difference is passed. After this registration to the new primary all
-data will be overwritten by the system replication.
+take-over. 
+If the complete node of the fomer primary has crashed, the fomer primary
+will be regitered after the time difference is passed.
+If "only" the SAP HANA database has crashed, the former primary will
+be registered immediately.
+After the registration to the new primary all a data will be overwritten
+by the system replication.
 .br
 Optional. Default value: 7200\&.
 .RE
@@ -169,7 +177,8 @@ Optional. Default value: 7200\&.
 .RS 4
 Defines whether a former primary database should be registered
 automatically by the resource agent during cluster/resource start,
-if the DUPLICATE_PRIMARY_TIMEOUT is expired.
+if the DUPLICATE_PRIMARY_TIMEOUT condition is met.
+Example: "AUTOMATED_REGISTER=true".
 .br
 Default value: false\&.
 .RE
@@ -227,7 +236,7 @@ Suggested minimum timeout: 60\&.
 \fBmonitor (Master role)\fR
 .RS 4
 Reports whether the HANA database seems to be working in
-master/slave it also needs to check the system replication status.
+master/slave. It also needs to check the system replication status.
 Suggested minimum timeout: 700\&.
 Suggested interval: 60\&.
 .RE
@@ -235,7 +244,7 @@ Suggested interval: 60\&.
 \fBmonitor (Slave role)\fR
 .RS 4
 Reports whether the HANA database seems to be working in
-master/slave it also needs to check the system replication status.
+master/slave. It also needs to check the system replication status.
 Suggested minimum timeout: 700\&.
 Suggested interval: 61\&.
 .RE
@@ -319,9 +328,9 @@ op monitor interval="60" role="Master" timeout="700" \\
 .br
 op monitor interval="61" role="Slave" timeout="700" \\
 .br
-params SID="SLE" InstanceNumber="00" PREFER_SITE_TAKEOVER="false" \\
+params SID="SLE" InstanceNumber="00" PREFER_SITE_TAKEOVER="true" \\
 .br
-DUPLICATE_PRIMARY_TIMEOUT="7200" AUTOMATED_REGISTER="false"
+DUPLICATE_PRIMARY_TIMEOUT="7200" AUTOMATED_REGISTER="true"
 .PP
 ms msl_SAPHanaCon_SLE_HDB00 rsc_SAPHanaCon_SLE_HDB00 \\
 .br
@@ -387,9 +396,9 @@ SAPHanaSR-ScaleOut(7).
 .PP
 .\"
 .SH SEE ALSO
-\fBocf_suse_SAPHanaTopology\fP(7) , \fBSAPHanaSR-monitor\fP(8) , \fBIPaddr2\fP(8) ,
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_heartbeat_IPaddr2\fP(8) , \fBSAPHanaSR-monitor\fP(8) ,
 \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
-\fBntp.conf\fP(5) , \fBstonith\fP(8) 
+\fBntp.conf\fP(5) , \fBstonith\fP(8)
 .br
 https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
 .br
