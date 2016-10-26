@@ -1,6 +1,6 @@
 .\" Version: 0.160.24
 .\"
-.TH ocf_suse_SAPHanaController 7 "07 Sep 2015" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "26 Oct 2016" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -28,14 +28,22 @@ not "ERROR" the Linux cluster will not act. The main purpose of the Linux
 cluster is to handle the take-over to the other site. Only if the HANA
 landscape status indicates that HANA can not recover from the failure and the
 replication is in sync, then Linux will act. As an exception, the Linux cluster
-will react if HANA moves the master nameserver role to another candidate. In
-that case, the Linux cluster will locally start the former master nameserver as
-standby node. If the two HANA databases went down by accident and the system
-replication status can not be determined automatically anymore, the Linux
-cluster will not restart HANA.
+will react if HANA moves the master nameserver role to another candidate. 
+SAPHanaController is also able to restart former failed worker nodes as standby.
+.PP
+On initial cluster start, the cluster needs to detect a valid HANA system
+replication setup, including system replication status (SOK) and last primary
+timestamp (LPT). This is neccessary to ensure data integrity.
 .PP
 The SAPHanaController resource agent (RA) performs the actual check of the
 SAP HANA database instances and is configured as a master/slave resource.
+The Linux cluster resource's master status will follow the HANA's active master
+name server role. Resources that need to run on the same node with that HANA
+role should be co-located with the master target.
+.\" TODO sketch to show relation between roles
+.\" Linux Cluster (res) Linux Cluster (m/s)   HANA      
+.\" Follow    <=>       Master     ==         Primary Name Server    
+.PP
 Managing the two SAP HANA instances in scale-out setup means that the resource
 agent controls the start/stop of the instances. In addition the resource agent
 is able to monitor the SAP HANA databases on landscape host configuration level.
@@ -379,8 +387,8 @@ SAPHanaSR-ScaleOut(7).
 .PP
 .\"
 .SH SEE ALSO
-\fBocf_suse_SAPHanaTopology\fP(7) , \fBSAPHanaSR-monitor\fP(8) ,
-\fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) , 
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBSAPHanaSR-monitor\fP(8) , \fBIPaddr2\fP(8) ,
+\fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
 \fBntp.conf\fP(5) , \fBstonith\fP(8) 
 .br
 https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
@@ -403,7 +411,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2014 SUSE Linux Products GmbH, Germany.
 .br
-(c) 2015 SUSE Linux GmbH, Germany.
+(c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
 The resource agent SAPHanaController comes with ABSOLUTELY NO WARRANTY.
 .br
