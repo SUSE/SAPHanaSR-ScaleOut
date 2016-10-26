@@ -18,8 +18,8 @@ system replication in an OCF master/slave configuration.
 .PP
 System replication will help to replicate the database data from one site to
 another site in order to compensate for database failures. With this mode of
-operation, internal SAP HANA high-availability (HA) mechanisms and the resource
-agent have to work together.
+operation, internal SAP HANA high-availability (HA) mechanisms and the Linux
+cluster have to work together.
 .PP
 An HANA scale-out setup already is, to some degree, an HA cluster on its own.
 The HANA is able to replace failing nodes with standby nodes or to restart
@@ -30,6 +30,9 @@ landscape status indicates that HANA can not recover from the failure and the
 replication is in sync, then Linux will act. As an exception, the Linux cluster
 will react if HANA moves the master nameserver role to another candidate. 
 SAPHanaController is also able to restart former failed worker nodes as standby.
+In addition to the SAPHanaTopology RA, the SAPHanaSR-ScaleOut solution uses a
+"HA/DR providers" API provided by HANA to get informed about the current state of the 
+system replication.
 .PP
 On initial cluster start, the cluster needs to detect a valid HANA system
 replication setup, including system replication status (SOK) and last primary
