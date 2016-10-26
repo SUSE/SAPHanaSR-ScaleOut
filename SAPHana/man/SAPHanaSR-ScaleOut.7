@@ -24,10 +24,12 @@ certain sub-systems on other nodes. As long as the HANA landscape status is
 not "ERROR" the Linux cluster will not act. The main purpose of the Linux
 cluster is to handle the take-over to the other site. Only if the HANA
 landscape status indicates that HANA can not recover from the failure and the
-replication is in sync, then Linux will act.
+replication is in sync, then Linux will act. As an exception, the Linux cluster
+will react if HANA moves the master nameserver role to another candidate. 
+SAPHanaController is also able to restart former failed worker nodes as standby.
 In addition to the SAPHanaTopology RA, the SAPHanaSR-ScaleOut solution uses a
-hook provided by HANA to get informed about the current state of the system
-replication.
+"HA/DR providers" API provided by HANA to get informed about the current state of the 
+system replication.
 .\" TODO HANA handles site-internal fail-over, Linux cluster handles split-brain detection, node fencing on general errors, take-over from primary to secondary site including IP address
 .PP
 Note: To automate SAP HANA SR in scale-up setups, please use the package SAPHanaSR.
@@ -41,18 +43,20 @@ situations.
 .PP
 1. \fBLocal start of standby node\fR
 .br
-The Linux cluster will react if HANA moves the master nameserver role to another
-candidate. In that case, the Linux cluster will locally start the former master
-nameserver as standby node. This is one exception from the general rule, that the
+The Linux cluster will react if HANA moves any worker node (including the master 
+nameserver role) to another candidate. If the failed node or instance is available
+in the cluster and switched to HANA standby role, the Linux cluster will restart 
+the SAP HANA local framework so this node could be used for future failovers.
+This is one exception from the general rule, that the
 Linux cluster does nothing as long as the HANA landscape status is not "ERROR".
 .PP
 2. \fBPrevention against dual-primary\fR
 .br
 A primary absolutely must never be started, if the cluster does not know
-anything about the other node.
-If the two HANA databases went down by accident and the system replication
-status can not be determined automatically anymore, the Linux cluster will not
-start HANA.
+anything about the other site.
+On initial cluster start, the cluster needs to detect a valid HANA system
+replication setup, including system replication status (SOK) and last primary
+timestamp (LPT). This is neccessary to ensure data integrity.
 .PP
 The rational behind this is shown in the following scenario:
 .br
