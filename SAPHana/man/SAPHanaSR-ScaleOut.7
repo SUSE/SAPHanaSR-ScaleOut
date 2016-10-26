@@ -92,50 +92,49 @@ a) the admin starts both nodes again
 b) In the situation where the site_B is still down, the admin starts the
    primary on site_A manually.
 .br
-The Linux cluster will follow this administrative decision.
-.\" TODO see \fBDUPLICATE_PRIMARY_TIMEOUT\fR ?
+The Linux cluster will follow this administrative decision. In both cases the
+administrator should register and start a secondary as soon as posible. This
+avoids a full log partition with consequence of a DATABASE STUCK.
 .PP
-3. \fBAutomatic registration as secondary after site failure\fR
+3. \fBAutomatic registration as secondary after site failure and takeover\fR
 .br
-The cluster can be configured to registered a former primary database
+The cluster can be configured to register a former primary database
 automatically as secondary. If this option is set, the resource agent 
 will register a former primary database as secondary during cluster/resource
 start.
-.\" TODO see \fBAUTOMATED_REGISTER\fR
 .PP
 4. \fBSite take-over not preferred over local re-start\fR
 .br
-In opposite to the SAPHanaSR for scale-up setups, the Linux cluster does
-not allow to prefere site take-over over local restart. If the local master
-nameserver fails, always the HANA HA mechanism will re-act to restart another
-master nameserver. This happens according to HANA's configured node roles.
-Only if the HANA can not recover from the failure and gets into landscape
-status "ERROR", the Linux cluster will re-act with a site take-over.
+SAPHanaSR-ScaleOut allows to configure, if you prefer to takeover to the
+secondary after the primary landscape fails. The alternative is to restart the
+primary landscape, if it fails and only to takeover when no local restart is
+possible anymore. This can be tuned by SAPHanaController(7) parameters.
+.br
+The current implementation only allows to takeover in case the landscape status
+reports 1 (ERROR). The cluster will not takeover, when the SAP HANA still
+tries to repair a local failure.
 .\" see \fBPREFER_SITE_TAKEOVER\fR
 .PP
 5. \fBRecovering from failure of master nameserver\fR
 .br
 If the master nameserver of an HANA database system fails, the HANA will start
-the nameserver on another node. Therefor usually two nodes are configured as
-nameserver candidates. At least one of them should be a standby node. The Linux
-cluster will detect the change and move the IP address to the new nameserver.
-.br
-Note: If the node where the nameserver has failed comes back into the
-Linux cluster, it will be activated as standby node. See situation
-"Local start of standby node" above. 
+the nameserver on another node. Therefore usually up to two nodes are configured as
+additional nameserver candidates. At least one of them should be a standby node to
+optimize failover time. The Linux cluster will detect the change and move the 
+IP address to the new active master nameserver.
 .PP
 \fBImplementation\fR
 .PP
 The two HANA database systems (primary and secondary site) are managed by the
 same single Linux cluster. The maximum number of nodes in that single Linux
 cluster is given by the Linux cluster limit. An odd number of nodes is needed
-to handle split-brain situations automatically.
+to handle split-brain situations automatically in stretched clusters.
 .PP
 The HANA consists of two sites with same number of nodes each. There are no
-HANA nodes outside the Linux cluster. An additional cluster node is used as
+HANA nodes outside the Linux cluster. An additional Linux cluster node is used as
 majority maker for split-brain situations. This dedicated node does not need
-to have HANA installed.
-.\" TODO reason for majority maker
+to have HANA installed and must not run any SAP HANA resources for the same
+SID.
 .PP
 A common STONITH mechanism is set up for all nodes accross all the sites.
 .PP
@@ -144,7 +143,6 @@ cluster, only that single IP address is needed to access any nameserver
 candidate.
 .PP
 \fBBest Practice\fR
-.\" TODO
 .PP
 \fB*\fR Use two independent corosync rings, at least one of them on bonded network.
 Resulting in at least three physical links. Unicast is preferred. 
@@ -161,7 +159,7 @@ any functional tests.
 \fB*\fR Carefully define, perform, and document tests for all scenarios that should
 be covered. 
 .PP
-\fB*\fR Test HANA HA features without Linux cluster before doing the overall
+\fB*\fR Test HANA HA and SR features without Linux cluster before doing the overall
 cluster tests.
 .PP
 \fB*\fR Test basic Linux cluster features without HANA before doing the overall
@@ -200,7 +198,8 @@ replicating node which needs to be stopped during take-over.
 6. Both SAP HANA database systems have the same SAP Identifier (SID)
 and Instance Number.
 .PP
-7. Besides SAP HANA you need SAP hostagent to be installed on your system.
+7. Besides SAP HANA you need SAP hostagent to be installed and started 
+on your system.
 .PP
 8. Automated start of SAP HANA database systems during system boot
 must be switched off.
