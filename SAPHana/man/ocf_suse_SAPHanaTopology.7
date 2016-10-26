@@ -1,6 +1,6 @@
-.\" Version: 0.160.23
+.\" Version: 0.162.1
 .\"
-.TH ocf_suse_SAPHanaTopology 7 "12 Mar 2016" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaTopology 7 "09 Aug 2016" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaTopology \- Helps to manage two SAP HANA databases with system replication.
@@ -18,7 +18,7 @@ SAP HANA databases. In addition it starts and monitors the local saphostagent.
 .PP
 The resource agent uses the following interfaces provided by SAP:
 .PP
-1. \fBlandscapeHostConfiguration.py\fP 
+1. \fBlandscapeHostConfiguration.py\fP
 .br
 landscapeHostConfiguration.py has some detailed output about HANA system
 status and node roles. For our monitor the overall status is relevant. This
@@ -154,7 +154,7 @@ notify="true" interleave="true" clone-node-max="1"
 .PP
 * Below is an example configuration for a SAPHanaTopology resource for HANA scale-out.
 .br
-The HANA consists of two sites with five nodes each. An additional cluster node 
+The HANA consists of two sites with five nodes each. An additional cluster node
 is used as majority maker for split brain situations.
 In addition, a SAPHanaController resource is needed to make this work.
 .RE
@@ -168,7 +168,7 @@ op stop interval="0" timeout="600" \\
 .br
 op monitor interval="10" timeout="600" \\
 .br
-params SID="SLE" InstanceNumber="00" 
+params SID="SLE" InstanceNumber="00"
 .PP
 clone cln_SAPHanaTop_SLE_HDB00 rsc_SAPHanaTop_SLE_HDB00 \\
 .br
@@ -200,7 +200,7 @@ order SAPHanaTop_first 1000: cln_SAPHanaTop_SLE_HDB00 msl_SAPHC_SLE_HDB00
 .\" TODO: INSTANCE_PROFILE
 .\"
 .PP
-.SH REQUIREMENTS 
+.SH REQUIREMENTS
 For the current version of the SAPHanaTopology resource agent that comes with
 the software package SAPHanaSR or SAPHanaSR-ScaleOut, the support is limited
 to the scenarios and parameters described in the respective manual page
