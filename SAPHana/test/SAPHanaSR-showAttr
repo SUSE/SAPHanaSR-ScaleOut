@@ -1,12 +1,11 @@
 #!/usr/bin/perl
 #
 # SAPHanaSR-showAttr
-# 
-# (c) 2014 SUSE Linux Products GmbH, Nuremberg German
-# (c) 2015 SUSE Linux GmbH, Nuremberg German
+# (c) 2014 SUSE Linux Products GmbH, Nuremberg, Germany
+# (c) 2015-2016 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel <fabian.herschel@suse.com>
-# License: GPL v2 
-my $Version="0.18.2016.02.13.1";
+# License: GPL v2+
+my $Version="0.20.2016.08.20.1";
 #
 ##################################################################
 #
@@ -24,7 +23,7 @@ my @sids;
 my $ino="";
 my $sortBy="";
 my $table_titleH = "Host";
-#my %Name;
+my %Name;
 my %Host;
 my %Site;
 my %Global;
@@ -38,7 +37,6 @@ my $cibFile="";
 sub init()
 {
 	my $result = GetOptions ("sid=s" => \@sids,
-	                      "ino=s" => \$ino,
 	                      "sort=s" => \$sortBy,
 	                      "cib=s" => \$cibFile,
                           "version" => \$version,
@@ -50,7 +48,7 @@ sub init()
 init();
 
 if ( $help ) {
-   printf "SAPHanaSR-showAttr [--sid=<sid>] [--ino=<instNr>] [--sort=<SortBy>] [--cib=<OfflineCibFile>]\n";
+   printf "SAPHanaSR-showAttr {[--sid=<sid[:instNr]>]} [--sort=<SortBy>] [--cib=<OfflineCibFile>]\n";
    printf "";
    exit 0;
 }
@@ -63,6 +61,8 @@ if ( $cibFile ne "" ) {
    printf "Using cib file %s\n", $cibFile;
 }
 
+# TODO: set_cib_file
+
 sub max { # thanks to http://www.perlunity.de/perl/forum/thread_018329.shtml
  my $a = shift;
  my $b = shift;
@@ -73,7 +73,6 @@ if ( 0 == @sids ) {
     my $sid_ino_list;
        ( $sid_ino_list ) = get_sid_and_InstNr();
        @sids = split(",", $sid_ino_list);
-
 }
 
 foreach $sid (@sids) {
