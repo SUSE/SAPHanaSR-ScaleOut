@@ -39,13 +39,14 @@ replication as well as the current configuration (primary/secondary) of a
 SAP HANA database. A second task of the interface is the posibility to run
 a system replication take-over (sr_takeover) or to register a former primary
 to a newer one (sr_register). In scale-out setups, hdbnsutil sometimes
-might take some time.
+might take some time. SAPHanaTopology uses only task one. SAPHanaController 
+or SAPHana are using all three tasks.
 .PP
 3. \fBsaphostctrl\fP
 .br
 The interface saphostctrl uses the function ListInstances to figure out the
-virtual host name of the SAP HANA instance. This is the hostname used during
-the HANA installation.
+virtual host name of the SAP HANA instance. This is typically the hostname used 
+during the HANA installation.
 .PP
 Please notice that the method to "send" the findings via the node status
 attributes might change in a next version. So please do not think about those
@@ -62,12 +63,14 @@ This resource agent supports the following parameters:
 \fBSID\fR
 .RS 4
 SAP System Identifier. Has to be same on both instances.
+Example "SID=SLE".
 .RE
 .PP
 \fBInstanceNumber\fR
 .RS 4
 Number of the SAP HANA database.
 For system replication also Instance Number+1 is blocked.
+Example "InstanceNumber=00".
 .RE
 .PP
 .\"
