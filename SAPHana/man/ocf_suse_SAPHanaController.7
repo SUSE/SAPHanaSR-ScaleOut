@@ -1,6 +1,6 @@
 .\" Version: 0.162.3
 .\"
-.TH ocf_suse_SAPHanaController 7 "26 Oct 2016" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "22 Dec 2016" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -156,22 +156,19 @@ instead of restarting master locally. However a take-over will only
 be triggered, if the SAP HANA landscape status is on "ERROR".
 Example: "PREFER_SITE_TAKEOVER=true".
 .br
-Optional. Default value: true\&.
+Optional. Default value: false\&.
 .RE
 .PP
 \fBDUPLICATE_PRIMARY_TIMEOUT\fR
 .RS 4
-Time difference needed between two primary time stamps, if a
-dual-primary situation occurs. If the time difference is less than
-the time gap, then the cluster holds one or both instances in a
-"WAITING" status. This is to give an admin a chance to react on a
-take-over. 
-If the complete node of the fomer primary has crashed, the fomer primary
-will be regitered after the time difference is passed.
-If "only" the SAP HANA database has crashed, the former primary will
-be registered immediately.
-After the registration to the new primary all a data will be overwritten
-by the system replication.
+Time difference needed between two primary time stamps (LPTs), in case
+a dual-primary situation occurs. If the difference between both node's
+last primary time stamps is less than DUPLICATE_PRIMARY_TIMESTAMP,
+then the cluster holds one or both instances in a "WAITING" status.
+This is to give an admin the chance to react on a failover.
+Note: How the cluster proceeds after the DUPLICATE_PRIMARY_TIMESTAMP
+has passed, depends on the parameter AUTOMATED_REGISTER.
+See also the examples section below.
 .br
 Optional. Default value: 7200\&.
 .RE
@@ -371,6 +368,104 @@ hana_SLE_glob_filter="ra-act-dec-lpa"
 .\" LOCAL(0)        .LOCL.          10 l   29   64  177    0.000    0.000   0.001
 .\"*129.70.132.32   129.70.130.71    2 u   25   64  177   24.844  -25796.   9.929
 .\"+141.30.228.4    5.9.110.236      3 u   32   64   77   37.789  -25795.   4.910
+.RE
+.PP
+* Use of DUPLICATE_PRIMARY_TIMEOUT and Last Primary Timestamp (LPT) in case
+the primary node has been crashed completely.
+
+Typically on each side where the RA detects a running primary a time stamp is
+written to the node's attributes (last primary seen at time: lpt).
+If the timestamps ("last primary seen at") differ less than the
+DUPLICATE_PRIMARY_TIMEOUT than the RA could not automatically decide which
+of the two primaries is the better one.
+
+1. nodeA is primary and has a current time stamp, nodeB is secondary and has
+a secondary marker set:
+.br
+nodeA: 1479201695
+.br
+nodeB: 30
+
+2. Now nodeA crashes and nodeB takes over:
+.br
+(nodeA: 1479201695)
+.br
+nodeB: 1479201700
+
+3. A bit later nodeA comes back into the cluster:
+.br
+nodeA: 1479201695
+.br
+nodeB: 1479202000
+.br
+You see while nodeA keeps its primary down the old timestamp is kept.
+NodeB increases its timestamp on each monitor run.
+
+4. After some more time (depending on the parameter DUPLICATE_PRIMARY_TIMEOUT)
+.br
+nodeA: 1479201695
+.br
+nodeB: 1479208895
+.br
+Now the time stamps differ >= DUPLICATE_PRIMARY_TIMEOUT. The algorithm defines
+nodeA now as "the looser" and depending on the AUTOMATED_REGISTER the nodeA
+will become the secondary.
+
+5. NodeA would be registered:
+.br
+nodeA: 10
+.br
+nodeB: 1479208900
+
+6. Some time later the secondary gets into sync
+.br
+nodeA: 30
+.br
+nodeB: 1479209100
+.RE
+.PP
+* Use of DUPLICATE_PRIMARY_TIMEOUT and Last Primary Timestamp (LPT) in case
+the the database on primary node has been crashed, but the node is still alive.
+
+Typically on each side where the RA detects a running primary a time stamp is
+written to the node's attributes (last primary seen at time: lpt).
+If the timestamps ("last primary seen at") differ less than the
+DUPLICATE_PRIMARY_TIMEOUT than the RA could not automatically decide which
+of the two primaries is the better one.
+
+1. nodeA is primary and has a current time stamp, nodeB is secondary and has
+a secondary marker set:
+.br
+nodeA: 1479201695
+.br
+nodeB: 30
+
+2. Now HANA on nodeA crashes and nodeB takes over:
+.br
+nodeA: 1479201695
+.br
+nodeB: 1479201700
+
+3. As the cluster could be sure to properly stopped the HANA instance at nodeA
+it *immediately* marks the old primary to be a register candidate,
+if AUTOMATED_REGISTER is true:
+.br
+nodeA: 10
+.br
+nodeB: 1479201760
+
+4. Depending on the AUTOMATED_REGISTER parameter the RA will also immediately
+regisiter the former primary to become the new secondary:
+.br
+nodeA: 10
+.br
+nodeB: 1479201820
+
+5. And after a while the secondary gets in sync
+.br
+nodeA: 30
+.br
+nodeB: 1479202132
 .RE
 .PP
 .\"
