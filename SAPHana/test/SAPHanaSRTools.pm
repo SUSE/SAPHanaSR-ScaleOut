@@ -2,10 +2,10 @@
 #
 # SAPHanaSRTools.pm
 # (c) 2014 SUSE Linux Products GmbH
-# (c) 2015 SUSE Linux GmbH
+# (c) 2015-2017 SUSE Linux GmbH
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.20.2016.08.20.1
+# Version: 0.22.2017.01.20.1
 #
 ##################################################################
 
@@ -81,49 +81,33 @@ sub mysyslog ( $$$ ) {
 
 sub get_nodes_online 
 {
-    my $rc=0;
-    my $match="Ok:\s+([0-9])\s+nodes online";
-    my $match="Ok:\s+([0-9]+)\s+nodes? online";
-    my $match="Ok: ([0-9]+) ";
-    # TODO: What, if cibFile must be used ...
-    open crm, "crm_mon -s |";
-    while (<crm>) {
-        if (/$match/) {
-           $rc=$1
+    my $result=0;
+    my $sid=shift;
+    my $result="";
+    my $h;
+    foreach $h ( keys(%{$$refHName{node_state}}) ) {
+        if ( get_node_status($h) eq "online" ) {
+           $result++;
         }
     }
-    close crm;
-    return $rc;
+    return $result;
 }
 
 sub get_node_status($)
 {
     # typically returns online, standby or offline
+    # since pacemaker ?? online/offile and standby (on/off) are 2 different attributes
     my $result="offline";
     my $node=shift;
-    open crm, "crm_mon -1 |";
-    #- case one offline/standby and one online
-    # Node fscs99: OFFLINE (standby)
-    # Online: [ fscs98 ]
-    #- case both standby
-    # Node fscs99: standby
-    # Node fscs98: standby
-    #- case one standby one online
-    # Node fscs99: standby
-    # Online: [ fscs98 ]
-    #- case both online
-    # Online: [ fscs98 fscs99 ]
-    while (<crm>) {
-        if ( /^Online:.*\s$node\s/ ) {
-           #printf("O: %s\n", $_);
-           $result="online";
-        } elsif ( /^Node\s+$node:\s+(\S+)/  ) {
-           #printf("N: %s: %s\n", $_, $1);
-           $result=tolower($1);
-
-        }
+    my $standby;
+    $result=$$refHName{"node_state"}->{$node};
+printf("DBG: node %s node_state %s standby %s\n", $node, $result, $$refHName{"standby"}->{$node});
+    if ( defined ($$refHName{"standby"}->{$node})) {
+       $standby = $$refHName{"standby"}->{$node};
+       if ( $standby eq "on" ) {
+           $result="standby";
+       }
     }
-    close crm;
     return $result;
 }
 
@@ -131,13 +115,11 @@ sub get_node_list()
 {
     # crm_node -l | awk '$3 == "member" { if ($2 != me) { print $2 }}'
     my @nodes;
-    open crm, "crm_node -l |";
-    while (<crm>) {
-        if ( /\S+\s+(\S+)\s+member$/ ) {
-            push (@nodes, $1);
+    foreach $h ( keys(%{$$refHName{node_state}}) ) {
+        if ( ! ( $h =~ "^_" )) { 
+            push (@nodes, $h);
         }
     }
-    close crm;
     return @nodes;
 }
 
@@ -209,20 +191,64 @@ sub insertAttribute($$$$$$) {
 sub get_hana_attributes($$$$$$$)
 {
     my ($sid, $refHH, $refHN, $refGL, $refGN, $refST, $refSN ) = @_;
+    my %id2uname;
     if ( $cibFile eq "" ) {
-        open CIB, "cibadmin -Ql |";
+        open CIB, "cibadmin -Ql |" or die "CIB could not be read from cluster";
     } else  {
-       open CIB, "<$cibFile";
+       open CIB, "<$cibFile" or die "CIB file $cibFile not found or not able to read it";
     }
 while (<CIB>) {
    chomp;
    my ($host, $name, $site, $value);
+   if ( $_ =~ /cib-last-written="([^"]*)"/ ) {
+      # printf "CIB-time: %s\n", $1;
+      insertAttribute($sid, $refGL, $refGN, "global", "cib-time", $1);
+   }
    my $SID=uc($sid);
+   if ( $_ =~ /<node / ) {
+      # catch a node definition line
+      my $nodeID="";
+      my $nodeUNAME="";
+      if ( $_ =~ /id="([^"]+)"/ ) {
+          $nodeID=$1;
+      }
+      if ( $_ =~ /uname="([^"].+)"/ ) {
+          $nodeUNAME=$1;
+      }
+      if (($nodeID ne "") && ($nodeUNAME ne "")) {
+         $id2uname{$nodeID}=$nodeUNAME;
+         # printf STDERR "%s -> %s\n", $nodeID, $id2uname{$nodeID};
+      }
+   } 
+   #
+   #  <nvpair id="nodes-1234567890-standby" name="standby" value="off"/>
+   #
+   if ( $_ =~ /id="nodes-(.+)-standby"/ ) {
+       my $host=$1;
+         if (defined $id2uname{$host}) {
+             $host = $id2uname{$host}
+         }
+       if ( $_ =~ /value="([a-zA-Z0-9\-\_]+)"/ ) {
+           my $value=$1;
+#printf "STANDBY <%s> VALUE <%s>\n", $host, $value;
+           insertAttribute($sid, $refHH, $refHN, $host, "standby", $value);
+       }
+   }
+   #
+   #  <node_state id="1234567890" uname="node01" in_ccm="true" crmd="online" crm-debug-origin="do_update_resource" join="member" expected="member">
+   #
+   #if ( $_ =~ /node_state id=".+" uname="([a-zA-Z0-9\-\_]+)" .*crmd="([a-zA-Z0-9\-\_]+)"/ ) {
+   #    # insertAttribute($sid, \%Host, \%HName, $1, "node_status", $2);
+   #    insertAttribute($sid, $refHH, $refHN, $1, "node_status", $2);
+   #}
    if ( $_ =~ /nvpair.*name="([a-zA-Z0-9\_\-]+_${sid}_([a-zA-Z0-9\-\_]+))"/ ) {
       $name=$1;
       if ( $_ =~ /id=.(status|nodes)-([a-zA-Z0-9\_\-]+)-/ ) {
          # found attribute in nodes forever and reboot store
          $host=$2;
+         if (defined $id2uname{$host}) {
+             $host = $id2uname{$host}
+         }
          if ( $_ =~ /value="([^"]+)"/ ) {
              $value=$1;
              # printf "insert $sid HOST $host $name $value\n";
@@ -258,12 +284,23 @@ while (<CIB>) {
         if ( $_ =~ /id=.status-([a-zA-Z0-9\_\-]+)-master/ ) {
          # found attribute in nodes forever and reboot store
          $host=$1;
+         if (defined $id2uname{$host}) {
+             $host = $id2uname{$host}
+         }
          if ( $_ =~ /value="([^"]+)"/ ) {
              $value=$1;
              # printf "insert $sid HOST $host $name $value\n";
              insertAttribute($sid, $refHH, $refHN, $host, $name, $value);
          }
       }
+   } elsif ( $_ =~ /node_state.* crmd="([a-zA-Z0-9\-\_]+)"/ ) {
+      my $name = "node_state";
+      my $value = $1;
+      if ( $_ =~ /node_state.* uname="([a-zA-Z0-9\-\_]+)"/ ) {
+          my $host = $1;
+          insertAttribute($sid, $refHH, $refHN, $host, $name, $value);
+
+   }
    }
 }
 close CIB;
@@ -280,9 +317,32 @@ sub get_hana_sync_state($)
         $result = $$refGName{sync_state}->{"global"};
     } else  {
         my $h;
-        foreach $h ( keys(%{$refHName{sync_state}}) ) {
+        foreach $h ( keys(%{$$refHName{sync_state}}) ) {
             if ( $$refHName{sync_state}->{$h} =~ /(S.*)/ ) {
                $result=$1;
+            }
+        }
+    }
+    return $result;
+}
+
+sub get_secondary_score($)
+{
+    my $result="-";
+    if ( $newAttributeModel == 1 ) {    
+        my $s;
+        foreach $s ( keys(%{$$refSName{"srr"}}) ) {
+# TODO
+            $result="-";
+            #if ( ( $$refSName{"srr"}->{$s} =~ /P/ ) && ( $$refSName{"lss"}->{$s} =~ /[$lss]/ )) {
+            #   $rc++;
+            #}
+        }
+    } else  {
+        my $h;
+        foreach $h ( keys(%{$$refHName{"roles"}}) ) {
+            if ( $$refHName{"roles"}->{$h} =~ /[0-9]:S:/ ) {
+                $result = $$refHName{"score"}->{$h};
             }
         }
     }
@@ -360,7 +420,7 @@ sub check_node_status($$$)
             return 1;
         }
     } else {
-        if ( $refHName{"roles"}->{$h} =~ /^[$lss]:.:/ ) {
+        if ( $$refHName{"roles"}->{$h} =~ /^[$lss]:.:/ ) {
            return 1;
         }
     }
@@ -385,6 +445,22 @@ sub check_node_mode($$$)
     return 0;
 }
 
+sub get_cluster_status()
+{
+    my $h;
+    my $return="";
+    foreach $h ( keys(%{$$refHName{"node_state"}} )) {
+        my $cl_status;
+        if ( ($return eq "") && !($h =~ /^_/) ) {   # TODO: at the moment we filter all strings beginning with "_" maybe thats wrong -> _title, _length
+            $cl_status= qx(crmadmin -q -S $h 2>&1);
+            if ( !($cl_status =~ /S_NOT_DC/) && ($cl_status =~ /(S_[A-Za-z0-9_-]+)/ )) {
+                $return=$1;
+            }
+        }
+    }
+    return $return;
+}
+
 sub get_number_secondary($ $)
 {
     my $sid=shift;
@@ -400,7 +476,7 @@ sub get_number_secondary($ $)
     } else {
         my $h;
         foreach $h ( keys(%{$$refHName{"roles"}}) ) {
-            if ( $HName{"roles"}->{$h} =~ /[$lss]:S:/ ) {
+            if ( $$refHName{"roles"}->{$h} =~ /[$lss]:S:/ ) {
                $rc++;
             }
         }
@@ -422,8 +498,8 @@ sub get_host_primary($ $)
         }
     } else {
         my $h;
-        foreach $h ( keys(%{$HName{"roles"}}) ) {
-            if ( $HName{"roles"}->{$h} =~ /[$lss]:P:/ ) {
+        foreach $h ( keys(%{$$refHName{"roles"}}) ) {
+            if ( $$refHName{"roles"}->{$h} =~ /[$lss]:P:/ ) {
                $result=$h;
             }
         }
@@ -445,7 +521,7 @@ sub get_host_secondary($ $)
         }
     } else {
         my $h;
-        foreach $h ( keys(%{$refHName{"roles"}}) ) {
+        foreach $h ( keys(%{$$refHName{"roles"}}) ) {
             if ( $$refHName{"roles"}->{$h} =~ /[$lss]:S:/ ) {
                $result=$h;
             }
@@ -461,7 +537,6 @@ sub get_site_by_host($ $)
     my $h = shift;
 # print "get_site_by_host($sid, $h)";
     $result = $$refHName{"site"}->{$h};
-    $result = $Host{$h}->{"site"};
     return $result;
 }
 
@@ -499,8 +574,8 @@ sub check_lpa_status($$$)
        $lpa_node1=$$refSName{"lpt"}{$site1};
        $lpa_node2=$$refSName{"lpt"}{$site2};
     } else {
-       $lpa_node1=${$HName{"lpa_${sid}_lpt"}}{$node1};
-       $lpa_node2=${$HName{"lpa_${sid}_lpt"}}{$node2};
+       $lpa_node1=$$refHName{"lpa_${sid}_lpt"}{$node1};
+       $lpa_node2=$$refHName{"lpa_${sid}_lpt"}{$node2};
     }
 
 #printf "check_lpa_status: TEST lpa_node1=$lpa_node1 lpa_node2=$lpa_node2\n";
@@ -542,7 +617,7 @@ sub check_all_ok($$)
          $failed .= " #N=$result"; 
     }
     $result=get_hana_sync_state($sid);
-#printf "get_hana_sync_state($sid): %s\n", get_hana_sync_state($sid);
+    # printf "+++ get_hana_sync_state($sid): %s\n", get_hana_sync_state($sid);
     if ( $result ne "SOK" ) {
          $rc++;  
          $failed .= " sync=$result ";
@@ -557,10 +632,20 @@ sub check_all_ok($$)
          $rc++;  
          $failed .= " #S=$result ";
     }
+    $result=get_secondary_score($sid);
+    if ( $result ne "100" ) {
+         $rc++;
+         $failed .= " score=$result ";
+    }
+    $result=get_cluster_status();
+    if ( $result ne "S_IDLE" ) {
+         $rc++;
+         $failed .= " clstatus=$result ";
+    }
     return ($rc, $failed);
 }
 
-sub host_attr2string()
+sub OLD_host_attr2string()
 {
     my $string;
     my ($AKey, $HKey, $len, $line_len, $hclen);
@@ -611,13 +696,14 @@ sub print_attr_host()
 	return 0;
 }
 
-sub print_host_attr($$$$)
+sub host_attr2string($$$$)
 {
+    my $string="";
     my ($refH, $refN, $title, $sort) = @_;
     my ($AKey, $HKey, $len, $line_len, $hclen);
     $hclen=$$refN{_hosts}->{_length};
     $line_len=$hclen+1;
-    printf "%-$hclen.${hclen}s ", "$title";
+    $string.=sprintf "%-$hclen.${hclen}s ", "$title";
     #
     # headline
     #
@@ -627,27 +713,27 @@ sub print_host_attr($$$$)
             $line_len=$line_len+$len+1;
             
             if ( $AKey eq $sort ) {
-               printf "*%-$len.${len}s ", $$refN{$AKey}->{_title};
+               $string.=sprintf "*%-$len.${len}s ", $$refN{$AKey}->{_title};
             } else {
-               printf "%-$len.${len}s ", "$$refN{$AKey}->{_title}";
+               $string.=sprintf "%-$len.${len}s ", "$$refN{$AKey}->{_title}";
             }
         }
     }
-    printf "\n";
-    printf "%s\n", "-" x $line_len ;
+    $string.=sprintf "\n";
+    $string.=sprintf "%s\n", "-" x $line_len ;
     #
     # object / name / value lines
     #
     if ( $sort eq "" ) {
         foreach $HKey (sort keys %$refH) {
-            printf "%-$hclen.${hclen}s ", $HKey;
+            $string.=sprintf "%-$hclen.${hclen}s ", $HKey;
             foreach $AKey (sort keys %$refN) {
                 if ($AKey ne "_hosts") {
                     $len = $$refN{$AKey}->{_length};
-                    printf "%-$len.${len}s ", $$refH{$HKey} -> {$AKey};
+                    $string.=sprintf "%-$len.${len}s ", $$refH{$HKey} -> {$AKey};
                 }
             }
-            printf "\n";
+            $string.=sprintf "\n";
         }    
     } else {
        # try to sort by site (other attrs to follow)
@@ -669,15 +755,25 @@ sub print_host_attr($$$$)
                foreach $AKey (sort keys %$refN) {
                 if ($AKey ne "_hosts") {
                     $len = $$refN{$AKey}->{_length};
-                    printf "%-$len.${len}s ", $$refH{$Host} -> {$AKey};
+                    $string.=sprintf "%-$len.${len}s ", $$refH{$Host} -> {$AKey};
                 }
             }
-            printf "\n";
+            $string.=sprintf "\n";
            }
            #printf "TST: <%s> -> <%s>\n", $sortV, $StrHosts;
        }
     }
-    printf "\n";
+    $string.=sprintf "\n";
+    return $string;
+}
+
+sub print_host_attr($$$$)
+{
+    my $string="";
+    my ($refH, $refN, $title, $sort) = @_;
+    my ($AKey, $HKey, $len, $line_len, $hclen);
+
+    printf "%s\n", host_attr2string($refH, $refN, $title, $sort);
     return 0;
 }
 
