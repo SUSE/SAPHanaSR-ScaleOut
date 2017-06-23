@@ -1173,6 +1173,10 @@ function saphana_start() {
                         $1 == "host/"vName"/nameServerActualRole"  {nsAR=$2}
                         $1 == "host/"vName"/indexServerConfigRole" {isCR=$2}
                         $1 == "host/"vName"/indexServerActualRole" {isAR=$2}
+                        $1 == "nameServerConfigRole"  {nsCR=$2}
+                        $1 == "nameServerActualRole"  {nsAR=$2}
+                        $1 == "indexServerConfigRole" {isCR=$2}
+                        $1 == "indexServerActualRole" {isAR=$2}
                         END { printf "%s:%s:%s:%s\n", nsCR, nsAR, isCR, isAR;  } ' vName=$vName )
                 set_hana_attribute ${NODENAME} "$hanarole" ${ATTR_NAME_HANA_ROLES[@]}
                 ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
