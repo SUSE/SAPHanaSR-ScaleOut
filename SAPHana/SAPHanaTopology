@@ -25,7 +25,7 @@
 #
 #######################################################################
 # DONE PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
-SAPHanaTopologyVersion="0.161.3"
+SAPHanaTopologyVersion="0.161.4"
 #
 # Initialization:
 timeB=$(date '+%s')
