@@ -33,7 +33,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.161.4"
+SAPHanaControllerVersion="0.161.5"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -848,7 +848,7 @@ function saphana_init() {
         #
         SAPSTARTPROFILE="$(ls -1 $DIR_PROFILE/${OCF_RESKEY_INSTANCE_PROFILE:-${SID}_${InstanceName}_*})"
     fi
-    PATH=${PATH}:${DIR_EXECUTABLE}; export PATH
+    #PATH=${PATH}:${DIR_EXECUTABLE}; export PATH
 
     local standbyFilter=""
     if [ $ACTION = "stop" ]; then
@@ -915,7 +915,7 @@ function check_sapstartsrv() {
         # or ownership - they will be recreated by sapstartsrv during next start
         rm -f /tmp/.sapstream5${InstanceNr}13
         rm -f /tmp/.sapstream5${InstanceNr}14
-        # TODO: PRI0: WE NEED LD_LIBRARY_PATH HERE!!
+        # DONE: PRI0: WE NEED LD_LIBRARY_PATH HERE!!
         (
           export PATH="$DIR_EXECUTABLE${PATH:+:}$PATH"
           export LD_LIBRARY_PATH="$DIR_EXECUTABLE${LD_LIBRARY_PATH:+:}$LD_LIBRARY_PATH"
