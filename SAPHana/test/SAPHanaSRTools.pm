@@ -399,7 +399,7 @@ sub get_HANA_nodes($$)
     my @nodes;
     if ( $newAttributeModel == 1 ) {
         my $h;
-        foreach $h ( keys(%{$refHName{"site"}}) ) {
+        foreach $h ( keys(%{$$refHName{"site"}}) ) {
             my $hSite=$$refHName{"site"}->{$h};
             if ( $hSite eq $site ) {
                 push (@nodes, $h);
