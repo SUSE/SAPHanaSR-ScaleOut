@@ -1,0 +1,19 @@
+
+crm_mon -r1ND
+
+printf "\n---------------------------------------------\n"
+
+dc=""
+st=""
+dc=$(crmadmin -Dq 2>&1 1>/dev/null )
+if [ -n "$dc" ]; then
+   st=$(crmadmin -q -S $dc 2>&1 1>/dev/null )
+fi
+
+echo "STATUS: $dc / $st"
+printf "\n---------------------------------------------\n"
+
+/usr/share/SAPHanaSR/tests/show_SAPHanaSR_attributes --sort site
+printf "\n---------------------------------------------\n"
+
+ptest -Ls | grep promo

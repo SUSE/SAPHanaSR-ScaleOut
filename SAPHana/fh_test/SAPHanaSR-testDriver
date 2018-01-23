@@ -1,0 +1,375 @@
+#!/usr/bin/perl
+#
+# SAPHanaSR-testDriver
+# (c) 2014 SUSE Linux Products GmbH, Nuremberg, Germany
+# (c) 2015 SUSE Linux GmbH, Nuremberg, Germany
+# Author: Fabian Herschel
+# License: GPL v2+
+# Version: 0.11.2015.06.01.5-scale-out
+#
+##################################################################
+# THIS PROGRAM IS NOT INTENDED TO RUN IN PRODUCTIVE ENVIRONMENTS
+# AS IT TESTS THE FUNCTIONALITY OF THE SAPHanaSR RESOURCE AGENTS
+# THEIRFORE IT STOPS, KILLS AND EVEN MORE SAP HANA INSTANCES AND
+# ALSO SHUTDOWN, FENCES OR BLOCK CLUSTER NODES
+##################################################################
+
+use POSIX;
+use strict;
+use Sys::Syslog;
+use Sys::Hostname;
+use File::Path;
+#use Switch;
+use Getopt::Long;
+use SAPHanaSRTools;
+
+###################################
+
+my $ClusterNodes=6;
+my $ClusterPrimaries=1;
+my $ClusterSecondaries=1;
+
+my %Name;
+my $host = hostname();
+my %Host;
+my %Site;
+my %Global;
+my %HName;
+my %SName;
+my %GName;
+
+my $varlib='/var/lib/SAPHanaTD';
+my $testfile='SAPHanaTD.status';
+my $testcount=0;
+my $testCase="all";
+my @testCaseSet = ("kpi2","ksi2","kpi11","ksi11");
+my $standbyHanas=0;
+my $msl;
+my $first_test=1;
+my $sid;
+my $ino;
+my $testCase;
+my @primaryHanaList;
+my @secondaryHanaList;
+my $testName="";
+
+my $result = GetOptions ("sid=s" => \$sid,
+	                      "ino=s" => \$ino,
+	                      "nodes=s" => \$ClusterNodes,
+	                      "case=s" => \$testCase,
+	 );
+
+if ( $testCase ne "all" ) {
+       @testCaseSet = split("," , $testCase);
+}
+
+printf "Testcases: %s\n", join (",", @testCaseSet);
+
+    
+
+my $message;
+my $phost;
+my $shost;
+my $sSite="";
+my $pSite="";
+
+my $testActive=0;
+
+sub init()
+{
+    mkpath($varlib, { mode => 0700, });
+    open(STATFILE, "<", "$varlib/$testfile");
+    while (<STATFILE>) {
+      if ( /^testnr=(.+)/ ) {
+         $testcount=$1;
+      }
+    }
+    set_new_attribute_model;
+    $msl="msl_";
+    #$msl="msl_SAPHana_SLE_HDB00";
+#crm resource list
+# stonith_fscs98 (stonith:external/ipmi):        Started
+# stonith_fscs99 (stonith:external/ipmi):        Started
+# rsc_ip_SLE_HDB00       (ocf::heartbeat:IPaddr2):       Started
+# Master/Slave Set: msl_SAPHana_SLE_HDB00 [rsc_SAPHana_SLE_HDB00]
+    # TODO: If we can pick all cluster cmd-output from a remote system we would be able to
+    #       run the testDriver on a cluster-external system. This would include the possibility
+    #       to test also node reboots and re-joins
+    open crmRList, "crm resource list |";
+    while (<crmRList>) {
+        #printf "%s", $_;
+        if (/^\s*Master.Slave Set:\s+(\S+)\s+/) {
+           printf "master-slave resource found: <%s>\n", $1;
+           $msl=$1;
+        }
+    }
+    close crmRList;
+    close STATFILE;
+    return 0;
+}
+
+my $ident = "fhTD";
+my $logopt = "pid,perror";
+my $facility = "LOCAL0";
+my $priority = "info";
+
+openlog $ident, $logopt, $facility;       # don't forget this
+my $sid="";
+my $INr="";
+
+( $sid, $INr ) = get_sid_and_InstNr();
+
+
+sub run_test_stop_hana( $ $ $ )
+{
+    my $sid=shift;
+    my $theHost=shift;
+    my $testNr=shift;
+    my $rc=0;
+    my $SID=toupper($sid);
+    my $command="HDB stop";
+    mysyslog $priority, "%s", "TEST Try to stop HDB at $theHost testnr=$testNr";
+    mysyslog $priority, "%s", "TEST ssh $theHost \"su - ${sid}adm -c '$command'\"";
+    system("ssh $theHost \"su - ${sid}adm -c '$command'\"");
+    mysyslog $priority, "%s", "TEST Stopped HDB at $theHost testnr=$testNr";
+    return $rc;
+}
+
+sub run_test_stop_hana_system( $ $ $ )
+{
+    my $sid=shift;
+    my $theHost=shift;
+    my $testNr=shift;
+    my $rc=0;
+    my $SID=toupper($sid);
+    my $command="sapcontrol -nr $INr -function StopSystem";
+    mysyslog $priority, "%s", "TEST Try to stop HANA SYSTEM at $theHost testnr=$testNr";
+    mysyslog $priority, "%s", "TEST ssh $theHost \"su - ${sid}adm -c '$command'\"";
+    system("ssh $theHost \"su - ${sid}adm -c '$command'\"");
+    mysyslog $priority, "%s", "TEST Stopped HDB at $theHost testnr=$testNr";
+}
+
+#
+# kill a single instance
+#
+sub run_test_kill_hana( $ $ $ $ )
+{
+    my $sid=shift;
+    my $theHost=shift;
+    my $testNr=shift;
+    my $signal=shift;
+    my $rc=0;
+    my $SID=toupper($sid);
+    my $command="HDB kill-$signal";
+    mysyslog $priority, "%s", "TEST Try to kill-$signal HDB at $theHost testnr=$testNr";
+    mysyslog $priority, "%s", "TEST ssh $theHost \"su - ${sid}adm -c '$command'\"";
+    system("ssh $theHost \"su - ${sid}adm -c '$command'\""); 
+    mysyslog $priority, "%s", "TEST Killed HDB at $theHost testnr=$testNr";
+    return $rc;
+}
+
+#
+# kill multiple instances (currently one more than standby nodes)
+#
+sub run_test_kill_hanas( $ $ $ $ $ )
+{
+    my $sid=shift;
+    my $theNodeList=shift;
+    my $toBeKilled=shift;
+    my $testNr=shift;
+    my $signal=shift;
+    my $rc=0;
+    my $SID=toupper($sid);
+    my $command="HDB kill-$signal";
+    my $message="run_test_kill_hanas: kill $toBeKilled HANA instances\n";
+    mysyslog $priority, "%s", "$message";
+    my $count;
+    for ($count=1; $count<=$toBeKilled; $count++) {
+        my $node = shift (@$theNodeList);
+        mysyslog $priority, "run_test_kill_hanas: Now handle instance %s", "$node";
+        run_test_kill_hana($sid, $node, $testNr, $signal);
+    }
+    return $rc;
+}
+
+sub run_test_standby_node( $ $ $ )
+{
+    my $sid=shift;
+    my $node=shift;
+    my $testNr=shift;
+    my $rc=0;
+    if ( get_nodes_online() == 2 ) {
+        mysyslog $priority, "%s", "Try standby $node testnr=$testNr";
+        system("crm node standby $node");
+        while ( get_nodes_online() != 1 ) {
+            mysyslog $priority, "%s", "Wait for standby status for $node testnr=$testNr";
+            sleep 10;
+        }
+        mysyslog $priority, "%s", "Set standby for $node testnr=$testNr";
+        # TODO: We should wait till S_IDLE - for now we wait for 3 minutes
+        mysyslog $priority, "%s", "sleeping 180s testnr=$testNr";
+        sleep 180;
+        mysyslog $priority, "%s", "Try set online for $node testnr=$testNr";
+        system("crm node online $node");
+        while ( get_nodes_online() != 2 ) {
+            mysyslog $priority, "%s", "Wait for online status for $node testnr=$testNr";
+            sleep 10;
+        }
+        mysyslog $priority, "%s", "Set online for $node testnr=$testNr";
+    }
+    return $rc;
+}
+
+sub run_test_stop_masterslave( $ $ )
+{
+    my $msl=shift;
+    my $testNr=shift;
+    mysyslog $priority, "%s", "Try stop msl $msl testnr=$testNr";
+    system("crm resource stop $msl");
+    mysyslog $priority, "%s", "sleeping 180s testnr=$testNr";
+    sleep 180;
+    mysyslog $priority, "%s", "Try start msl $msl testnr=$testNr";
+    system("crm resource start $msl");
+    return 0;
+}
+
+sub run_testCase($)
+{
+    use Switch;
+    my $testCase=shift;
+    if (( $testCase == 1 ) || ( $testCase eq "kpi2" )) {
+            $testName = "Kill primary instances";
+            mysyslog $priority, "%s", "Testcase $testCase: Kill-2 primary SAP Hana instances. testnr=$testcount";
+            run_test_kill_hanas($sid, \@primaryHanaList, $standbyHanas +2, $testcount, 2);
+    } elsif (( $testCase == 2 ) || ( $testCase eq "ksi2" )) {
+            $testName = "Kill secondary instances";
+            mysyslog $priority, "%s", "Testcase $testCase: Kill-2 secondary SAP Hana instances. testnr=$testcount";
+            run_test_kill_hanas($sid, \@secondaryHanaList, $standbyHanas +2, $testcount, 2);
+    } elsif (( $testCase == 3 ) || ( $testCase eq "kpi11" )) {
+            $testName = "Kill secondary instances";
+            mysyslog $priority, "%s", "Testcase $testCase: Kill-11 primary SAP Hana instances. testnr=$testcount";
+            run_test_kill_hanas($sid, \@primaryHanaList, $standbyHanas +2, $testcount, 11);
+    } elsif (( $testCase == 4 ) || ( $testCase eq "ksi11" )) {
+            $testName = "Kill secondary instances";
+            mysyslog $priority, "%s", "Testcase $testCase: Kill-11 secondary SAP Hana instances. testnr=$testcount";
+            run_test_kill_hanas($sid, \@secondaryHanaList, $standbyHanas +2, $testcount, 11);
+    } elsif (( $testCase == 5 ) || ( $testCase eq "kpi9" )) {
+            $testName = "Kill secondary instances";
+            mysyslog $priority, "%s", "Testcase $testCase: Kill-9 primary SAP Hana instance. testnr=$testcount";
+            run_test_kill_hanas($sid, \@primaryHanaList, $standbyHanas +2, $testcount, 9);
+    } elsif (( $testCase == 6 ) || ( $testCase eq "ksi9" )) {
+            $testName = "Kill secondary instances";
+            mysyslog $priority, "%s", "Testcase $testCase: Kill-9 secondary SAP Hana instance. testnr=$testcount";
+            run_test_kill_hanas($sid, \@secondaryHanaList, $standbyHanas +2, $testcount, 9);
+    } elsif (( $testCase == 7 ) || ( $testCase eq "ssi" )) {
+            $testName = "Stop secondary instance";
+            mysyslog $priority, "%s", "Testcase $testCase: Stop secondary SAP Hana instance. testnr=$testcount";
+            run_test_stop_hana($sid, $shost, $testcount);
+            $testActive=0;
+    } elsif (( $testCase == 8 ) || ( $testCase eq "spi" )) {
+            $testName = "Stop primary instance";
+            mysyslog $priority, "%s", "Testcase $testCase: Stop primary SAP Hana instance. testnr=$testcount";
+            run_test_stop_hana($sid, $phost, $testcount);
+            $testActive=0;
+    } elsif (( $testCase == 9 ) || ( $testCase eq "ssns" )) {
+            $testName = "Set secondary node standby";
+            mysyslog $priority, "%s", "Testcase $testCase: standby node with secondary SAP Hana instance. testnr=$testcount";
+            run_test_standby_node($sid, $shost, $testcount);
+            $testActive=0;
+    } elsif (( $testCase == 10 ) || ( $testCase eq "spns" )) {
+            $testName = "Set primary node standby";
+            mysyslog $priority, "%s", "Testcase $testCase: standby node with primary SAP Hana instance. testnr=$testcount";
+            run_test_standby_node($sid, $phost, $testcount);
+            $testActive=0;
+    } elsif (( $testCase == 11 ) || ( $testCase eq "rms" )) {
+            $testName = "Restart master/slave";
+            mysyslog $priority, "%s", "Testcase $testCase: stop and start master/slave";
+            run_test_stop_masterslave($msl, $testcount);
+    } elsif (( $testCase == 12 ) || ( $testCase eq "sps" )) {
+            $testName = "Stop primary system";
+            mysyslog $priority, "%s", "Testcase $testCase: Primary: StopSystem. testnr=$testcount";
+            run_test_stop_hana_system($sid, $phost, $testcount);
+    } elsif (( $testCase == 13 ) || ( $testCase eq "sss" )) {
+            $testName = "Stop secondary system";
+            mysyslog $priority, "%s", "Testcase $testCase: Secondary: StopSystem. testnr=$testcount";
+            run_test_stop_hana_system($sid, $shost, $testcount);
+    } else   {
+            $testName = "NOP";
+            $testActive=0;
+            mysyslog $priority, "%s", "Uncovered test case number";
+    }
+}
+
+init();
+mysyslog $priority, "fhTD: Tests running. Next TestNr=%i", $testcount;
+my $goodloops=0;
+my $badloops=0;
+while ( 1==1 ) {
+    get_hana_attributes($sid);
+    $phost=get_host_primary($sid, "1234");
+    $shost=get_host_secondary($sid, "1234");
+    $pSite=get_site_by_host($sid, $phost);
+    $sSite=get_site_by_host($sid, $shost);
+    $standbyHanas = get_number_HANA_standby ($sid, $pSite);
+    #mysyslog $priority, "%s", "hanaStandby=$hanaStandby";
+    @primaryHanaList = sort(get_HANA_nodes($sid, $pSite));
+    @secondaryHanaList = sort(get_HANA_nodes($sid, $sSite));
+    my $primaryHanaList = join (" ", @primaryHanaList);
+    my $secondaryHanaList = join (" ", @secondaryHanaList);
+    #$message="HANA nodes primary site $pSite: $primaryHanaList";
+    #mysyslog $priority, "%s", $message;
+    #$message="HANA nodes secondary site $sSite: $secondaryHanaList";
+    #mysyslog $priority, "%s", $message;
+    my ($checkOK, $failures ) = check_all_ok($sid, $ClusterNodes);
+    if ( ( $checkOK == 0 ) && ( $testActive==0 ) ) {
+        #
+        # OK back again after it failed
+        #
+        $badloops=0;
+        $goodloops++;
+        $message="All checks passed - primary=$phost ($pSite) secondary=$shost ($sSite) test='$testName' loop=$goodloops testnr=$testcount";
+        mysyslog $priority, "%s", $message;
+        if ( ( $goodloops >= 12 ) || ( $first_test == 1 )  ) {
+            $testcount++;
+            $first_test=0;
+            # TODO: Later add other values for writing the status file (now only testnr)
+            $message="STATUS primary=$phost ($pSite) secondary=$shost ($sSite) testnr=$testcount";
+            mysyslog $priority, "%s", $message;
+            open(STATFILE, ">", "$varlib/$testfile");
+            printf STATFILE "testnr=%i\n", $testcount;
+            close STATFILE;
+            my $maxTestCase=10;
+            # $testCase=$testcount % $maxTestCase + 1 ;
+            #$testCase=1;
+            $testActive=1;
+            my $testCaseMaxIndex = @testCaseSet;
+            my $testCaseIndex = int(rand($testCaseMaxIndex));
+            my $theTestCase = $testCaseSet[$testCaseIndex];
+            $message="TestCase=$theTestCase testnr=$testcount";
+            mysyslog $priority, "%s", $message;
+            run_testCase($theTestCase);
+            $goodloops=0;
+        }
+    } elsif ( ( $checkOK == 0 ) && ( $testActive==1 ) ) {
+        #
+        # STILL OK after a test, so cluster did not already catched the problem
+        #
+        $goodloops++;
+        $message="Still all checks passed - primary=$phost ($pSite) secondary=$shost ($sSite) test=$testName loop=$goodloops testnr=$testcount";
+        mysyslog $priority, "%s", $message;
+    } else {
+        $goodloops=0;
+        $badloops++;
+        $testActive=0;
+        if ( $checkOK == 1 ) {
+		$message="$checkOK check failed ($failures) - primary=$phost ($pSite) secondary=$shost ($sSite) test='$testName' loop=$badloops testnr=$testcount";
+        } else {
+		$message="$checkOK checks failed ($failures) - primary=$phost ($pSite) secondary=$shost ($sSite) test='$testName' loop=$badloops testnr=$testcount";
+        }
+        mysyslog $priority, "%s", $message;
+    }
+    sleep 10;
+}
+
+#$oldmask = setlogmask $mask_priority;
+closelog;

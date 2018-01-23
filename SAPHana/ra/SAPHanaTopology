@@ -25,7 +25,7 @@
 #
 #######################################################################
 # DONE PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
-SAPHanaTopologyVersion="0.161.3"
+SAPHanaTopologyVersion="0.161.4"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -469,15 +469,7 @@ function sht_init() {
         DIR_PROFILE="$OCF_RESKEY_DIR_PROFILE"
     fi
 
-    # as root user we need the library path to the SAP kernel to be able to call sapcontrol
-    # check, if we already added DIR_EXECUTABLE at the beginning of LD_LIBRARY_PATH
-    if [ "${LD_LIBRARY_PATH%%*:}" != "$DIR_EXECUTABLE" ]
-    then
-        LD_LIBRARY_PATH=$DIR_EXECUTABLE${LD_LIBRARY_PATH:+:}$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH
-    fi
-
-    PATH=${PATH}:${DIR_EXECUTABLE}
+    #PATH=${PATH}:${DIR_EXECUTABLE}
     #
     # figure-out all needed values from system replication status with ONE call
     # we need: mode=primary|sync|syncmem|...; site name=<site>; mapping/<me>=<site>/<node> (multiple lines)
@@ -900,12 +892,19 @@ function sht_monitor_clone() {
        vName=${NODENAME}
     fi
     hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+    #
+    # scan with and without host prefix to allow also single instances (scaleup) for smaller test environments
+    #
     hanarole=$(echo "$hanaANSWER" | tr -d ' ' | \
             awk -F= '
             $1 == "host/"vName"/nameServerConfigRole"  {nsCR=$2}
             $1 == "host/"vName"/nameServerActualRole"  {nsAR=$2}
             $1 == "host/"vName"/indexServerConfigRole" {isCR=$2}
             $1 == "host/"vName"/indexServerActualRole" {isAR=$2}
+            $1 == "nameServerConfigRole"  {nsCR=$2}
+            $1 == "nameServerActualRole"  {nsAR=$2}
+            $1 == "indexServerConfigRole" {isCR=$2}
+            $1 == "indexServerActualRole" {isAR=$2}
             END { printf "%s:%s:%s:%s\n", nsCR, nsAR, isCR, isAR;  } ' vName=$vName )
     set_hana_attribute ${NODENAME} "$hanarole" ${ATTR_NAME_HANA_ROLES[@]}
 

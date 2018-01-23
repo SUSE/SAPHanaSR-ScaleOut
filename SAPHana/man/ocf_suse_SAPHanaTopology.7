@@ -1,6 +1,6 @@
-.\" Version: 0.160.23
+.\" Version: 0.162.3
 .\"
-.TH ocf_suse_SAPHanaTopology 7 "12 Mar 2016" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaTopology 7 "26 Jul 2017" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaTopology \- Helps to manage two SAP HANA databases with system replication.
@@ -18,16 +18,16 @@ SAP HANA databases. In addition it starts and monitors the local saphostagent.
 .PP
 The resource agent uses the following interfaces provided by SAP:
 .PP
-1. \fBlandscapeHostConfiguration.py\fP 
+1. \fBlandscapeHostConfiguration.py\fP
 .br
 landscapeHostConfiguration.py has some detailed output about HANA system
 status and node roles. For our monitor the overall status is relevant. This
-overall status is reported by the returncode of the script:
+overall status is reported by the return code of the script:
 0: Internal Fatal 1: ERROR 2: WARNING 3: INFO (maybe a switch of the resource
 running) 4: OK
 .br
-The SAPHanaTopology resource agent will interpret returncodes 1 as
-NOT-RUNNING (or 1 failure) and returncodes 2+3+4 as RUNNING.
+The SAPHanaTopology resource agent will interpret return codes 1 as
+NOT-RUNNING (or 1 failure) and return codes 2+3+4 as RUNNING.
 SAPHanaTopology scans the output table of landscapeHostConfiguration.py to
 identify the roles of the cluster node. Roles means configured and current
 role of the nameserver as well as the indexserver.
@@ -39,13 +39,14 @@ replication as well as the current configuration (primary/secondary) of a
 SAP HANA database. A second task of the interface is the posibility to run
 a system replication take-over (sr_takeover) or to register a former primary
 to a newer one (sr_register). In scale-out setups, hdbnsutil sometimes
-might take some time.
+might take some time. SAPHanaTopology uses only task one. SAPHanaController 
+or SAPHana are using all three tasks.
 .PP
 3. \fBsaphostctrl\fP
 .br
 The interface saphostctrl uses the function ListInstances to figure out the
-virtual host name of the SAP HANA instance. This is the hostname used during
-the HANA installation.
+virtual host name of the SAP HANA instance. This is typically the hostname used 
+during the HANA installation.
 .PP
 Please notice that the method to "send" the findings via the node status
 attributes might change in a next version. So please do not think about those
@@ -62,12 +63,27 @@ This resource agent supports the following parameters:
 \fBSID\fR
 .RS 4
 SAP System Identifier. Has to be same on both instances.
+Example "SID=SLE".
 .RE
 .PP
 \fBInstanceNumber\fR
 .RS 4
 Number of the SAP HANA database.
 For system replication also Instance Number+1 is blocked.
+Example "InstanceNumber=00".
+.RE
+.PP
+\fBHANA_CALL_TIMEOUT\fR
+.RS 4
+Define timeout how long a call to HANA to receive information can take. This
+could be e.g. landscapeHostConfiguration.py.
+There are some specific calls to HANA which have their own timeout values.
+For example the sr_takeover command does not timeout (inf).
+If the timeout is reached, the return code will be 124. If you increase the
+timeouts for HANA calls you should also adjust the operation timeouts of your
+Linux cluster resources.
+.br
+Optional. Default value: 120.
 .RE
 .PP
 .\"
@@ -154,7 +170,7 @@ notify="true" interleave="true" clone-node-max="1"
 .PP
 * Below is an example configuration for a SAPHanaTopology resource for HANA scale-out.
 .br
-The HANA consists of two sites with five nodes each. An additional cluster node 
+The HANA consists of two sites with five nodes each. An additional cluster node
 is used as majority maker for split brain situations.
 In addition, a SAPHanaController resource is needed to make this work.
 .RE
@@ -168,7 +184,7 @@ op stop interval="0" timeout="600" \\
 .br
 op monitor interval="10" timeout="600" \\
 .br
-params SID="SLE" InstanceNumber="00" 
+params SID="SLE" InstanceNumber="00"
 .PP
 clone cln_SAPHanaTop_SLE_HDB00 rsc_SAPHanaTop_SLE_HDB00 \\
 .br
@@ -191,6 +207,9 @@ order SAPHanaTop_first 1000: cln_SAPHanaTop_SLE_HDB00 msl_SAPHC_SLE_HDB00
 /usr/lib/ocf/resource.d/suse/SAPHanaTopology
     the topology resource agent itself
 .TP
+$HA_RSCTMP/SAPHana/SAPTopologyON.$SID
+    the RA's status file (subject to change)
+.TP
 /usr/sap/$SID/$InstanceName/exe
     default path for DIR_EXECUTABLE
 .TP
@@ -200,7 +219,7 @@ order SAPHanaTop_first 1000: cln_SAPHanaTop_SLE_HDB00 msl_SAPHC_SLE_HDB00
 .\" TODO: INSTANCE_PROFILE
 .\"
 .PP
-.SH REQUIREMENTS 
+.SH REQUIREMENTS
 For the current version of the SAPHanaTopology resource agent that comes with
 the software package SAPHanaSR or SAPHanaSR-ScaleOut, the support is limited
 to the scenarios and parameters described in the respective manual page
@@ -233,7 +252,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2014 SUSE Linux Products GmbH, Germany.
 .br
-(c) 2015-2016 SUSE Linux GmbH, Germany.
+(c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
 SAPHanaTopology comes with ABSOLUTELY NO WARRANTY.
 .br

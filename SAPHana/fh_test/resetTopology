@@ -1,0 +1,3 @@
+hdbnsutil -sr_cleanup --force
+hdbnsutil -initTopology
+hdbnsutil -sr_enable --name=ROT01

@@ -1,0 +1,283 @@
+#!/bin/bash
+#
+# SAPHanaSR-install-srHook
+#
+# (c) 2016 SUSE Linux GmbH, Germany. Author: L.Pinne.
+# GNU General Public License. No warranty.
+#
+# Version: 2016-03-07 17:45
+#
+
+EXE="$0"
+ERR=/dev/null
+TMP=/dev/shm/srhook.$RANDOM
+
+#CFG="/etc/SAPHanaSR/SAPHanaSR-install-srHook"
+#test -s $CFG && source $CFG
+
+test -z "${SRHK_RPM}" &&\
+	SRHK_RPM="SAPHanaSR-ScaleOut"
+test -z "${SRHK_SID}" &&\
+	SRHK_SID="HA1"
+test -z "${SRHK_PYO_DIR}" &&\
+	SRHK_PYO_DIR="/hana/shared/srhook/"
+test -z "${SRHK_PYO_FIL}" &&\
+	SRHK_PYO_FIL="SAPHanaSR"
+test -z "${SRHK_SRC_DIR}" &&\
+	SRHK_SRC_DIR="/usr/share/${SRHK_RPM}/"
+test -z "${SRHK_SRC_FIL}" &&\
+	SRHK_SRC_FIL="SAPHanaSR"
+test -z "${SRHK_GBLINI_FIL}" &&\
+	SRHK_GBLINI_FIL="/hana/shared/???/global/hdb/custom/config/global.ini"
+test -z "${SRHK_GBLINI_ADD}" &&\
+	SRHK_GBLINI_ADD=""
+test -z "${SRHK_SUDO_FIL}" &&\
+	SRHK_SUDO_FIL="/etc/sudoers"
+test -z "${SRHK_SUDO_ADD}" &&\
+	SRHK_SUDO_ADD="@@sid@@adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_@@sid@@_glob_srHook -v *"
+test -z "${SRHK_BAK}" &&\
+	SRHK_BAK="/var/adm/backup/${SRHK_RPM}-$(date +%Y%m%d-%H%M%S)"
+
+SRHK_ERR_MSG="crm_attribute.*hana_..._glob_srHook"
+SRHK_ERR_TRC="nameserver.*SAPHanaSR.py"
+SRHK_ERR_TRCFIL="/hana/shared/???/HDB??/*/trace/nameserver_*[0-9]\.[0-9][0-9][0-9].trc"
+
+#/hana/shared/HA1/HDB10/suse03/trace/nameserver_suse03.00000.003.trc
+#nameserver_suse01.31001.000.trc:[11648]{-1}[-1/-1] 2016-03-02 14:25:36.229617 i ha_dr_SAPHanaSR  SAPHanaSR.py(00099) : SAPHanaSR CALLING CRM: <sudo /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v SFAIL -t crm_config -s SAPHanaSR> rc=1 
+
+
+function help() {
+	echo "usage:	$(basename $0)"
+	echo "usage:	$(basename $0) [ --help | --version | --show ]"
+	echo "usage:	$(basename $0) [ --local | --global ] <SID>"
+	echo
+	echo " --help		show help"
+	echo " --version	show version"
+	echo " --show		show config files"
+	echo " --local	initialise local config files for <SID>"
+	echo " --global	initialise global config files for <SID>"
+	echo
+}
+
+
+function do_show() {
+	echo "INFO: start $EXE $FUNCNAME"
+
+	echo "=== RPM ==="
+	rpm -qa | grep ${SRHK_RPM}
+	rpm -V ${SRHK_RPM}
+	echo
+	ls -l ${SRHK_SRC_DIR}/${SRHK_SRC_FIL}.py
+	ls -l ${SRHK_PYO_DIR}/${SRHK_PYO_FIL}.pyc
+	echo -n "md5sum: "
+	md5sum ${SRHK_PYO_DIR}/${SRHK_PYO_FIL}.pyc
+	echo
+
+	echo "=== sudoers ==="
+	echo "/etc/passwd:"
+	ls -l /etc/passwd
+	grep "^...adm.*/usr/sap/.*/home" /etc/passwd
+	echo
+	echo "${SRHK_SUDO_FIL}:"
+	ls -l ${SRHK_SUDO_FIL}
+	grep "/usr/sbin/crm_attribute.*hana_..._glob_srHook" ${SRHK_SUDO_FIL}
+	echo
+
+	echo "=== global.ini ==="
+	# TODO SRHK_GBLINI_FIL file content
+	for f in ${SRHK_GBLINI_FIL}; do
+		echo "${f}:"
+		ls -l ${SRHK_GBLINI_FIL}
+		echo -n "md5sum: "
+		md5sum ${SRHK_GBLINI_FIL}
+		echo
+		test -z "${f}" || (
+			# TODO
+			grep -A2 "\[trace\]" ${f}
+			grep -A3 "\[ha_dr_provider_SAPHanaSR\]" ${f}
+		)
+	done
+	# TODO SRHK_GBLINI_ADD in-memory content
+	echo
+
+	echo "=== logs ==="
+	echo "/var/log/messages \"${SRHK_ERR_MSG}\" :"
+	( echo -n "/var/log/messages:"
+	  grep -c "${SRHK_ERR_MSG}" /var/log/messages ) | grep -v ":0$"
+	bzgrep -c "${SRHK_ERR_MSG}" /var/log/messages*.bz2 | grep -v "\:0$"
+	echo
+	echo "${SRHK_ERR_TRCFIL} \"${SRHK_ERR_TRC}\" :"
+	for f in ${SRHK_ERR_TRCFIL}; do
+		echo -n "${f}:"
+		grep -c "${SRHK_ERR_TRC}" ${f}
+	done | grep -v ":0$"
+	echo
+	echo "INFO: end $EXE $FUNCNAME"
+}
+
+
+function do_prepare() {
+	echo "INFO: start $EXE $FUNCNAME"
+
+	SRHK_SID="${1}"
+	SRHK_sid=$( echo ${SRHK_SID} | tr [A-Z] [a-z] )
+	# TODO test SRHK_SID
+
+	mkdir -p $TMP
+	RC=$?
+	test $RC -eq 0 || RC=22
+	test $RC -eq 0 || echo "ERR: Can not mkdir ${TMP} . RC=$RC"
+	test $RC -eq 0 || exit $RC
+
+	tar czf ${SRHK_BAK}.tgz \
+		${SRHK_SUDO_FIL} ${SRHK_GBLINI_FIL} ${SRHK_PYO_DIR}/${SRHK_PYO_FIL}.pyc >>$ERR 2>&1
+	RC=$?
+	test $RC -eq 0 || RC=24
+	test $RC -eq 0 || echo "ERR: Can not write ${SRHK_BAK}.tgz . RC=$RC"
+	test $RC -eq 0 || exit $RC
+	#ls -l ${SRHK_BAK}.tgz
+
+	grep "${SRHK_sid}adm" /etc/passwd >>$ERR 2>&1
+	RC=$?
+	test $RC -eq 0 || RC=26
+	test $RC -eq 0 || echo "ERR: User not found in /etc/passwd: \"${SRHK_sid}adm\" . RC=$RC"
+	test $RC -eq 0 || exit $RC
+
+	echo "INFO: end $EXE $FUNCNAME"
+}
+
+
+function do_local() {
+	echo "INFO: start $EXE $FUNCNAME"
+
+	SRHK_SID=$1
+	SRHK_sid=$( echo ${SRHK_SID} | tr [A-Z] [a-z] )
+
+	# TODO exit, if already exists?
+	grep "${SRHK_sid}.*/usr/sbin/crm_attribute.*hana_${SRHK_sid}_glob_srHook" ${SRHK_SUDO_FIL} >>$ERR 2>&1
+	RC=$?
+	test $RC -eq 0 && echo "INF: srHook already found in ${SRHK_SUDO_FIL}"
+
+	cp ${SRHK_SUDO_FIL} ${SRHK_SUDO_FIL}.bak
+	echo "# ${EXE}" >>${SRHK_SUDO_FIL}.bak
+	echo "${SRHK_SUDO_ADD}" | sed -e s/@@sid@@/${SRHK_sid}/g >>${SRHK_SUDO_FIL}.bak
+	RC=$?
+	test $RC -eq 0 || RC=31
+	test $RC -eq 0 || echo "ERR: Could not create ${SRHK_SUDO_FIL}.bak"
+	test $RC -eq 0 || exit $RC
+	# TODO better use visudo?
+	touch /etc/sudoers.tmp
+	RC=$?
+	test $RC -eq 0 && mv ${SRHK_SUDO_FIL}.bak ${SRHK_SUDO_FIL}
+	RC=$?
+	test $RC -eq 0 && rm /etc/sudoers.tmp
+
+	grep "${SRHK_sid}.*/usr/sbin/crm_attribute.*hana_..._glob_srHook" ${SRHK_SUDO_FIL} >>$ERR 2>&1
+	RC=$?
+	test $RC -eq 0 || RC=33
+	test $RC -eq 0 || echo "ERR: Could not change ${SRHK_SUDO_FIL}"
+	test $RC -eq 0 || exit $RC
+
+	echo "INFO: end $EXE $FUNCNAME"
+}
+
+
+function do_global() {
+	echo "INFO: start $EXE $FUNCNAME"
+
+	SRHK_SID=$1
+	SRHK_sid=$( echo ${SRHK_SID} | tr [A-Z] [a-z] )
+
+	# TODO check if HANA is still running
+
+	SRHK_GBLINI_FIL=$( echo "${SRHK_GBLINI_FIL}" | sed -e s/\?\?\?/$SRHK_SID/g )
+
+	# TODO exit, if already exists?
+	grep "\[ha_dr_provider_SAPHanaSR\]" ${SRHK_GBLINI_FIL} >>$ERR 2>&1
+	RC=$?
+	test $RC -eq 0 && echo "INF: ha_dr_provider_SAPHanaSR already found in ${SRHK_GBLINI_FIL}"
+
+	cp ${SRHK_GBLINI_FIL} ${SRHK_GBLINI_FIL}.bak
+
+	# TODO checnge global.ini
+	# ---
+	#[ha_dr_provider_SAPHanaSR]
+	#provider = SAPHanaSR
+	#path = /usr/shared/SAPHanaSR-ScaleOut
+	#execution_order = 1
+	#
+	#[trace]
+	#ha_dr_saphanasr = info
+	# ---
+	# TODO how to cover fact, that global.ini is on NFS share?
+	# TODO how to cover fact, that SAPHanaSR.pyc is on NFS share, but SAPHanaSR.py is local?
+ 
+	mkdir -p ${SRHK_PYO_DIR}
+	chown ${SRHK_sid}adm:sapsys ${SRHK_PYO_DIR}
+	test $RC -eq 0 || RC=46
+	test $RC -eq 0 || echo "ERR: Could not create ${SRHK_SRC_DIR}"
+	test $RC -eq 0 || exit $RC
+
+	# TODO 
+	#su - ${SRHK_sid}adm -c "cd ${SRHK_PYO_DIR};
+	#	ln -s ${SRHK_SRC_DIR}/${SRHK_SRC_FIL}.py ${SRHK_PYO_DIR}/${SRHK_SRC_FIL}.py >>$ERR 2>&1;
+	#	python -m py_compile ${SRHK_SRC_FIL}.py >>$ERR 2>&1;
+	#	RC=$?;
+	#	test $RC -eq 0 || RC=48;
+	#	test $RC -eq 0 || echo "ERR: Could not create ${SRHK_PYO_FIL}.pyc";
+	#	test $RC -eq 0 || exit $RC"
+
+	#exit
+
+	#ls -l ${SRHK_PYO_DIR}/${SRHK_PYO_FIL}.pyc >>$ERR 2>&1
+	#test $RC -eq 0 || RC=48
+	#test $RC -eq 0 || echo "ERR: Could not create ${SRHK_SRC_DIR}/${SRHK_PYO_FIL}.pyc"
+	#test $RC -eq 0 || exit $RC
+
+	echo "INFO: end $EXE $FUNCNAME"
+}
+
+
+# main()
+case $1 in
+	-v|--version)	
+		echo -n "$(basename $EXE) "
+		head -11 $EXE | grep "^# Version: "
+		exit
+	;;
+	-s|--show)
+		do_show
+		exit
+	;;
+	-l|--local)
+		shift
+		RC=0
+		test -z "${1}" && RC=11
+		test $RC -eq 0 || echo "ERR: Got no SID. RC=$RC"
+		test $RC -eq 0 || exit $RC
+
+		SRHK_SID=${1}
+		do_prepare $SRHK_SID
+		do_local $SRHK_SID
+		rm -rf ${TMP}
+		exit
+	;;
+	-g|--global)
+		shift
+		RC=0
+		test -z "${1}" && RC=11
+		test $RC -eq 0 || echo "ERR: Got no SID. RC=$RC"
+		test $RC -eq 0 || exit $RC
+
+		SRHK_SID=${1}
+		do_prepare $SRHK_SID
+		do_global $SRHK_SID
+		rm -rf ${TMP}
+		exit
+	;;
+	*)
+		help
+		exit
+	;;
+esac
+#

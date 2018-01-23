@@ -1,6 +1,6 @@
-.\" Version: 0.160.23
+.\" Version: 0.162.3
 .\"
-.TH SAPHanaSR.py 7 "30 Mar 2016" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "26 Oct 2016" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -13,20 +13,18 @@ SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
 .SH DESCRIPTION
 SAPHanaSR.py can be used to provide a script for the SAP HANA srHook method
 srConnectionChanged().
-.\" TODO
 
-The SAP HANA nameserver provides a Python-based API, which is called at
-important points of the host auto-failover and system replication takeover
-process. These so called hooks can be used for arbitrary operations that
+The SAP HANA nameserver provides a Python-based API ("HA/DR providers"), which 
+is called at important points of the host auto-failover and system replication 
+takeover process. These so called hooks can be used for arbitrary operations that
 need to be executed. The method srConnectionChanged() is called on the master
 nameserver as soon as one of the replicating services loses or establishes
 the system replication connection. This method is called only once.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
-The srHook method srConnectionChanged() accepts the following parameters
-for the ha_dr_provider_SAPHanaSR section:
-.\" TODO
+The "HA/DR providers" API accepts the following parameters for the 
+ha_dr_provider_SAPHanaSR section:
 .TP
 \fBprovider = SAPHanaSR\fP
 .TP
@@ -34,12 +32,13 @@ for the ha_dr_provider_SAPHanaSR section:
 .TP
 \fBexecution_order = 50\fP
 .PP
-The srHook method accepts the following parameter for the trace section:
-.\" TODO
+The "HA/DR providers" API accepts the following parameter for the trace section
+(as of SAP HANA 1.x):
 .TP
 \fBha_dr_saphanasr = [ info | debug ]\fP
 .PP
-The crm_attributes command accepts the following parameter:
+SAPHanaController recognizes the effecting system replication status via the 
+following cluster attribute:
 .TP
 \fBhana_${sid}_glob_srHook\fP
 .PP
@@ -57,7 +56,7 @@ Usage, syntax or execution errors.
 * Example for entry in sudo permissions /etc/sudoers
 .PP
 .RS 4
-# SAPHanaSR-ScaleOur needs for srHook
+# SAPHanaSR-ScaleOut needs for srHook
 .br
 ha1adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v *
 .RE
@@ -134,7 +133,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .\"
 .SH SEE ALSO
 \fBSAPHanaSR-ScaleOut\fP(7) ,
-\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) , \fBocf_heartbeat_IPaddr2\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
 \fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,
 .br
@@ -156,7 +155,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
-SAPHanaSR comes with ABSOLUTELY NO WARRANTY.
+SAPHanaSR.py comes with ABSOLUTELY NO WARRANTY.
 .br
 For details see the GNU General Public License at
 http://www.gnu.org/licenses/gpl.html
