@@ -1,0 +1,163 @@
+.\" Version: 0.162.3
+.\"
+.TH SAPHanaSR-ScaleOut 7 "22 Feb 2018" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.\"
+.SH NAME
+SAP HANA System Replication scale-out basic cluster configuration.
+.PP
+.\"
+.SH DESCRIPTION
+.\"
+The SAP HANA System Replication scale-out scenario needs a certain basic
+cluster configuration. 
+.\"
+.\" \fB* Corosync Basics\fR
+.\"
+.\".PP
+
+\fB* CRM Basics\fR
+
+\fBno-quorum-policy = freeze\fR
+
+The crm basic parameter no-quorum-policy defines how the cluster should act in
+case of quorum loss. With more than two nodes, the cluster must not ignore the
+quorum loss. For SAPHanaSR-ScaleOut, an odd number of nodes is required. Setting
+no-quorum-policy to 'freeze' won't allow the partition to shoot any other node
+when it doesn't have quorum. Cluster will not be able to add and start new resources.
+
+\fBdefault-resource-stickiness = 1000\fR
+
+The crm basic parameter default-resource-stickiness defines the 'stickiness' score
+a resource gets on the node where it is currently running. This prevents
+the cluster from moving resources around whithout an urgent need during a
+cluster transition.
+
+\fBconcurrent-fencing = true\fR
+
+The crm basic parameter concurrent-fencing allows the cluster to fence more
+than one node at a time. This helps to reduce the time needed for a take over in
+case a whole data center is lost. If nodes are fenced one by one, the time needed
+would be equal to the \fBnumber of nodes * stonith timeout\fR. With concurrent-fencing enabled
+the time needed is always \fBstonith timeout\fR, independent of the number of nodes.
+See also \fBpcmk_action_limit\fR below.
+
+\fBmigration-threshold = 50\fR
+
+The crm basic parameter migration-threshold defines how many errors on a
+resource can be detected before this resource will be migrated to another node.
+
+\fBrecord-pending = false\fR
+
+The op_default record-pending defines, whether the intention of an action
+upon the resource is recorded in the Cluster Information Base (CIB).
+Setting this parameter to 'true' allows the user to see pending actions like 'starting'
+and 'stopping' in \fBcrm_mon\fR and \fBHawk\fR.
+
+.PP
+\fB* SBD STONITH Basics\fR
+
+\fBpcmk_action_limit = -1\fR
+
+The sbd stonith parameter pcmk_action_limit defines the maximum number of
+concurrent fencing actions. It allows parallel fencing of multiple nodes. 
+A value of '-1' means virtually unlimited. 
+See also \fBconcurrent-fencing\fR above.
+
+\fBpcmk_delay_max = 30s\fR
+
+The sbd stonith parameter pcmk_delay_max defines an upper limit for waiting
+before a fencing/stonith request will be triggerd.
+This parameter should prevent the cluster from unwanted double fencing in case
+of spilt-brain. It is required in two-node clusters. It might not be needed in
+usual SAPHanaSR-ScaleOut setups.
+
+.PP
+.\"
+.SH EXAMPLES
+
+\fB* crm basic configuration\fR
+
+Below is an example crm basic configuration for SAPHanaSR-ScaleOut. Shown are
+specific parameters which are needed. Some general parameters are left out.
+The example has been taken from SLE-HA 11 SP4. It should work on SLE-HA 12 SP1
+and later as well. 
+.PP
+.RS 4
+.br
+property $id="cib-bootstrap-options" \\
+.br
+	expected-quorum-votes="35" \\
+.br
+	no-quorum-policy="freeze" \\
+.br
+	dc-deadtime="20s" \\
+.br
+	default-resource-stickiness="1000" \\
+.br
+	stonith-enabled="true" \\
+.br
+	stonith-timeout="180s" \\
+.br
+	concurrent-fencing="true"
+.br
+rsc_defaults $id="rsc_defaults-options" \\
+.br
+	resource-stickiness="1000" \\
+.br
+	migration-threshold="50" \\
+.br
+	failure-timeout="86400s"
+.br
+op_defaults $id="op-options" \\
+.br
+	record-pending="false" \\
+.br
+	timeout="600s"
+.br
+op_defaults $id="op_defaults-options" \\
+.br
+	timeout="300s"
+.RE
+.PP
+
+\fB* crm sbd stonith configuration\fR
+
+To complete the SBD setup, it is necessary to activate SBD as STONITH/fencing
+mechanism in the CIB. The SBD is normally used for SAPHanaSR-ScaleOut instead
+of any other fencing/stonith mechanism.
+
+.PP
+.RS 4
+.br
+primitive rsc_stonith_sbd stonith:external/sbd \\
+.br
+        params pcmk_action_limit="-1" pcmk_delay_max="30s"
+.RE
+.PP
+.\"
+.SH BUGS
+In case of any problem, please use your favourite SAP support process to open
+a request for the component BC-OP-LNX-SUSE.
+Please report any other feedback and suggestions to feedback@suse.com.
+.PP
+.\"
+.SH SEE ALSO
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
+\fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBcrm_no_quorum_policy\fP(7) ,
+\fBcrm\fP(8) , \fBcrm_simulate\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
+.br
+https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
+.br
+https://www.clusterlabs.org
+.PP
+.SH AUTHORS
+.br
+F.Herschel, L.Pinne.
+.PP
+.\"
+.SH COPYRIGHT
+(c) 2018 SUSE Linux GmbH, Germany.
+.br
+For details see the GNU General Public License at
+http://www.gnu.org/licenses/gpl.html
+.\"
