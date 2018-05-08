@@ -20,7 +20,7 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.161.1
+Version:        0.163.0
 Release:        0
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 Source0:        SAPHanaSR-ScaleOut-%{version}.tar.bz2
@@ -125,6 +125,7 @@ install -m 0444 srHook/global.ini %{buildroot}/usr/share/%{name}/samples
 %doc /usr/share/man/man7/ocf_suse_SAPHanaController.7.gz
 %doc /usr/share/man/man7/ocf_suse_SAPHanaTopology.7.gz
 %doc /usr/share/man/man7/SAPHanaSR-ScaleOut.7.gz
+%doc /usr/share/man/man7/SAPHanaSR-ScaleOut_basic_cluster.7.gz
 %doc /usr/share/man/man7/SAPHanaSR.py.7.gz
 %doc /usr/share/man/man8/SAPHanaSR-monitor.8.gz
 %doc /usr/share/man/man8/SAPHanaSR-showAttr.8.gz
