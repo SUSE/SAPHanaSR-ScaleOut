@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Tue Apr 03 13:46:40 UTC 2018 - imanyugin@suse.com
+
+- Version 0.163.0
+- Fix bsc#1091988:SAPHanaSR-ScaleOut SAPHanaSR-monitor depends on package not existing in SLES
+- Fix bsc#1045603: Update man pages
+- Fix bsc#1045536: SAPHanaSR-ScaleOut missing update to use SLES python
+- Fix bsc#1086545: minor typos in package description and man pages
+
+-------------------------------------------------------------------
 Thu Jul 14 13:51:45 UTC 2016 - imanyugin@suse.com
 
 - Version 0.161.1
