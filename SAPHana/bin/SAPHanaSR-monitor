@@ -325,10 +325,10 @@ sub processMonitor() {
     }
 }
   
-processMonitor;
+processMonitor();
 while ( $Continuous eq "yes" ) {
     sleep $Interval;
-    processMonitor;
+    processMonitor();
 }
  
 closelog;
