@@ -1,6 +1,5 @@
 from hdb_ha_dr.client import HADRBase
 import os
-import socket
 
 """
 Sample for a HA/DR hook provider.
