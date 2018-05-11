@@ -1,7 +1,8 @@
-while true; do 
-    for f in $(ls -1  pe-input-* | sort -t\- -nk3); do 
-        clear; 
-        SAPHanaSR-monitor --cib=$f  --sid=HA1  --nodes=6 ; 
-        sleep 3; 
-    done; 
+#!/bin/sh
+while true; do
+    for f in $(find . -name  "pe-input-*" | sort -t- -nk3); do
+        clear;
+        SAPHanaSR-monitor --cib="${f}"  --sid=HA1  --nodes=6 ;
+        sleep 3;
+    done;
 done
