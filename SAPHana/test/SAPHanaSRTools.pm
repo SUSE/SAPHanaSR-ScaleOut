@@ -101,7 +101,7 @@ sub get_node_status($)
     my $node=shift;
     my $standby;
     $result=$$refHName{"node_state"}->{$node};
-printf("DBG: node %s node_state %s standby %s\n", $node, $result, $$refHName{"standby"}->{$node});
+#printf("DBG: node %s node_state %s standby %s\n", $node, $result, $$refHName{"standby"}->{$node});
     if ( defined ($$refHName{"standby"}->{$node})) {
        $standby = $$refHName{"standby"}->{$node};
        if ( $standby eq "on" ) {
