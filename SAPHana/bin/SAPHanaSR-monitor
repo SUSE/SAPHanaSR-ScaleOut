@@ -5,12 +5,12 @@
 # (c) 2015-2018 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel
 # License: GPL v2+
+use strict;
 my $Version="0.16.2018.05.09.2";
 #
 ##################################################################
 #
 use POSIX;
-use strict;
 use Sys::Syslog;
 use Sys::Hostname;
 use File::Path;
@@ -166,9 +166,9 @@ EOF
 </body>
 </html>
 EOF
-open HTML, ">$HtmlPage.new";
-print HTML $myPage;
-close HTML;
+open my $HTML, ">", "$HtmlPage.new";
+print $HTML $myPage;
+close $HTML;
 system ("mv $HtmlPage.new $HtmlPage");
   } # end html
 }
@@ -249,13 +249,13 @@ sub processMonitor() {
     #
     my @node_list;
     my @msn_list;
-    open CRM_NODES, "crm_node -l |";
-    while (<CRM_NODES>) {
+    open my $CRM_NODES, "-|", "crm_node -l";
+    while (<$CRM_NODES>) {
        if (/^[0-9]+\W+(\w+)\W/) {
        push (@node_list, $1);
        }
     }
-    close CRM_NODES;
+    close $CRM_NODES;
     @node_list = (sort ( @node_list ));
 
     if ( $ClusterNodes < @node_list ) {
@@ -268,8 +268,7 @@ sub processMonitor() {
     #unset %hanaStatus;
     @msn_list = get_master_nameserver();
 
-    my $thenode;
-    foreach $thenode ( @node_list ) {
+    foreach my $thenode ( @node_list ) {
         $hanaStatus{$thenode}="grey";
         if ( check_node_status($sid, "34" , $thenode) ) { $hanaStatus{$thenode}="green"; }
         if ( check_node_status($sid, "2" , $thenode) ) { $hanaStatus{$thenode}="yellow"; }
