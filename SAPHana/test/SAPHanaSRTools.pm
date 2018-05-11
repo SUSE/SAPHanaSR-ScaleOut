@@ -12,7 +12,7 @@
 package SAPHanaSRTools;
 require Exporter;
 use POSIX;
-# TODO: PRIO2: Get it stric again 
+# TODO: PRIO2: Get it strict again
 use strict;
 use Sys::Syslog;
 use Sys::Hostname;
@@ -100,7 +100,7 @@ sub get_node_status($)
     my $node=shift;
     my $standby;
     $result=$$refHName{"node_state"}->{$node};
-printf("DBG: node %s node_state %s standby %s\n", $node, $result, $$refHName{"standby"}->{$node});
+#printf("DBG: node %s node_state %s standby %s\n", $node, $result, $$refHName{"standby"}->{$node});
     if ( defined ($$refHName{"standby"}->{$node})) {
        $standby = $$refHName{"standby"}->{$node};
        if ( $standby eq "on" ) {

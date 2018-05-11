@@ -1,14 +1,14 @@
 #!/usr/bin/perl
 #
 # 
-# (c) 2014 SUSE Linux Products GmbH, Nuremberg Germany
-# (c) 2015 SUSE Linux GmbH, Nuremberg Germany
+# (c) 2014 SUSE Linux Products GmbH, Nuremberg, Germany
+# (c) 2015-2018 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel
-# License: Check if we publish that under GPL v2+
-my $Version="0.15.2015.08.13.3";
+# License: GPL v2+
+my $Version="0.16.2018.05.09.2";
 #
 ##################################################################
-
+#
 use POSIX;
 use strict;
 use Sys::Syslog;
@@ -18,43 +18,50 @@ use Getopt::Long;
 use lib '/usr/lib/SAPHanaSR-ScaleOut';
 use SAPHanaSRTools;
 
-###################################
-## this part is not for scale up and currently NOT zero-config
-
 my $ClusterNodes=0;
 my $ClusterPrimaries=1;
 my $ClusterSecondaries=1;
 
+my $sid="";
+my @sids;
+my $ino="";
+my $sortBy="";
+# my $table_titleH = "Host";
 my %Name;
 my %Host;
+my %Site;
+my %Global;
+my %HName;
+my %SName;
+my %GName;
+my $help;
+my $version;
+my $cibFile="";
 my $host = hostname();
 
-my $varlib='/var/lib/SAPHanaTD';
-my $testfile='SAPHanaTD.status';
-my $testcount=0;
-my $first_test=1;
-my $sid="";
-my $INr="";
+#my $varlib='/var/lib/SAPHanaTD';
+#my $testfile='SAPHanaTD.status';
+#my $testcount=0;
+#my $first_test=1;
 my $Format="txt";
 my $Continuous="no";
 my $HtmlPage="/srv/www/hawk/public/SAPHanaSR/index.html";
 my $Interval=10;
-my $version;
-my $help;
 
 sub init() 
 {
-	my $result = GetOptions ("sid=s" => \$sid,
-	                      "ino=s" => \$INr,
+	my $result = GetOptions ("sid=s" => \@sids,
+	                      "sort=s" => \$sortBy,
 	                      "format=s" => \$Format,
 	                      "cont=s" => \$Continuous,
                           "out=s" => \$HtmlPage,
                           "interval=s" => \$Interval,
                           "nodes=s" => \$ClusterNodes,
+	                      "cib=s" => \$cibFile,
                           "version" => \$version,
                           "help" => \$help,
 	);
-     set_new_attribute_model;
+    set_new_attribute_model();
     return 0;
 }
 
@@ -91,10 +98,10 @@ sub  print_page($$$$$$$$$$$$$$$$$$$$$$$$$)
   chomp($log_errors);
 
   if ($format eq "txt") {
-      my $syncArrow="??";
+      my $syncArrow="-?-";
       my $SID=uc($sid);
-      if ( $syncdir eq "right" ) { $syncArrow = "=>"; }
-      if ( $syncdir eq "left" ) { $syncArrow = "<="; }
+      if ( $syncdir eq "right" ) { $syncArrow = "==>"; }
+      if ( $syncdir eq "left" ) { $syncArrow = "<=="; }
       my $myPage = <<EOF;  
 OVERALL:   $SID: $sid_color                   $mydate
 SR:        $syncstat $node1 $syncArrow $node2
@@ -181,11 +188,15 @@ $Colors{"gray"}="#B9B9B9";
 
 openlog $ident, $logopt, $facility; 
     
-( $sid, $INr ) = get_sid_and_InstNr();
+if ( 0 == @sids ) {
+    my $sid_ino_list;
+       ( $sid_ino_list ) = get_sid_and_InstNr();
+       @sids = split(",", $sid_ino_list);
+}
 
 init();
 if ( $help ) {
-   printf "Nice try\n";
+   printf "SAPHanaSR-monitor [--sid=<sid[:instNr]>] [--cib=<OfflineCibFile>] --node=<nrnodes>\n";
    exit 0;
 }
 if ( $version ) {
@@ -193,6 +204,10 @@ if ( $version ) {
    exit 0;
 }
 
+if ( $cibFile ne "" ) {
+   printf "Using cib file %s\n", $cibFile;
+   set_cibFile($cibFile);
+}
 
 mysyslog $priority, "%s", "Monitor startup";
 
@@ -202,10 +217,24 @@ sub processMonitor() {
     my $shost;
     my $laststate="";
     #
-    get_hana_attributes($sid);
-    my $crm_out=`crm_mon -r1 -D`;
-    my $attr_out=host_attr2string();
-    my $score_out=`ptest -Ls | grep -i promo`;
+    $sid=$sids[0];   # currently ony one sid is supported
+    ( $sid, $ino ) = split(":", $sid);
+    $sid=tolower("$sid");
+    get_hana_attributes($sid, \%Host, \%HName, \%Global, \%GName, \%Site,   \%SName);
+    if ( keys(%Host) == 0 ) {
+        printf "No attributes found for SID=%s\n", $sid;
+        exit 1;
+} 
+    set_HName(\%HName);
+    set_GName(\%GName);
+    set_SName(\%SName);
+    set_Site(\%Site);
+    my $crm_out="CRM: TODO <==========="; # crm_mon -1D
+    my $attr_out1=print_host_attr(\%Global, \%GName, "Global", "");
+	my $attr_out2=print_host_attr(\%Site,   \%SName, "Sites",  "");
+    my $attr_out3=print_host_attr(\%Host,   \%HName, "Hosts",  $sortBy);
+    my $attr_out="$attr_out1\n$attr_out2\n$attr_out3";
+    my $score_out="";
     my $log_out=`grep 'SAPHana.*INFO: RA' /var/log/messages | tail -20`; # TODO: Do we need to optimize the runtime of this command?
     my $ftd_out=`grep 'fhTD' /var/log/messages | tail -10`;
     my $ftd_col="gray";
@@ -325,10 +354,10 @@ sub processMonitor() {
     }
 }
   
-processMonitor;
+processMonitor();
 while ( $Continuous eq "yes" ) {
     sleep $Interval;
-    processMonitor;
+    processMonitor();
 }
  
 closelog;

@@ -2,10 +2,10 @@
 #
 # SAPHanaSR-showAttr
 # (c) 2014 SUSE Linux Products GmbH, Nuremberg, Germany
-# (c) 2015-2016 SUSE Linux GmbH, Nuremberg, Germany
+# (c) 2015-2018 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel <fabian.herschel@suse.com>
 # License: GPL v2+
-my $Version="0.20.2016.08.20.1";
+my $Version="0.21.2018.05.08.1";
 #
 ##################################################################
 #
@@ -59,9 +59,9 @@ if ( $version ) {
 
 if ( $cibFile ne "" ) {
    printf "Using cib file %s\n", $cibFile;
+   set_cibFile($cibFile);
 }
 
-# TODO: set_cib_file
 
 sub max { # thanks to http://www.perlunity.de/perl/forum/thread_018329.shtml
  my $a = shift;
