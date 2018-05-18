@@ -95,7 +95,7 @@ sub get_node_status($)
            $result="online";
         } elsif ( /^Node\s+$node:\s+(\S+)/  ) {
            #printf("N: %s: %s\n", $_, $1);
-           $result=tolower($1);
+           $result=lc($1);
 
         }
     }
@@ -111,7 +111,7 @@ sub get_sid()
        # try to catch:  Inst Info : LNX - 42 - lv9041 - 740, patch 36, changelist 1444691
        chomp;
        if ( $_ =~ /:\s+([A-Z][A-Z0-9][A-Z0-9])\s+-/ ) {
-          $sid=tolower("$1");
+          $sid=lc("$1");
        }
     }
     close ListInstances;
