@@ -35,10 +35,6 @@ The overall system replication (SR) state is shown in an summarized manner.
 .br
 	repeat with intervall of \fISEC\fR seconds, default is 10 seconds.
 .HP
-\fB --ino \fINUM\fR
-.br
-	use SAP instance number \fINUM\fR.
-.HP
 \fB --nodes \fINUM\fR
 .br
 	number of nodes which should be in the cluster. Usually detected automatically.
@@ -48,9 +44,9 @@ The overall system replication (SR) state is shown in an summarized manner.
 	use output file \fIFILE\fR, default is /srv/www/hawk/public/SAPHanaSR/index.html.
     The directory is not created by the package.
 .HP
-\fB --sid \fISID\fR
+\fB --sid \fISID\fR[:\fIInstanceNumber\fR]
 .br
-	use SAP system ID \fISID\fR.
+	use SAP system ID \fISID\fR and optional \fIInstanceNumber\fR.
 .\"
 .SH RETURN CODES
 .B 0

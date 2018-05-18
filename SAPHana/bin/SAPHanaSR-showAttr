@@ -2,15 +2,17 @@
 #
 # SAPHanaSR-showAttr
 # (c) 2014 SUSE Linux Products GmbH, Nuremberg, Germany
-# (c) 2015-2016 SUSE Linux GmbH, Nuremberg, Germany
+# (c) 2015-2018 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel <fabian.herschel@suse.com>
 # License: GPL v2+
+
+use strict;
+
 my $Version="0.21.2018.05.08.1";
 #
 ##################################################################
 #
 use POSIX;
-use strict;
 use Sys::Syslog;
 use Sys::Hostname;
 use File::Path;
@@ -18,7 +20,6 @@ use Getopt::Long;
 use lib '/usr/lib/SAPHanaSR-ScaleOut';
 use SAPHanaSRTools;
 
-my $sid="";
 my @sids;
 my $ino="";
 my $sortBy="";
@@ -75,7 +76,7 @@ if ( 0 == @sids ) {
        @sids = split(",", $sid_ino_list);
 }
 
-foreach $sid (@sids) {
+foreach my $sid (@sids) {
     ( $sid, $ino ) = split(":", $sid);
     $sid=tolower("$sid");
     %Host=(); %HName=(); %Global=(); %GName=(); %Site=(); %SName=();
