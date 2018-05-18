@@ -5,7 +5,9 @@
 # (c) 2015-2018 SUSE Linux GmbH, Nuremberg, Germany
 # Author: Fabian Herschel <fabian.herschel@suse.com>
 # License: GPL v2+
+
 use strict;
+
 my $Version="0.21.2018.05.08.1";
 #
 ##################################################################

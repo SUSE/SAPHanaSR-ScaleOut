@@ -12,8 +12,9 @@
 package SAPHanaSRTools;
 require Exporter;
 use POSIX;
-# TODO: PRIO2: Get it strict again
+
 use strict;
+
 use Sys::Syslog;
 use Sys::Hostname;
 use File::Path;
