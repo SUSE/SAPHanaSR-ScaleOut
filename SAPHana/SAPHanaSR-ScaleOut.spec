@@ -63,7 +63,7 @@ tar xf %{S:0}
 gzip man/*
 
 %install
-mkdir -p %{buildroot}/usr/bin
+mkdir -p %{buildroot}/usr/sbin
 mkdir -p %{buildroot}%{_docdir}/%{name}
 mkdir -p %{buildroot}/usr/share/%{name}/tests
 mkdir -p %{buildroot}/usr/share/%{name}/samples
@@ -83,7 +83,7 @@ install -m 0444 man/*.8.gz %{buildroot}/usr/share/man/man8
 
 # aux. scripts
 #    SAPHanaSR-showAttr, SAPHanaSR-monitor
-install -m 0555 bin/* %{buildroot}/usr/bin
+install -m 0555 bin/* %{buildroot}/usr/sbin
 install -Dm 0444 test/SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}/SAPHanaSRTools.pm
 
 # sample configurations
@@ -106,8 +106,8 @@ install -m 0444 srHook/global.ini %{buildroot}/usr/share/%{name}/samples
 /usr/lib/ocf/resource.d/suse/SAPHanaTopology
 /usr/share/%{name}
 /usr/lib/%{name}
-/usr/bin/SAPHanaSR-monitor
-/usr/bin/SAPHanaSR-showAttr
+/usr/sbin/SAPHanaSR-monitor
+/usr/sbin/SAPHanaSR-showAttr
 %dir /srv/www/hawk
 %dir /srv/www/hawk/config
 %dir /srv/www/hawk/config/wizard
