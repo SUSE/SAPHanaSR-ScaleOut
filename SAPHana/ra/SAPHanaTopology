@@ -888,7 +888,7 @@ function sht_monitor_clone() {
        vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]} "${NODENAME}")
     fi
     # last fallback, if neither the HANA call NOR the Attribute "knows" the vName - try the local hostname
-    if [ -n "$vName" ]; then
+    if [ -z "$vName" ]; then
        vName=${NODENAME}
     fi
     hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
