@@ -1086,6 +1086,7 @@ function register_hana_secondary()
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=2;
     local remoteInstance="";
+    local remoteHanaHost="";
     if is_the_master_nameserver; then
         remoteInstance=$InstanceNr
 
@@ -1115,8 +1116,12 @@ function register_hana_secondary()
                hanaRM="--mode=$sr_mode"
            fi
            set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
-           super_ocf_log info "ACT: SAPHANA REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance $hanaRM $hanaOM --name=$sr_name"
-           HANA_CALL --timeout inf --use-su --cmd "hdbnsutil -sr_register --remoteHost=$remoteHost --remoteInstance=$remoteInstance $hanaRM $hanaOM --name=$sr_name"; rc=$?
+           remoteHanaHost=$(get_hana_attribute "$remoteHost" ${ATTR_NAME_HANA_VHOST[@]})
+           if [ -z "$remoteHanaHost" ]; then
+               remoteHanaHost=$remoteHost
+           fi
+           super_ocf_log info "ACT: SAPHANA REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHanaHost --remoteInstance=$remoteInstance $hanaRM $hanaOM --name=$sr_name"
+           HANA_CALL --timeout inf --use-su --cmd "hdbnsutil -sr_register --remoteHost=$remoteHanaHost --remoteInstance=$remoteInstance $hanaRM $hanaOM --name=$sr_name"; rc=$?
         else
            super_ocf_log info "ACT: SAPHANA: DROP REGISTER because AUTOMATED_REGISTER is set to FALSE"
            rc=1
