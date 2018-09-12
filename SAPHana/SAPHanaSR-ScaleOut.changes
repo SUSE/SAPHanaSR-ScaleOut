@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Wed Sep 12 12:19:06 UTC 2018 - clanig@suse.de
+
+- Version 0.163.2
+- Fix bsc#1098979: SAPHanaSR-ScaleOut SAPHanaTopology and 
+  SAPHanaController allowing virtual host names
+
+-------------------------------------------------------------------
 Tue Jun 26 13:40:14 UTC 2018 - imanyugin@suse.com
 
 - Version 0.163.1
