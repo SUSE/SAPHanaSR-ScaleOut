@@ -60,7 +60,7 @@ checkstyle:
 ifneq ($(CHECKSTYLE),0)
 	find . -type f -exec awk ' /^#!.*bash/{print FILENAME} {nextfile}' {} + | grep -v *fh_test* | xargs shellcheck -s bash
 	find . -type f -exec awk ' /^#!.*perl/{print FILENAME} {nextfile}' {} + | grep -v *fh_test* | xargs perlcritic --gentle
-	find . -name '*.py' | grep -v *fh_test* | xargs flake8
+	find . -name '*.py' | grep -v *fh_test* | xargs flake8 --ignore=E501
 endif
 
 PHONY: test
