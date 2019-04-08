@@ -25,10 +25,10 @@ class SAPHanaSR(HADRBase):
         super(SAPHanaSR, self).__init__(*args, **kwargs)
 
     def about(self):
-        return {"provider_company":      "SUSE",
-                "provider_name":         "SAPHanaSR",  # class name
-                "provider_description":  "Inform Cluster about SR state",
-                "provider_version":      "1.0"}
+        return {"provider_company": "SUSE",
+                "provider_name": "SAPHanaSR",  # class name
+                "provider_description": "Inform Cluster about SR state",
+                "provider_version": "1.0"}
 
     def startup(self, hostname, storage_partition, sr_mode, **kwargs):
         self.tracer.debug("enter startup hook; %s" % locals())
