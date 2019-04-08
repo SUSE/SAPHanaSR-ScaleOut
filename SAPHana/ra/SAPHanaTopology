@@ -448,7 +448,7 @@ function sht_init() {
     ATTR_NAME_HANA_SRR=("hana_${sid}_site_srr" "props")
     # optional OCF parameters, we try to guess which directories are correct
 
-    SAPHanaFilter=$(get_hana_attribute "X" ${ATTR_NAME_HANA_FILTER[@]})
+    SAPHanaFilter=$(get_hana_attribute "X" "${ATTR_NAME_HANA_FILTER[@]}")
 
     if  [ -z "$OCF_RESKEY_DIR_EXECUTABLE" ]
     then
@@ -669,10 +669,10 @@ function master_walk() {
           # walk over all known cluster nodes
           super_ocf_log debug "DBG: master walk for $srmode"
           for node in $(crm_node  -l | awk '{print $2}'); do
-              nSite=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_SITE[@]})
+              nSite=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_SITE[@]}")
               if [ "$site" = "$nSite" ]; then
                  # node of same site found
-                 nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
+                 nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
                  read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
                  super_ocf_log debug "DBG: site $site $nNsConf:$nNsCurr"
                  case "$nNsConf:$nNsCurr" in
@@ -816,9 +816,9 @@ function sht_stop_clone() {
     else
         hanaPrim="-"
     fi
-    nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
+    nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
     read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
-    set_hana_attribute "${NODENAME}" "$nNsConf:shtdown:shtdown:shtdown" ${ATTR_NAME_HANA_ROLES[@]}
+    set_hana_attribute "${NODENAME}" "$nNsConf:shtdown:shtdown:shtdown" "${ATTR_NAME_HANA_ROLES[@]}"
     sht_stop; rc=$?
     return $rc
 }
@@ -883,9 +883,9 @@ function sht_monitor_clone() {
         super_ocf_log error "ERR: SAPHOSTAGENT is not installed at /usr/sap/hostctrl/exe (saphostctrl missing)"
     fi
     if [ -n "$vName" ]; then
-       set_hana_attribute ${NODENAME} "$vName" ${ATTR_NAME_HANA_VHOST[@]} "${NODENAME}"
+       set_hana_attribute ${NODENAME} "$vName" "${ATTR_NAME_HANA_VHOST[@]}" "${NODENAME}"
     else
-       vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]} "${NODENAME}")
+       vName=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_VHOST[@]}" "${NODENAME}")
     fi
     # last fallback, if neither the HANA call NOR the Attribute "knows" the vName - try the local hostname
     if [ -z "$vName" ]; then
@@ -906,24 +906,24 @@ function sht_monitor_clone() {
             $1 == "indexServerConfigRole" {isCR=$2}
             $1 == "indexServerActualRole" {isAR=$2}
             END { printf "%s:%s:%s:%s\n", nsCR, nsAR, isCR, isAR;  } ' vName=$vName )
-    set_hana_attribute ${NODENAME} "$hanarole" ${ATTR_NAME_HANA_ROLES[@]}
+    set_hana_attribute ${NODENAME} "$hanarole" "${ATTR_NAME_HANA_ROLES[@]}"
 
     # TODO PRIO2: COULD/SHOULD WE LIMIT THE SET OF THE LSS/SRR ATTRIBUTE TO ONLY THE_MASTER nodes?
     # ignore timeout (124) and "ignore" (5) as returncode from the landscapeHostConfiguration call
     super_ocf_log info "DEC: site=$site; hanalrc=$hanalrc"
     if [ -n "$site" -a "$hanalrc" != "124" ]; then
         ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$site"
-        set_hana_attribute "X" "$hanalrc" ${ATTR[@]}
+        set_hana_attribute "X" "$hanalrc" "${ATTR[@]}"
         super_ocf_log info "DEC: set_hana_attribute X $hanalrc ${ATTR[0]}"
         ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$site"
-        set_hana_attribute "X" "$hanaPrim" ${ATTR[@]}
-        set_hana_attribute ${NODENAME} "$site" ${ATTR_NAME_HANA_SITE[@]}
+        set_hana_attribute "X" "$hanaPrim" "${ATTR[@]}"
+        set_hana_attribute ${NODENAME} "$site" "${ATTR_NAME_HANA_SITE[@]}"
         super_ocf_log info "DEC: set_hana_attribute ${NODENAME} $site ${ATTR_NAME_HANA_SITE[0]}"
     fi
     case "$hanaPrim" in
         P ) ;;
         S ) # only secondary may propagate its sync status
-        set_hana_attribute "X" "$srmode" ${ATTR_NAME_HANA_SRMODE2[@]}
+        set_hana_attribute "X" "$srmode" "${ATTR_NAME_HANA_SRMODE2[@]}"
           ;;
     esac
     #ATTR_NAME_HANA_STATUS  # TODO: PRIO5: For SCALE-OUT: Fill that attribute later

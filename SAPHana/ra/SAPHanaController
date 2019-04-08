@@ -658,7 +658,7 @@ function saphana_init() {
        #
        # if saphostctrl does not know the answer, try to fallback to attribute provided by SAPHanaTopology
        #
-       vName=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_VHOST[@]} "$NODENAME");
+       vName=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_VHOST[@]}" "$NODENAME");
     fi
     if [ -z "$vName" ]; then # last fallback if we are not able to figure out the virtual host name
        vName="$NODENAME"
@@ -696,7 +696,7 @@ function saphana_init() {
     ATTR_NAME_HANA_SRR=("hana_${sid}_site_srr" "props")
     ATTR_NAME_HANA_MNS=("hana_${sid}_site_mns" "props")
 
-    SAPHanaFilter=$(get_hana_attribute "X" ${ATTR_NAME_HANA_FILTER[@]})
+    SAPHanaFilter=$(get_hana_attribute "X" "${ATTR_NAME_HANA_FILTER[@]}")
     #
     # TODO: PRIO4: Table for non-preferred-site-takeover
     #
@@ -788,10 +788,10 @@ function saphana_init() {
     #
 
     #  ATTR_NAME_HANA_SITE
-    site=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_SITE[@]});
+    site=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_SITE[@]}");
     sr_name=${site%%:*}  # first field of site (separator :)
     sr_id=${site#*:}     # rest of site (separator :)
-    sr_mode=$(get_hana_attribute "${NODENAME}" ${ATTR_NAME_HANA_SRMODE2[@]})
+    sr_mode=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_SRMODE2[@]}")
     if [ -z "$sr_mode" ]; then
         sr_mode="sync"
     fi
@@ -803,8 +803,8 @@ function saphana_init() {
     #              one SAP HANA Database in the same cluster. So only f.e. WALLDORF and ROT and not WALLDORF, ROT and NUSSLOCH.
     #              This limits us to only have sites A => B inside of the cluster and completely "ignore" site C
     #
-    for clN in ${otherNodes[@]}; do
-	    nodeSite=$(get_hana_attribute $clN ${ATTR_NAME_HANA_SITE[@]})
+    for clN in "${otherNodes[@]}"; do
+	    nodeSite=$(get_hana_attribute $clN "${ATTR_NAME_HANA_SITE[@]}")
         super_ocf_log info "TOP: clN=$clN, nodeSite=$nodeSite"
         if [ -n "$nodeSite" -a "$nodeSite" != "$site" ]; then
             remSite=$nodeSite
@@ -814,7 +814,7 @@ function saphana_init() {
     done
     # It's always the master name server of the remote site which is really releveant, so we do not need any longer each nodes remoteHost
     ATTR=(${ATTR_NAME_HANA_MNS[@]}); ATTR[0]="${ATTR[0]}_$remSR_name"
-    rem_mns=$(get_hana_attribute "X" ${ATTR[@]})
+    rem_mns=$(get_hana_attribute "X" "${ATTR[@]}")
     remoteHost=$rem_mns
     super_ocf_log debug "DBG: remoteHost is $remoteHost"
     remoteNode=$rem_mns
@@ -1018,7 +1018,7 @@ function analyze_hana_sync_statusSRS()
     #
     if [ $srRc -eq 15 ]; then
        super_ocf_log info "FLOW $FUNCNAME SOK"
-       set_hana_attribute "X" "SOK" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+       set_hana_attribute "X" "SOK" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
        super_ocf_log debug "DBG: site=$sr_name, setting SOK for secondary (1)"
        lpa_set_lpt 30 "$remSR_name"
        rc=0;
@@ -1031,7 +1031,7 @@ function analyze_hana_sync_statusSRS()
        else
           # ok we should be careful and set secondary to SFAIL
           super_ocf_log info "FLOW $FUNCNAME SFAIL"
-          set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+          set_hana_attribute "X" "SFAIL" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
           super_ocf_log debug "DBG: site=$sr_name, setting SFAIL for secondary (5) - srRc=$srRc lss=$lss"
           # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
           super_ocf_log debug "DBG: 001 * lpa_set_lpt 10 $remSR_name"
@@ -1040,7 +1040,7 @@ function analyze_hana_sync_statusSRS()
        fi
     else
        super_ocf_log info "FLOW $FUNCNAME SFAIL"
-       set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+       set_hana_attribute "X" "SFAIL" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
        super_ocf_log debug "DBG: site=$sr_name, setting SFAIL for secondary (2) - srRc=$srRc"
        # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
        super_ocf_log debug "DBG: 002 * lpa_set_lpt 10 $remSR_name"
@@ -1106,7 +1106,7 @@ function register_hana_secondary()
            local hanaOM=""
            local hanaRM=""
            if [ $newParameter -eq 1 ]; then
-               hanaOM=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_OPERATION_MODE[@]})
+               hanaOM=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_OPERATION_MODE[@]}")
                if [ -n "$hanaOM" ]; then
                    hanaOM="--operationMode=$hanaOM"
                fi
@@ -1115,8 +1115,8 @@ function register_hana_secondary()
                hanaOM=""
                hanaRM="--mode=$sr_mode"
            fi
-           set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
-           remoteHanaHost=$(get_hana_attribute "$remoteHost" ${ATTR_NAME_HANA_VHOST[@]})
+           set_hana_attribute "$NODENAME" "$sr_name" "${ATTR_NAME_HANA_SEC[@]}"
+           remoteHanaHost=$(get_hana_attribute "$remoteHost" "${ATTR_NAME_HANA_VHOST[@]}")
            if [ -z "$remoteHanaHost" ]; then
                remoteHanaHost=$remoteHost
            fi
@@ -1159,7 +1159,7 @@ function saphana_start() {
     #
     if is_the_master_nameserver; then
         if [ $rc -eq $OCF_SUCCESS ]; then
-            set_hana_attribute "X" "SWAIT" ${ATTR_NAME_HANA_SRHOOK[@]}
+            set_hana_attribute "X" "SWAIT" "${ATTR_NAME_HANA_SRHOOK[@]}"
             output=$($SAPCONTROL -nr $InstanceNr -function StartSystem)
             rc=$?
             super_ocf_log info "ACT: SAPHANA START: Starting System $SID-$InstanceName: $output"
@@ -1183,9 +1183,9 @@ function saphana_start() {
                         $1 == "indexServerConfigRole" {isCR=$2}
                         $1 == "indexServerActualRole" {isAR=$2}
                         END { printf "%s:%s:%s:%s\n", nsCR, nsAR, isCR, isAR;  } ' vName=$vName )
-                set_hana_attribute ${NODENAME} "$hanarole" ${ATTR_NAME_HANA_ROLES[@]}
+                set_hana_attribute ${NODENAME} "$hanarole" "${ATTR_NAME_HANA_ROLES[@]}"
                 ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                set_hana_attribute ${NODENAME} "$hanalrc" ${ATTR[@]}
+                set_hana_attribute ${NODENAME} "$hanalrc" "${ATTR[@]}"
                 rc=$OCF_SUCCESS
             else
                 super_ocf_log err  "ACT: SAPHANA: System $SID-$InstanceName start failed: $output"
@@ -1306,12 +1306,12 @@ function saphana_start_primary()
        rc=$OCF_ERR_GENERIC
     fi
     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-    my_lss=$(get_hana_attribute "X" ${ATTR[@]})
+    my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-    my_srr=$(get_hana_attribute "X" ${ATTR[@]})
-    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SRHOOK[@]})
+    my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+    my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
     if [ -z "$my_sync" ]; then
-        my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
     fi
     case "$lpa_dec" in
         0) lpa_advice="start" ;;
@@ -1338,10 +1338,10 @@ function saphana_start_primary()
                     LPTloc=$(date '+%s')
                     lpa_set_lpt $LPTloc "$sr_name"
                     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                    my_lss=$(get_hana_attribute "X" ${ATTR[@]})
+                    my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                     ;;
             esac
-            my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
+            my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
             my_role="${my_lss}:${my_srr}:${my_role}"
             scoring_crm_master "$my_role" "$my_sync"
             ;;
@@ -1359,7 +1359,7 @@ function saphana_start_primary()
                     super_ocf_log info "DEC: AN OTHER HANA IS AVAILABLE ==> LETS REGISTER"
                     # TODO: PRIO0: For all master nodes of that site
                     set_crm_master  0
-                    for m in ${masters[@]}; do
+                    for m in "${masters[@]}"; do
                         set_crm_master  0 $m
                     done
                     if wait_for_primary_master 1; then
@@ -1403,12 +1403,12 @@ function saphana_start_primary()
                     # TODO: PRIO3: Check, if WAITING is correct here
                     if ocf_is_true "$AUTOMATED_REGISTER" ; then
                         super_ocf_log info "LPA: landcape: DOWN, LPA: wait ==> keep waiting"
-                        set_hana_attribute ${NODENAME} "WAITING4LPA" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+                        set_hana_attribute ${NODENAME} "WAITING4LPA" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                         set_crm_master -9000
                         rc=$OCF_SUCCESS
                     else
                         super_ocf_log warning "LPA: OLD primary needs manual registration (AUTOMATED_REGISTER='false')"
-                        set_hana_attribute ${NODENAME} "WAITING4REG" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+                        set_hana_attribute ${NODENAME} "WAITING4REG" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                         set_crm_master -9000
                         rc=$OCF_NOT_RUNNING
                     fi
@@ -1439,9 +1439,9 @@ check_for_primary_master()
     # get actual list of cluster members
     #
     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$remSR_name"
-    rem_lss=$(get_hana_attribute "X" ${ATTR[@]})
+    rem_lss=$(get_hana_attribute "X" "${ATTR[@]}")
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$remSR_name"
-    rem_srr=$(get_hana_attribute "X" ${ATTR[@]})
+    rem_srr=$(get_hana_attribute "X" "${ATTR[@]}")
 
     case "$rem_lss:$rem_srr" in
         3:P | 4:P ) rc=0;;
@@ -1522,8 +1522,8 @@ function saphana_start_secondary()
     #
     super_ocf_log debug "DBG: wait for promoted side"
     # TODO: PRIO3: Check if setting SFAIL during secondary start is ok
-    set_hana_attribute "X" "SFAIL" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
-    set_hana_attribute "${NODENAME}" "$sr_name" ${ATTR_NAME_HANA_SEC[@]}
+    set_hana_attribute "X" "SFAIL" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
+    set_hana_attribute "${NODENAME}" "$sr_name" "${ATTR_NAME_HANA_SEC[@]}"
     if wait_for_primary_master 10; then
        saphana_start; rc=$?
        if [ $rc -ne $OCF_SUCCESS ]; then
@@ -1531,7 +1531,7 @@ function saphana_start_secondary()
                # It seams the stating secondary could not start because of stopping primary
                #    so this is a WAITING situation
                super_ocf_log info "ACT: PRIMARY seams to be down now ==> WAITING"
-               set_hana_attribute ${NODENAME} "WAITING4PRIM" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+               set_hana_attribute ${NODENAME} "WAITING4PRIM" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                set_crm_master -INFINITY
                rc=$OCF_SUCCSESS
            fi
@@ -1541,7 +1541,7 @@ function saphana_start_secondary()
        fi
     else
        super_ocf_log info "ACT: wait_for_primary_master ==> WAITING"
-       set_hana_attribute ${NODENAME} "WAITING4PRIM" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+       set_hana_attribute ${NODENAME} "WAITING4PRIM" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
        set_crm_master -INFINITY
        rc=$OCF_SUCCSESS
     fi
@@ -1622,10 +1622,10 @@ function lpa_get_lpt() {
     local mysite=$1
     local lpt=""
     local -a ATTR
-    ATTR=( ${LPA_ATTR[@]} )
+    ATTR=( "${LPA_ATTR[@]}" )
     ATTR[0]="${LPA_ATTR[0]}_${mysite}"
-    super_ocf_log debug "DBG: $FUNCNAME get_hana_attribute X ${ATTR[@]}"
-    lpt=$(get_hana_attribute "X" ${ATTR[@]})
+    super_ocf_log debug "DBG: $FUNCNAME get_hana_attribute X " "${ATTR[@]}"
+    lpt=$(get_hana_attribute "X" "${ATTR[@]}")
     if [ -n "$lpt" ]; then
         rc=0
         echo $lpt
@@ -1652,9 +1652,9 @@ function lpa_set_lpt() {
     local -a ATTR
     ATTR=(${LPA_ATTR[@]})
     ATTR[0]="${LPA_ATTR[0]}_${mysite}"
-    super_ocf_log debug "DBG: $FUNCNAME (set_hana_attribute X \"$lpt\" ${ATTR[@]})"
+    super_ocf_log debug "DBG: $FUNCNAME (set_hana_attribute X \"$lpt\"" "${ATTR[@]}" ")"
     if [ -n "$mysite" ]; then
-        set_hana_attribute "X" "$lpt" ${ATTR[@]}; crm_rc=$?
+        set_hana_attribute "X" "$lpt" "${ATTR[@]}"; crm_rc=$?
         clpt=$(lpa_get_lpt $mysite)
         if [ "$lpt" != "$clpt" ]; then
             super_ocf_log error "LPA: lpa_set_lpt failed for lpt=$lpt and mysite=$mysite"
@@ -1911,9 +1911,9 @@ function master_walk() {
     super_ocf_log debug "DBG: master walk"
     # walk over all known cluster nodes
     super_ocf_log debug "DBG: master walk for $srmode"
-    for node in $NODENAME ${otherNodes[@]}; do
+    for node in $NODENAME "${otherNodes[@]}"; do
         super_ocf_log debug "DBG: master walk node $node"
-        nSite=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_SITE[@]})
+        nSite=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_SITE[@]}")
         if [ "$site" = "$nSite" ]; then
             # node of same site found
             nStdBy=$(crm_attribute -N ${node} -n standby     -G -l forever -q -d off)
@@ -1923,7 +1923,7 @@ function master_walk() {
             elif [ "$nStdBy" = "on" -a "$standbyFilter" = "1" ]; then
                 super_ocf_log debug "DBG: Filter node by cluster node standby mode"
             else
-                nRole=$(get_hana_attribute ${node} ${ATTR_NAME_HANA_ROLES[@]})
+                nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}")
                 IFS=: read nNsConf nNsCurr nIsConf nIsCurr <<< "$nRole"
                 super_ocf_log debug "DBG: site $site $nNsConf:$nNsCurr"
                 case "$nNsConf:$nNsCurr" in
@@ -1972,7 +1972,7 @@ function master_walk() {
         the_master=$active_master
     fi
     ATTR=(${ATTR_NAME_HANA_MNS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-    set_hana_attribute "X" "$the_master" ${ATTR[@]}
+    set_hana_attribute "X" "$the_master" "${ATTR[@]}"
 
     super_ocf_log info "DEC: ===> master_walk: priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
     super_ocf_log info "DEC: ===> master_walk: the_master=$the_master;"
@@ -1992,7 +1992,7 @@ function is_master_nameserver()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
-    nRole=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]} | tr ':' ' ')
+    nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
     read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
     case "$nNsConf:$nNsCurr" in
         master[123]:master )
@@ -2055,21 +2055,21 @@ function saphana_start_clone() {
         #
         if [ $nr_site_node -ge $lss_worker ]; then
             if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
-                set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+                set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                 saphana_start_primary $lss; rc=$?
             else
-                set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+                set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                 super_ocf_log debug "DBG: 007 * lpa_set_lpt 10 $sr_name"
                 lpa_set_lpt  10 "$sr_name"
                 saphana_start_secondary $lss; rc=$?
             fi
         else
             super_ocf_log info "ACT: nr_site_worker < lss_worker- setting WAITING4NODES"
-            set_hana_attribute ${NODENAME} "WAITING4NODES" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+            set_hana_attribute ${NODENAME} "WAITING4NODES" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
             rc=$OCF_SUCCESS
         fi
     else
-        set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+        set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
         local start=0
         local lss=0
         local my_role=0
@@ -2082,7 +2082,7 @@ function saphana_start_clone() {
                 #
                 # only restart standby instances
                 #
-                my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
+                my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
                 echo "$my_role" | grep -q ":standby" && start=1
                 output=$($SAPCONTROL -nr $InstanceNr -function RestartInstance)
             fi
@@ -2105,7 +2105,7 @@ function saphana_stop_clone() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
     local primary_status="x"
-    set_hana_attribute ${NODENAME} "UNDEFINED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+    set_hana_attribute ${NODENAME} "UNDEFINED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
     super_ocf_log debug "DBG: SET UNDEFINED"
     check_for_primary; primary_status=$?
     if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
@@ -2141,7 +2141,7 @@ function saphana_monitor_primary()
     #
     ##### CHECK, IF WE ARE DEMOTED (CLUSTER NODE ATTRIBUTE)
     #
-    promote_attr=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
+    promote_attr=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_CLONE_STATE[@]}")
     super_ocf_log debug "DBG: saphana_monitor_clone: $ATTR_NAME_HANA_CLONE_STATE=$promote_attr"
     if [ -z "$promote_attr" ]; then
         init_attribute=1
@@ -2190,7 +2190,7 @@ function saphana_monitor_primary()
                 if ocf_is_probe; then
                    promoted=0;
                 else
-                   set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+                   set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                    promoted=0;
                 fi
                 ;;
@@ -2224,9 +2224,9 @@ function saphana_monitor_primary()
                         # TODO: PRIO4: Decide if penality (-9000) or weak (5) is better here to cover situations where other clone is gone
                         #
             # TODO PRIO1: REMOVE remoteNode dependency - get_sync_status
-                        remoteSync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SRHOOK[@]})
+                        remoteSync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
                         if [ -z "$remoteSync" ]; then
-                            remoteSync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+                            remoteSync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
                         fi
                         super_ocf_log info "DEC: PRIMDEFECT: remoteNode=$remoteNode SyncStatus=$remoteSync"
                         case "$remoteSync" in
@@ -2253,13 +2253,13 @@ function saphana_monitor_primary()
                         #        It maybe that for the local restart we only need to decrease the secondaries promotion score
                         #super_ocf_log info "DEC: PreferSiteTakeover selected so decrease promotion score here"
                         ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                        my_lss=$(get_hana_attribute "X" ${ATTR[@]})
+                        my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                         ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                        my_srr=$(get_hana_attribute "X" ${ATTR[@]})
-                        my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-                        my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SRHOOK[@]})
+                        my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+                        my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+                        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
                         if [ -z "$my_sync" ]; then
-                            my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+                            my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
                         fi
                         my_role="${my_lss}:${my_srr}:${my_role}"
                         scoring_crm_master "$my_role" "$my_sync"
@@ -2285,24 +2285,24 @@ function saphana_monitor_primary()
                 lpa_set_lpt $LPTloc "$sr_name"
                 lpa_push_lpt $LPTloc
                 if [ "$promoted" -eq 1 ]; then
-                    set_hana_attribute "X" "$sr_name" ${ATTR_NAME_HANA_PRIM[@]}
+                    set_hana_attribute "X" "$sr_name" "${ATTR_NAME_HANA_PRIM[@]}"
                     rc=$OCF_RUNNING_MASTER
                 else
                     if [ "$init_attribute" -eq 1 ]; then
-                        set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+                        set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                         rc=$OCF_RUNNING_MASTER
                     else
                         rc=$OCF_SUCCESS
                     fi
                 fi
                 ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                my_lss=$(get_hana_attribute "X" ${ATTR[@]})
+                my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                 ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                my_srr=$(get_hana_attribute "X" ${ATTR[@]})
-                my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-                my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SRHOOK[@]})
+                my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+                my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+                my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
                 if [ -z "$my_sync" ]; then
-                    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+                    my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
                 fi
                 my_role="${my_lss}:${my_srr}:${my_role}"
                 case "$my_role" in
@@ -2313,7 +2313,7 @@ function saphana_monitor_primary()
                                 never | NEVER | Never )
                                     # TODO: PRIO 2: How to handle this attribute for srHOOK with NEVER?
                                     # Currently it is NOT allowed to implement the srHook together with the (unsupported) preferSitetakeover 'never'
-                                    set_hana_attribute "X" "SNA" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}
+                                    set_hana_attribute "X" "SNA" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
                                     ;;
                                 * )
                                     # TODO: PRIO 5: We could limit the analyze_hana_sync_statusSRS later
@@ -2325,9 +2325,9 @@ function saphana_monitor_primary()
                                         # if we still did not got a hook time since the cluster start-up maybe the
                                         # HANA was already in (stable) sync, so the HANA Hook would never been called till
                                         # a new event comes up. This is why we transfer the 'polled' attribute to the Hook attribute.
-                                        my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+                                        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
                                         super_ocf_log info "DEC: ${ATTR_NAME_HANA_SRHOOK[0]} was still SWAIT, so copy attribute ${ATTR_NAME_HANA_SEC_SYNC_STATUS[0]} ($my_sync)"
-                                        set_hana_attribute "X" "$my_sync" ${ATTR_NAME_HANA_SRHOOK[@]}
+                                        set_hana_attribute "X" "$my_sync" "${ATTR_NAME_HANA_SRHOOK[@]}"
                                         ####
                                     fi
                                     ;;
@@ -2335,13 +2335,13 @@ function saphana_monitor_primary()
                         ;;
                 esac
                 ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$remSR_name"
-                rem_lss=$(get_hana_attribute "X" ${ATTR[@]})
+                rem_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                 ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$remSR_name"
-                rem_srr=$(get_hana_attribute "X" ${ATTR[@]})
+                rem_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                 # TODO PRIO1: change from remoteHost to remoteMNS
-                rem_role=$(get_hana_attribute ${remoteHost} ${ATTR_NAME_HANA_ROLES[@]})
+                rem_role=$(get_hana_attribute ${remoteHost} "${ATTR_NAME_HANA_ROLES[@]}")
 # HERE
-                rem_clone_status=$(get_hana_attribute ${remoteHost} ${ATTR_NAME_HANA_CLONE_STATE[@]})
+                rem_clone_status=$(get_hana_attribute ${remoteHost} "${ATTR_NAME_HANA_CLONE_STATE[@]}")
                 rem_role="${rem_lss}:${rem_srr}:${rem_role}"
                 if [ "$promote_attr" = "DEMOTED" -a "$rem_clone_status" = "PROMOTED" ]; then
                    case "$rem_role" in
@@ -2398,12 +2398,12 @@ function saphana_monitor_secondary()
         lpa_set_lpt  10 "$sr_name"
         lpa_push_lpt 10
     fi
-    promote_attr=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
+    promote_attr=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_CLONE_STATE[@]}")
     super_ocf_log debug "DBG: saphana_monitor_clone: $ATTR_NAME_HANA_CLONE_STATE=$promote_attr"
     if [ -z "$promote_attr" ]; then
         init_attribute=1
         #  DONE: PRIO3: do we need to inizialize also the DEMOTED attribute value?
-        set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+        set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
         promoted=0;
     else
         case "$promote_attr" in
@@ -2440,7 +2440,7 @@ function saphana_monitor_secondary()
                 if ocf_is_probe; then
                    promoted=0;
                 else
-                   set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+                   set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                    promoted=0;
                 fi
                 ;;
@@ -2467,9 +2467,9 @@ function saphana_monitor_secondary()
             ;;
         2 | 3 | 4 ) # WARN INFO OK
             rc=$OCF_SUCCESS
-            sync_attr=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SRHOOK[@]})
+            sync_attr=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
             if [ -z "$sync_attr" ]; then
-                sync_attr=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+                sync_attr=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
             fi
             local hanaOM=""
             local hanaOut1=""
@@ -2478,20 +2478,20 @@ function saphana_monitor_secondary()
             hanaOut1=$(HANA_CALL --timeout 10 --use-su --cmd "getParameter.py --key=global.ini/system_replication/operation_mode --sapcontrol=1")
             hanaFilter1=$(echo "$hanaOut1" | awk -F/ 'BEGIN {out=0} /^SAPCONTROL-OK: <begin>/ { out=1 } /^SAPCONTROL-OK: <end>/ { out=0 } /=/ {if (out==1) {print $3} }')
             hanaOM=$(echo "$hanaFilter1" | awk -F= '$1=="operation_mode" {print $2}')
-            set_hana_attribute ${NODENAME} "$hanaOM" ${ATTR_NAME_HANA_OPERATION_MODE[@]}
+            set_hana_attribute ${NODENAME} "$hanaOM" "${ATTR_NAME_HANA_OPERATION_MODE[@]}"
             super_ocf_log debug "DBG: sync_attr=$sync_attr"
             case "$sync_attr" in
                 "SOK"   ) # This is a possible node to promote, when primary is missing
                     lpa_set_lpt  30 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status SOK ==> possible takeover node"
                     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                    my_lss=$(get_hana_attribute "X" ${ATTR[@]})
+                    my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                    my_srr=$(get_hana_attribute "X" ${ATTR[@]})
-                    my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-                    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SRHOOK[@]})
+                    my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+                    my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+                    my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
                     if [ -z "$my_sync" ]; then
-                        my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+                        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
                     fi
                     my_role="${my_lss}:${my_srr}:${my_role}"
                     scoring_crm_master "$my_role" "$my_sync"
@@ -2547,13 +2547,13 @@ function saphana_monitor_clone() {
     local primary_status=$HANA_STATE_DEFECT
 
     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-    my_lss=$(get_hana_attribute "X" ${ATTR[@]})
+    my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-    my_srr=$(get_hana_attribute "X" ${ATTR[@]})
-    my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
-    my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SRHOOK[@]})
+    my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+    my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+    my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
     if [ -z "$my_sync" ]; then
-        my_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
     fi
     my_role="${my_lss}:${my_srr}:${my_role}"
 
@@ -2580,7 +2580,7 @@ function saphana_monitor_clone() {
             # TODO: PRIO2: Or only set_crm_master -INFINITY ?
             # TODO: PRIO9: Currently pacemaker-remote nodes does not support 'reboot' attributes
             # DONE: PRIO1: OCF_ERR_GENERIC is quite fatal, if "only" hdbnsutil has a small problem
-            nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
+            nState=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_CLONE_STATE[@]}")
             if saphana_check_local_instance; then
                 case "$nState" in
                         DEMOTED )   rc=$OCF_SUCCESS;;
@@ -2598,7 +2598,7 @@ function saphana_monitor_clone() {
             fi
         fi
     else
-        nState=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_CLONE_STATE[@]})
+        nState=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_CLONE_STATE[@]}")
         # TODO: PRIO2: Check, if we need to (re) start a failed SAP HANA instance in a swarm
         if ! saphana_check_local_instance; then
             # IF LS>=2 AND ROLE STANDBY "RESTART" INSTANCE
@@ -2654,7 +2654,7 @@ function saphana_promote_clone() {
   #
   # first check, if we WILL be PRIMARY (checking HANA status)
   #
-  set_hana_attribute ${NODENAME} "PROMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+  set_hana_attribute ${NODENAME} "PROMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
   check_for_primary; primary_status=$?
   #
   if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
@@ -2674,9 +2674,9 @@ function saphana_promote_clone() {
                 rc=$OCF_ERR_GENERIC
                 ;;
             * )
-                hana_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SRHOOK[@]})
+                hana_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
                 if [ -z "$hana_sync" ]; then
-                    hana_sync=$(get_hana_attribute "X" ${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]})
+                    hana_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
                 fi
                 case "$hana_sync" in
                      SOK )
@@ -2687,10 +2687,10 @@ function saphana_promote_clone() {
                             lpa_set_lpt $LPTloc "$sr_name"
                             lpa_push_lpt $LPTloc
                             backup_global_and_nameserver
-                            set_hana_attribute "$NODENAME" "$sr_name" ${ATTR_NAME_HANA_PRIM[@]}
+                            set_hana_attribute "$NODENAME" "$sr_name" "${ATTR_NAME_HANA_PRIM[@]}"
                             # TODO PRIO5: 122 should not be static but come from the scoring table
                             set_crm_master 122
-                            set_hana_attribute "$NODENAME" "-" ${ATTR_NAME_HANA_SEC[@]}
+                            set_hana_attribute "$NODENAME" "-" "${ATTR_NAME_HANA_SEC[@]}"
                             su - $sidadm -c "hdbnsutil -sr_takeover"
                             backup_global_and_nameserver
                             #
@@ -2701,7 +2701,7 @@ function saphana_promote_clone() {
                         fi
                         if check_for_primary; then
                             rc=$OCF_SUCCESS;
-                            set_hana_attribute "X" "SWAIT" ${ATTR_NAME_HANA_SRHOOK[@]}
+                            set_hana_attribute "X" "SWAIT" "${ATTR_NAME_HANA_SRHOOK[@]}"
                         else
                             rc=$OCF_FAILED_MASTER
                         fi
@@ -2737,7 +2737,7 @@ function saphana_promote_clone() {
 function saphana_demote_clone() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=$OCF_ERR_GENERIC;
-    set_hana_attribute ${NODENAME} "DEMOTED" ${ATTR_NAME_HANA_CLONE_STATE[@]}
+    set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
     rc=$OCF_SUCCESS;
     super_ocf_log info "ACT: Demoted $SID-$InstanceName."
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
