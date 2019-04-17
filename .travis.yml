@@ -1,6 +1,7 @@
+dist: xenial
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get -t trusty-backports install shellcheck
+  - sudo apt-get -qq install shellcheck
   - sudo apt-get -qq install libperl-critic-perl python-flake8
 script:
   - pushd SAPHana
