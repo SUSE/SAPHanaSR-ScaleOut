@@ -1,2 +1,4 @@
-hana_di_tester.pl: Releae version of the data integrity checker
-hana_di_tester2.pl: Try, to increase the I/O troughput using a bi-directional communication with the hdbsql command, instead of sending each query via a dedicated command call
+# hana data integrity tester tool to check data sets during takeovers (only 'own' data is been checked)
+#
+hana_di_tester.pl: Release version of the data integrity checker
+hana_di_tester2.pl: Try, to increase the I/O troughput using a bi-directional communication with the hdbsql command, instead of sending each query via a dedicated command call; using a module rather then integrated functions

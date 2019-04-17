@@ -1,3 +1,0 @@
-jump_host=laptop
-host=setrain01.tam-lab.suse.de
-ssh -o ProxyCommand="ssh cyber@$jump_host nc $host 22" root@$host:~
