@@ -1,7 +1,11 @@
+dist: xenial
 before_install:
+  - sudo add-apt-repository ppa:jonathonf/ghc-8.0.2 -y
   - sudo apt-get -qq update
-  - sudo apt-get -t trusty-backports install shellcheck
-  - sudo apt-get -qq install libperl-critic-perl python-flake8
+  - sudo apt-get -qq install shellcheck
+  - sudo apt-get -qq install libperl-critic-perl
+  - sudo apt-get -qq install python-flake8
+  - sudo apt-get -qq install flake8
 script:
   - pushd SAPHana
   - make test
