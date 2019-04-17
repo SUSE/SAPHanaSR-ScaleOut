@@ -1,7 +1,7 @@
 
 # SUSE ScaleOut resource agent for SAP HANA
 
-[![Build Status](https://travis-ci.com/SUSE/SAPHanaSR-ScaleOut.svg?branch=master)](https://travis-ci.com/SUSE/SAPHanaSR-ScaleOut)
+[![Build Status](https://travis-ci.org/SUSE/SAPHanaSR-ScaleOut.svg?branch=master)](https://travis-ci.org/SUSE/SAPHanaSR-ScaleOut)
 
 ## Introduction
 
