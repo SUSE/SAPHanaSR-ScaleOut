@@ -105,7 +105,7 @@ Optional parameters:
     --syslog  | -s           print output to syslog instead of STDOUT
     --quiet   | -q           Don't print any output
     --daemon  | -d           starts as a daemon (inherits -s)
-    --hdbsql_path  | -h      path to hdbsql command
+    --hdbsql_path  | -p      path to hdbsql command
                              (defaults to $hdbsql_path)
                              
 Example: $0 -U SLEHALOC
