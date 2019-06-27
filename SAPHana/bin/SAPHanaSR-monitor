@@ -219,7 +219,7 @@ sub processMonitor() {
     #
     $sid=$sids[0];   # currently ony one sid is supported
     ( $sid, $ino ) = split(":", $sid);
-    $sid=tolower("$sid");
+    $sid=lc("$sid");
     get_hana_attributes($sid, \%Host, \%HName, \%Global, \%GName, \%Site,   \%SName);
     if ( keys(%Host) == 0 ) {
         printf "No attributes found for SID=%s\n", $sid;
