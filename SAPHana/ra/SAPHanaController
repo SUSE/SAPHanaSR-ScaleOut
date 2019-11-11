@@ -2569,8 +2569,10 @@ function saphana_monitor_clone() {
         #
         check_for_primary; primary_status=$?
         if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
+            saphana_check_local_instance
             saphana_monitor_primary; rc=$?
         elif [ $primary_status -eq $HANA_STATE_SECONDARY  ]; then
+            saphana_check_local_instance
             saphana_monitor_secondary; rc=$?
         else
             #
