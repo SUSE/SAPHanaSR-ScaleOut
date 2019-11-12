@@ -12,6 +12,7 @@
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2013,2014 SUSE Linux Products GmbH
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
+# Copyright:    (c) 2017-2019 SUSE LLC
 #
 # An example usage:
 #      See usage() function below for more details...
@@ -33,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.163.2"
+SAPHanaControllerVersion="0.164.0"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -702,6 +703,7 @@ function saphana_init() {
     #
     SCORING_TABLE_PREFERRED_SITE_TAKEOVER=(
        "[234]:P:master[123]:master     .*          150"
+       "[234]:P:master[123]            .*          140"
        "[234]:P:master[123]:slave:.*:standby      .*          115"
        "[234]:P:master[123]:slave      .*          110"
        "[015]:P:master[123]:           .*           70"
