@@ -1,6 +1,5 @@
 dist: xenial
 before_install:
-  - sudo add-apt-repository ppa:jonathonf/ghc-8.0.2 -y
   - sudo apt-get -qq update
   - sudo apt-get -qq install shellcheck
   - sudo apt-get -qq install libperl-critic-perl
