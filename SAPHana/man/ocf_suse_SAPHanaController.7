@@ -29,7 +29,7 @@ SAPHanaController is also able to restart former failed worker nodes as standby.
 On initial cluster start, the cluster needs to detect a valid HANA system replication setup, including system replication status (SOK) and last primary timestamp (LPT). This is neccessary to ensure data integrity.
 .PP
 The SAPHanaController resource agent (RA) performs the actual check of the SAP HANA database instances and is configured as a master/slave resource.
-The Linux cluster resource's master status will follow the HANA's active master name server role. Resources (f.e. IP address) that need to run on the same node with that HANA role should be co-located with the master target.
+The Linux cluster resource's master status will follow the HANA's active master name server role. Resources (e.g. IP address) that need to run on the same node with that HANA role should be co-located with the master target.
 .\" TODO sketch to show relation between roles
 .\" Linux Cluster (res) Linux Cluster (m/s)   HANA      
 .\" Follow    <=>       Master     ==         Primary Name Server    
@@ -112,7 +112,8 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to take-over to the slave database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". Example: "PREFER_SITE_TAKEOVER=true".
+Defines whether RA should prefer to take-over to the slave database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". Local restart of the master instead of take-over could be combined with HANA's persistant memory features.
+ Example: "PREFER_SITE_TAKEOVER=true".
 .br
 Optional. Default value: false\&.
 .RE
