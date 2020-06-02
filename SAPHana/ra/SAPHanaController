@@ -686,13 +686,16 @@ function saphana_init() {
     ATTR_NAME_HANA_SEC_SYNC_STATUS=("hana_${sid}_glob_sync_state" "props")       # SOK, SFAIL
     ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_glob_primary_at"   "props")          # Not used so far
     ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")            # sync syncmem async
-    ATTR_NAME_HANA_SRHOOK=("hana_${sid}_glob_srHook" "props")                    # external triggered SOK, SFAIL
+    #
+    # For MULTI-TARGET we need a site-specific attribute not a global one
+    # ATTR_NAME_HANA_SRHOOK=("hana_${sid}_glob_srHook" "props")                    # external triggered SOK, SFAIL
     ATTR_NAME_HANA_FILTER=("hana_${sid}_glob_filter" "props" "ra-act-dec-lpa")
     ATTR_NAME_HANA_OPERATION_MODE=("hana_${sid}_glob_op_mode" "props" "logreplay")
     #
     # SITE based attributes
     #
     LPA_ATTR=("hana_${sid}_site_lpt" "props")
+    ATTR_NAME_HANA_SRHOOK=("hana_${sid}_site_srHook" "props")                    # external triggered SOK, SFAIL
     ATTR_NAME_HANA_LSS=("hana_${sid}_site_lss" "props")
     ATTR_NAME_HANA_SRR=("hana_${sid}_site_srr" "props")
     ATTR_NAME_HANA_MNS=("hana_${sid}_site_mns" "props")
