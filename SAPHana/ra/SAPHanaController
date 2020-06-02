@@ -12,7 +12,7 @@
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2013,2014 SUSE Linux Products GmbH
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
-# Copyright:    (c) 2017-2019 SUSE LLC
+# Copyright:    (c) 2017-2020 SUSE LLC
 #
 # An example usage:
 #      See usage() function below for more details...
@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.164.0"
+SAPHanaControllerVersion="0.165.0"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -1014,9 +1014,12 @@ function check_for_primary() {
 function analyze_hana_sync_statusSRS()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
-    local rc=-1 srRc=0 all_nodes_other_side="" local n=""
-    FULL_SR_STATUS=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "systemReplicationStatus.py" 2>/dev/null); srRc=$?
-    super_ocf_log info "FLOW $FUNCNAME systemReplicationStatus.py -> $srRc"
+    local rc=-1 srRc=0 all_nodes_other_side="" local n="" siteParam=""
+    if [ -n "$remSR_name" ]; then
+       siteParam="--site=$remSR_name"
+    fi
+    FULL_SR_STATUS=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "systemReplicationStatus.py $siteParam" 2>/dev/null); srRc=$?
+    super_ocf_log info "FLOW $FUNCNAME systemReplicationStatus.py (to site '$remSR_name')-> $srRc"
     #
     # TODO: PRIO2: Here we might also need to filter additional sites (if multi tier should be supported)
     #              And is the check for return code capable for chains?
