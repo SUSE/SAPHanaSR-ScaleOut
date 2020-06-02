@@ -157,6 +157,7 @@ function saphana_meta_data() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
 # TODO PRIO2: Description including parameters to be reviewed for scale-out
+# TODO PRIO2: check whether default is PREFER_SITE_TAKEOVER=false, then correct this meta-data.
     cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
