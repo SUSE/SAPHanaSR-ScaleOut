@@ -63,12 +63,12 @@ concurrent fencing actions. It allows parallel fencing of multiple nodes.
 A value of '-1' means virtually unlimited. 
 See also \fBconcurrent-fencing\fR above.
 
-\fBpcmk_delay_max = 30s\fR
+\fBpcmk_delay_max = 1s\fR
 
 The sbd stonith parameter pcmk_delay_max defines an upper limit for waiting
 before a fencing/stonith request will be triggerd.
 This parameter should prevent the cluster from unwanted double fencing in case
-of spilt-brain. It is required in two-node clusters. It might not be needed in
+of spilt-brain. It is required in two-node clusters. It is not needed in 
 usual SAPHanaSR-ScaleOut setups.
 
 .PP
