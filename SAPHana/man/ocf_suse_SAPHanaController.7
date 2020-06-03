@@ -30,9 +30,6 @@ On initial cluster start, the cluster needs to detect a valid HANA system replic
 .PP
 The SAPHanaController resource agent (RA) performs the actual check of the SAP HANA database instances and is configured as a master/slave resource.
 The Linux cluster resource's master status will follow the HANA's active master name server role. Resources (e.g. IP address) that need to run on the same node with that HANA role should be co-located with the master target.
-.\" TODO sketch to show relation between roles
-.\" Linux Cluster (res) Linux Cluster (m/s)   HANA      
-.\" Follow    <=>       Master     ==         Primary Name Server    
 .PP
 Managing the two SAP HANA instances in scale-out setup means that the resource agent controls the start/stop of the instances. 
 In addition the resource agent is able to monitor the SAP HANA databases on landscape host configuration level. For this monitoring the resource agent relies on interfaces provided by SAP.
@@ -112,7 +109,7 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to take-over to the slave database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". Local restart of the master instead of take-over could be combined with HANA's persistant memory features.
+Defines whether RA should prefer to take-over to the slave database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of take-over could be combined with HANA's persistant memory features.
  Example: "PREFER_SITE_TAKEOVER=true".
 .br
 Optional. Default value: false\&.
@@ -208,7 +205,7 @@ In addition, log entries are written, which can be scanned by using a pattern li
 .PP
 .\"
 .SH EXAMPLES
-* Below is an example configuration for a SAPHanaController master/slave resource in a HANA scale-out scenario.
+* Below is an example configuration for a SAPHanaController master/slave resource in an HANA scale-out performance-optimised scenario.
 .RS 2
 The HANA consists of two sites with five nodes each. An additional cluster node is used as majority maker for split-brain situations. In addition, a SAPHanaTopology clone resource is needed to make this work.
 .RE
@@ -263,7 +260,7 @@ hana_SLE_glob_filter="ra-act-dec-lpa"
 .PP
 .RS 4
 # ntpq -p
-.\" TODO output
+.\" TODO: output
 .RE
 .PP
 * Use of DUPLICATE_PRIMARY_TIMEOUT and Last Primary Timestamp (LPT) in case the primary node has been crashed completely.
@@ -410,7 +407,7 @@ F.Herschel, L.Pinne.
 .br
 (c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2018-2019 SUSE LLC
+(c) 2018-2020 SUSE LLC
 .br
 The resource agent SAPHanaController comes with ABSOLUTELY NO WARRANTY.
 .br
