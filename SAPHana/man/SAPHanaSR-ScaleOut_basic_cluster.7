@@ -25,21 +25,22 @@ quorum loss. For SAPHanaSR-ScaleOut, an odd number of nodes is required. Setting
 no-quorum-policy to 'freeze' won't allow the partition to shoot any other node
 when it doesn't have quorum. Cluster will not be able to add and start new resources.
 
-\fBdefault-resource-stickiness = 120\fR
+\fBdefault-resource-stickiness = 1000\fR
 
 The crm basic parameter default-resource-stickiness defines the 'stickiness' score
 a resource gets on the node where it is currently running. This prevents
 the cluster from moving resources around whithout an urgent need during a
-cluster transition.
+cluster transition. The correct value depends on number of resources and colocation
+rules. Too high value might prevent not only unwanted but also useful actions.
 
 \fBconcurrent-fencing = true\fR
 
 The crm basic parameter concurrent-fencing allows the cluster to fence more
 than one node at a time. This helps to reduce the time needed for a take over in
 case a whole data center is lost. If nodes are fenced one by one, the time needed
-would be equal to the \fBnumber of nodes * stonith timeout\fR. With concurrent-fencing enabled
-the time needed is always \fBstonith timeout\fR, independent of the number of nodes.
-See also \fBpcmk_action_limit\fR below.
+would be equal to the \fBnumber of nodes * stonith timeout\fR. With concurrent-fencing
+enabled the time needed is always \fBstonith timeout\fR, independent of the number of
+nodes. See also \fBpcmk_action_limit\fR below.
 
 \fBmigration-threshold = 50\fR
 
@@ -92,7 +93,7 @@ property $id="cib-bootstrap-options" \\
 .br
 	dc-deadtime="20s" \\
 .br
-	default-resource-stickiness="120" \\
+	default-resource-stickiness="1000" \\
 .br
 	stonith-enabled="true" \\
 .br
@@ -102,7 +103,7 @@ property $id="cib-bootstrap-options" \\
 .br
 rsc_defaults $id="rsc_defaults-options" \\
 .br
-	resource-stickiness="120" \\
+	resource-stickiness="1000" \\
 .br
 	migration-threshold="50" \\
 .br
