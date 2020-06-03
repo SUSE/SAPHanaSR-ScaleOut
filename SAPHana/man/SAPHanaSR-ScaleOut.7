@@ -212,8 +212,9 @@ must be switched off.
 9. For scale-out, the current resource agent supports SAP HANA in system
 replication beginning with HANA version 1.0 SPS 11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
-HANA supports multi-target system replication since 2.0 SPS 3.
-Prior to this version, only uni-directional system replication is possible.
+With the mentioned HANA versions uni-directional chained system replication
+is possible. Beginning with HANA 2.0 SPS 3 multi-target system replication
+is possible as well.
 .\" TODO: check HANA version for multi-target
 .PP
 10. For scale-out, if the shared storage is implemented with another cluster,
