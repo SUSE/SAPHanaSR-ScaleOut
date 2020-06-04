@@ -2269,11 +2269,9 @@ function saphana_monitor_primary()
                         # DONE: PRIO1: first check, if remote site is already (and still) in sync
                         # TODO: PRIO4: Decide if penality (-9000) or weak (5) is better here to cover situations where other clone is gone
                         #
-            # TODO PRIO1: REMOVE remoteNode dependency - get_sync_status
-                        remoteSync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
-                        if [ -z "$remoteSync" ]; then
-                            remoteSync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-                        fi
+                        # TODO PRIO1: REMOVE remoteNode dependency - get_sync_status
+                        # saphana_monitor_primary - get_SRHOOK for "the" remote site (TODO: PRIO3: multi-tier may need multiple remote sites)
+                        remoteSync=$(get_SRHOOK "$remSR_name")
                         super_ocf_log info "DEC: PRIMDEFECT: remoteNode=$remoteNode SyncStatus=$remoteSync"
                         case "$remoteSync" in
                             SOK | PRIM )
@@ -2283,7 +2281,7 @@ function saphana_monitor_primary()
                                      lpa_set_lpt 20 "$sr_name"
                                  fi
                                  #
-                                 # DOWNSCORING CRM_MASTER TO DEMOTE THE PRIMARY MUST BE DONE AFTER THE LPT MARKING NO TO RISK CANCELLATION OF THE MONITOR
+                                 # DOWNSCORING CRM_MASTER TO DEMOTE THE PRIMARY MUST BE DONE AFTER THE LPT MARKING NOT TO RISK CANCELLATION OF THE MONITOR
                                  #
                                  set_crm_master 5
                                  ;;
@@ -2303,10 +2301,9 @@ function saphana_monitor_primary()
                         ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                         my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                         my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-                        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
-                        if [ -z "$my_sync" ]; then
-                            my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-                        fi
+                        # saphana_monitor_primary - get SR attribute of OWN site (TODO: PRIO3: allow multi targets in the future)
+                        # TODO PRIO3: Check, if we need that query as for a real primary this should always be "PRIM"
+                        my_sync=$(get_SRHOOK "$remSR_name")
                         my_role="${my_lss}:${my_srr}:${my_role}"
                         scoring_crm_master "$my_role" "$my_sync"
                         rc=$OCF_FAILED_MASTER
@@ -2346,10 +2343,8 @@ function saphana_monitor_primary()
                 ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                 my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                 my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-                my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
-                if [ -z "$my_sync" ]; then
-                    my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-                fi
+                # saphana_monitor_primary - get SR attribute of "the" remote site (TODO: PRIO3: allow multi targets in the
+                my_sync=$(get_SRHOOK "$remSR_name")
                 my_role="${my_lss}:${my_srr}:${my_role}"
                 case "$my_role" in
                     [12]:P:*:*:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status{SRS|SQL}
@@ -2359,6 +2354,7 @@ function saphana_monitor_primary()
                                 never | NEVER | Never )
                                     # TODO: PRIO 2: How to handle this attribute for srHOOK with NEVER?
                                     # Currently it is NOT allowed to implement the srHook together with the (unsupported) preferSitetakeover 'never'
+                                    # TODO: PRIO0: Check, if we need also to set the HOOK value or not??
                                     set_hana_attribute "X" "SNA" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
                                     ;;
                                 * )
@@ -2368,11 +2364,13 @@ function saphana_monitor_primary()
                                     #       of results of the SAP interfaces
                                     analyze_hana_sync_statusSRS
                                     if [ "$my_sync" = "SWAIT" ]; then
+                                        # TODO: PRIO0: Check, if we really should overwrite "SWAIT" or keep that value
                                         # if we still did not got a hook time since the cluster start-up maybe the
                                         # HANA was already in (stable) sync, so the HANA Hook would never been called till
                                         # a new event comes up. This is why we transfer the 'polled' attribute to the Hook attribute.
                                         my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
                                         super_ocf_log info "DEC: ${ATTR_NAME_HANA_SRHOOK[0]} was still SWAIT, so copy attribute ${ATTR_NAME_HANA_SEC_SYNC_STATUS[0]} ($my_sync)"
+# TODO: PRIO0: !!!
                                         set_hana_attribute "X" "$my_sync" "${ATTR_NAME_HANA_SRHOOK[@]}"
                                         ####
                                     fi
