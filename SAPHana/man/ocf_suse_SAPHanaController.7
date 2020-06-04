@@ -46,6 +46,8 @@ The interface sapcontrol/sapstartsrv is used to start/stop a HANA database insta
 The interface is used to monitor an entire HANA system. The python script is named landscapeHostConfiguration.py. landscapeHostConfiguration.py has some detailed output about HANA system status and node roles. For our monitor the overall status is relevant. This overall status is reported by the return code of the script:
 0: Internal Fatal, 1: ERROR, 2: WARNING, 3: INFO, 4: OK .
 The SAPHanaController resource agent will interpret return code 0 as FATAL, 1 as not-running (or ERROR) and return codes 2+3+4 as RUNNING.
+.br
+Note: Some conditions cause HANA stopping to work, but not reporting an error. E.g. filesystem filled up. 
 .PP
 3. \fBhdbnsutil\fP
 .br
@@ -54,7 +56,7 @@ A second task of the interface is the posibility to run a system replication tak
 .PP
 4. \fBsystemReplicationStatus\fP
 .br
-The interface systemReplicationStatus is a special query to check the HANA system replication status via a python library. This interface exists since SAP HANA SPS9.
+The interface systemReplicationStatus is a special query to check the HANA system replication status via a python library. This interface exists since SAP HANA 1.0 SPS9.
 .PP
 5. \fBsaphostctrl\fP
 .br
@@ -109,8 +111,7 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to take-over to the slave database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of take-over could be combined with HANA's persistent memory features.
- Example: "PREFER_SITE_TAKEOVER=true".
+Defines whether RA should prefer to take-over to the slave database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of take-over could be combined with HANA's persistent memory features. Example: "PREFER_SITE_TAKEOVER=true".
 .br
 Optional. Default value: false\&.
 .RE
@@ -144,7 +145,7 @@ This resource agent supports the following actions (operations):
 .PP
 \fBstart\fR
 .RS 4
-Starts the HANA instance or bring the "clone instance" to a WAITING status. The correct value depends on factors like database size and storage performance. Large databases might require higher start timeouts, use of persistent memory mightreduce the timeout needed. Suggested minimum timeout: 3600\&.
+Starts the HANA instance or bring the "clone instance" to a WAITING status. The correct value depends on factors like database size and storage performance. Large databases might require higher start timeouts, use of persistent memory might reduce the timeout needed. Suggested minimum timeout: 3600\&.
 .RE
 .PP
 \fBstop\fR
