@@ -1,6 +1,6 @@
 .\" Version: 0.165.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "02 Jun 2020" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "04 Jun 2020" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -144,7 +144,7 @@ This resource agent supports the following actions (operations):
 .PP
 \fBstart\fR
 .RS 4
-Starts the HANA instance or bring the "clone instance" to a WAITING status. Suggested minimum timeout: 3600\&.
+Starts the HANA instance or bring the "clone instance" to a WAITING status. The correct value depends on factors like database size and storage performance. Large databases might require higher start timeouts, use of persistent memory mightreduce the timeout needed. Suggested minimum timeout: 3600\&.
 .RE
 .PP
 \fBstop\fR
@@ -154,7 +154,7 @@ Stops the HANA instance. Suggested minimum timeout: 3600\&.
 .PP
 \fBpromote\fR
 .RS 4
-Either runs a take-nover for a secondary or a just-nothing for a primary. Suggested minimum timeout: 900\&.
+Either runs a take-nover for a secondary or a just-nothing for a primary. The correct value depends on factors like system replication operation mode and current load on the database. Suggested minimum timeout: 900\&.
 .RE
 .PP
 \fBdemote\fR
@@ -385,17 +385,13 @@ For the current version of the SAPHanaController resource agent that comes with 
 .SH SEE ALSO
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_heartbeat_IPaddr2\fP(8) , \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) , \fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBcrm\fP(8) 
 .br
-https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
+https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
 http://clusterlabs.org/doc/en-US/Pacemaker/1.1/html/Pacemaker_Explained/s-ocf-return-codes.html ,
 .br
-http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution ,
-.br
-http://www.saphana.com/docs/DOC-2775 ,
+http://scn.sap.com/community/hana-in-memory/blog/2015/12/14/sap-hana-sps-11-whats-new-ha-and-dr--by-the-sap-hana-academy ,
 .br
 http://scn.sap.com/docs/DOC-60334 ,
-.br
-http://scn.sap.com/docs/DOC-65899
 .PP
 .\"
 .SH AUTHORS
