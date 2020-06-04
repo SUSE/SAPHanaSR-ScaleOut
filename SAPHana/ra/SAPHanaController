@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.165.0"
+SAPHanaControllerVersion="0.165.1"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -612,6 +612,45 @@ function HANA_CALL()
     esac
     echo "$output"
     return $rc;
+}
+
+# function get_SRHOOK - fetches the site specific Hook SR status or (as fallback) the polling-attribute
+# params: site-name
+# globals: ATTR_NAME_HANA_SRHOOK[@](r), ATTR_NAME_HANA_SYNC_STATUS[@](r)
+# locals:  ATTR[@], my_sync, get_sr_name
+#
+function get_SRHOOK()
+{
+    local -a ATTR my_sync
+    local get_sr_name="$1"
+    ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
+    my_sync=$(get_hana_attribute "X" "${ATTR[@]}")
+    super_ocf_log info "RA: SRHOOK1=$my_sync"
+    if [ -z "$my_sync" -o "$my_sync" = "SWAIT" ]; then
+        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SYNC_STATUS[@]}")
+        super_ocf_log info "RA: SRHOOK2=$my_sync"
+    fi
+    if [ -z "$my_sync" ]; then   # be pesimistic, if we could not determine the SR attribute
+        my_sync="SFAIL"
+    fi
+    super_ocf_log info "RA: SRHOOK3=$my_sync"
+    echo "$my_sync"
+    return 0
+}
+
+# function set_SRHOOK - sets the site specific Hook SR status
+# params: site-name, value
+# globals: ATTR_NAME_HANA_SRHOOK[@](r), ATTR_NAME_HANA_SYNC_STATUS[@](r)
+# locals:  ATTR[@], my_sync, get_sr_name
+#
+function set_SRHOOK()
+{
+    local -a ATTR my_sync
+    local get_sr_name="$1"
+    local value="$2"
+    ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
+    set_hana_attribute "X" "$value" "${ATTR[@]}"
+    return 0
 }
 
 #
