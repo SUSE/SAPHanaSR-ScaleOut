@@ -1,6 +1,6 @@
-.\" Version: 0.162.3
+.\" Version: 0.165.0
 .\"
-.TH SAPHanaSR-showAttr 8 "26 Oct 2016" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "04 Jun 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -8,49 +8,51 @@ SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replica
 .SH SYNOPSYS
 \fBSAPHanaSR-showAttr\fR [ --help | --version ]
 .br
-\fBSAPHanaSR-showAttr\fR [ --sid=SID ] [ --ino=INO ] [ --sort=KEY ]
+\fBSAPHanaSR-showAttr\fR [ --sid=SID[:INO]] [ --sort=FIELD ] [ --cib=OFFLINE_CIB_FILE ]
 .\"
 .SH DESCRIPTION
 SAPHanaSR-showAttr shows Linux cluster attributes for SAP HANA system replication automation.
-The overall system replication (SR) state is shown as well as the HANA state on each node. If the HANA srHook method srConnectionChanged() is configured, the
-respective information is shown as well.
+The overall system replication (SR) state is shown as well as the HANA state on each node.
+Because the HANA srHook method srConnectionChanged() is used, the respective information
+shows up as well.
 .PP
-The output shows three sections:
+The output shows three sections, containing all or some of the listed fields:
+.\" TODO allowd values, meaning, see SAPHanaSR-showAttr from Scale-Up
 .TP
 Global section
 .br
 global (\fBGlobal\fP)
 .br
-primary replication site (\fBprim\fP)
+date and time of record (\fBcib-time\fP)
 .br
-secondary replication site (\fBsec\fP)
+HANA primary replication site (\fBprim\fP)
 .br
-replication state of secondary site, indicated by systemReplicationStatus.py (\fBsec_sync_state\fP)
+HANA secondary replication site (\fBsec\fP)
 .br
-replication channel state indicated by srConnectionChanged (\fBsrHook\fP)
+HANA replication channel state indicated by srConnectionChanged (\fBsrHook\fP)
+.br
+HANA replication state of secondary site, indicated by systemReplicationStatus.py (\fBsec_sync_state\fP)
 .TP
 Site section
-site name (\fBSite\fP)
+HANA site name (\fBSit\fP)
 .br
-last primary timestamp (\fBlpt\fP)
+SAPHanaSR last primary timestamp (\fBlpt\fP)
 .br
-landscape synchronisation status (\fBlss\fP)
+HANA landscape synchronisation status (\fBlss\fP)
 .br
-current master nameserver for that site (\fBmns\fP)
+HANA current master nameserver for that site (\fBmns\fP)
 .br
-system replication role (\fBsrr\fP)
+HANA system replication role (\fBsrr\fP)
 .TP
 Hosts section
 .br
-hostname (\fBHosts\fP)
+Linux hostname (\fBHosts\fP)
 .br
 state of the Linux cluster resource (\fBclone_state\fP)
 .br
 actual and configured roles for HANA on that node (\fBroles\fP)
 .br
 actual master score on that node (\fBscore\fP)
-.br
-site where the host sits (\fBsite\fP)
 .\" TODO sit ino sort
 .\"
 .SH OPTIONS
@@ -61,17 +63,18 @@ site where the host sits (\fBsite\fP)
 \fB --version\fR
         show version.
 .HP
-\fB --ino \fINUM\fR
-.br
-	use SAP instance number \fINUM\fR. Should be autodetected, if there is only one SAP HANA instance installed on the local cluster node. The SAP instance number must be represented by a two digit numer like 00, 05 or 42. Some numbers ares not allowed, f.e. 98.
-.HP
-\fB --sid \fISID\fR
+\fB --sid=\fISID\fR[:\fIINO\fR]
 .br
 	use SAP system ID \fISID\fR. Should be autodetected, if there is only one SAP HANA instance installed on the local cluster node. The SAP system ID is a 3 alphanum string with a valid SAP system name like SLE, HAE, FH1, C11, or P42.
+Optional: Use SAP instance number \fINUM\fR. Should be autodetected, if there is only one SAP HANA instance installed on the local cluster node. The SAP instance number must be represented by a two digit numer like 00, 05 or 42. Some numbers ares not allowed, e.g. 98.
 .HP
 \fB --sort \fIFIELD\fR
 .br
 	sort Hosts section table by field. Allowed values: roles, site. The default sort is by hostnames.
+.HP
+\fB --cib=\fIOFFLINE_CIB_FILE\fR
+.br
+read data from given offline CIB file.
 .\"
 .SH RETURN CODES
 .B 0
@@ -84,27 +87,38 @@ Usage, syntax or execution errors.
 .TP
 # SAPHanaSR-showAttr --sort roles
 show all SAPHanaSR attributes in the cluster and sort host table output by roles
+.TP
+# SAPHanaSR-showAttr --sid=HA1:10 --cib=./hb_report-17-07-2019/grauenstein01/cib.xml
+show all SAPHanaSR attributes for SAP iystem ID HA1 and instance number 10 from given CIB file.
 .\"
 .SH FILES
 .TP
 /usr/bin/SAPHanaSR-showAttr
 	the program itself.
 .TP
+/usr/lib/SAPHanaSR-ScaleOut/SAPHanaSRTools.pm
+	needed functions.
+.TP
 /usr/sap/hostctrl/exe/saphostctrl
 	the SAP host control command.
 .\"
 .SH BUGS
 Formatting and content of this script's output will change, since this script
-is under development.
+is under development. This script is not intended to be called from monitoring tools.
+For monitoring please use SAPHanaSR-monitor instead.
 Feedback is welcome, please mail to feedback@suse.com.
 .\"
 .SH SEE ALSO
 \fBocf_suse_SAPHanaController\fP(7) , \fBocf_suse_SAPHanaTopology\fP(7) ,
-\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-monitor\fP(8) , \fBcibadmin\fP(8) , 
+\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-replay-archive\fP(8) , 
+\fBSAPHanaSR-monitor\fP(8) , \fBcrm_simulate\fP(8) , \fBcibadmin\fP(8) ,
+\fBcrm_mon\fP(8) , \fBcs_clusterstate\fP(8) , \fBcs_show_hana_info\fP(8) ,
+\fBcs_show_scores\fP(8) ,
 .br
 https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
 .br
 https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
+.\" TODO SUSECON 2020
 .\"
 .SH AUTHORS
 F.Herschel, L.Pinne.
@@ -114,7 +128,7 @@ F.Herschel, L.Pinne.
 .br
 (c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
-(c) 2017-2019 SUSE LLC
+(c) 2017-2020 SUSE LLC
 .br
 SAPHanaSR-showAttr comes with ABSOLUTELY NO WARRANTY.
 .br
