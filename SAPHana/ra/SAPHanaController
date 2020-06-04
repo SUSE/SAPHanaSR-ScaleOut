@@ -1205,6 +1205,7 @@ function saphana_start() {
     #
     # DONE: ASK: PRIO5: For SCALE-OUT - do we need to use an other call like StartSystem? Or better to use the HDB command?
     #
+# TODO: PRIO0: Fuer die get_SRHOOK und set_SRHOOK Befehle noch mit scale-up abgleichen, wann die eigene Site, wann die remote site benoetigt wird
     if is_the_master_nameserver; then
         if [ $rc -eq $OCF_SUCCESS ]; then
             set_hana_attribute "X" "SWAIT" "${ATTR_NAME_HANA_SRHOOK[@]}"
@@ -2595,6 +2596,7 @@ function saphana_monitor_clone() {
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
     my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+### TODO: PRIO0: CHECK, IF WE NEED OWN OR REMOTE ATTRIBUTE !!!!
     my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
     if [ -z "$my_sync" ]; then
         my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
@@ -2747,6 +2749,7 @@ function saphana_promote_clone() {
                         fi
                         if check_for_primary; then
                             rc=$OCF_SUCCESS;
+# TODO: PRIO0: !!!
                             set_hana_attribute "X" "SWAIT" "${ATTR_NAME_HANA_SRHOOK[@]}"
                         else
                             rc=$OCF_FAILED_MASTER
