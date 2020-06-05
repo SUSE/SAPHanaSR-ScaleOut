@@ -73,8 +73,211 @@ HANA virtual host name (\fBvhost\fP)
 .PP
 Some fields are generated dynamically from the CIB. That fields might be missing,
 if no corresponding attribute exists, e.g. the standby field.
-.\" TODO explain allowd values, meaning, see SAPHanaSR-showAttr from Scale-Up
-.\" An incomplete compilation on field details and purpose follows below.
+An incomplete compilation on field details and purpose follows below.
+.\" TODO formatting below. better no indents, but bold item header?
+.\" TODO check details for Scale-Out
+.PP
+.B Hosts
+- Linux hostname
+
+Value: [ \fIHOSTNAME\fR ]
+.\" TODO details. SAP allows up to 13 characters, SAP note. See also field vhost.
+See also the  fields remoteHost and vhost.
+.PP
+.B clone_state
+- state of the Linux cluster resource
+
+Value: [ PROMOTED | DEMOTED | UNDEFINED | WAITING4PRIM | WAITING4NODES | WAITING4REG ]
+
+.\" TODO: what kind of attribute?
+This variable is set by the SAPHana resource agent.
+.br
+PROMOTED marks the master state of the instance, wich makes a HANA SR primary.
+.br
+DEMOTED makes a HANA SR secondary.
+The DEMOTED state can be transient, on the way to promoting.
+.br
+WAITING4PRIM indicates potential risk of a dual primary situation. See section
+DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
+.PP
+.B lpt
+- last primary timestamp
+
+Value: [ \fIUNIX_EPOCH\fR | 30 | 10 | 0 ]
+
+The node attribute lpa_<sid>_lpt is set by the SAPHana resource agent.
+When the RA detects a running HANA SR primary on the node, it records the Unix Epoch time.
+See section DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
+.br
+Auxiliary values are set for an HANA SR secondary. 30 means the instance is
+evictable for primary. 10 means: not yet ready.
+.PP
+.B node_state
+- state of the Linux cluster node
+
+Value: [ online | offline ]
+.\" TODO UNCLEAN | pending ?
+.PP
+.B op_mode
+- HANA SR operations mode
+
+Value: [ logreplay | delta_datashipping | logreplay_readaccess ]
+
+The node attribute hana_<sid>_op_mode is set by SAPHanaTopology, according to the running HANA. The attribute is used by the SAPHana resource agent for setting up system replication. delta_datashipping is not recommended in the context of Linux clusters.
+.PP
+.B remoteHost
+- HANA SR remote host
+
+Value: [ \fIHOSTNAME\fR ]
+.\" TODO [ \fIHOSTNAME\fR | \fIHANA_VIRT_HOSTNAME\fR ] ?
+
+The node attribute hana_<sid>_remoteHost is set by SAPHanaTopology, according to the running HANA.
+The attribute is used by the SAPHana resource agent for setting up system replication.
+See also the fields Hosts and vhost.
+.PP
+.B roles
+- actual and configured roles for HANA on that node
+
+The roles field in the Hosts section has up to six sub-fields.
+.br
+
+Field 1: return code
+.br
+Value: [ 4 | 3 | 2 | 1 | 0 ]
+.br
+.\"TODO This variable is determined by
+This parameter does not tell you if the secondary system is ready for a takeover.
+The meaning is different from common Linux return codes.
+.br
+4 = OK - Everything looks perfect on the HANA primary.
+.br
+3 = WARNING - A HANA Host Auto-Failover is taking place.
+.br
+2 = INFO - The landscape is completely functional, but the actual role of the host differs from the configured role.
+.br
+1 = DOWN - There are not enough active hosts.
+.br
+0 = FATAL - Internal script error, the state could not be determined.
+.br
+see landscapeHostConfiguration.py
+.br
+
+Field 2: HANA SR role
+.br
+Value: [ "P"rimary | "S"econdary ]
+.br
+
+Field 3: NameServer Config Role
+.br
+Value: [ master1 | master2 | master3 | worker | slave | standby | shtdown ]
+.br
+
+Field 4: NameServer Actual Role
+.br
+Value: [ master | slave | standby | shtdown ]
+.br
+
+Field 5: IndexServer Config Role
+.br
+Value: [ master1 | master2 | master3 | worker | slave | standby | shtdown ]
+.br
+
+Field 6: IndexServer Actual Role
+.br
+Value: [ master | worker | slave | standby | shtdown ]
+.br
+
+The sub-fields 3-6 are primarily useful for HANA scale-out.
+.\" TODO scale-out
+.\" scale-out: master1:master:worker:master | master1:slave:standby:standby | :shtdown:shtdown:shtdown | ... [ master1 | master2 | master3 | worker | slave | shtdown ]
+For scale-up that four fields should be master1:master:worker:master.
+.\" TODO or ":shtdown:shtdown:shtdown"
+.PP
+.B score
+- actual master score on that node
+
+.\"scale-up:
+.\"Value: [ 150 | 140 | 100 | 90 | 80 | 60 | 0 | -1 | -INFINITY ]
+Value: [ 150 | 140 | 115 | 110 | 100 | 80 | 70 | 60 | 0 | -1 | -10000 | -12200 | -22100 | -22200 | -32300 | -33333 | -INFINITY ]
+
+This is a variable of the SAPHana resource agent. It is calculated based on an internal
+scoring table. A value of 150 should cause the Linux cluster promoting the local resource
+instance to HANA SR primary master nameserver.
+140 indicates the HANA secondary master nameserver. This field should not be empty.
+.PP
+.B site
+- HANA site where the host sits
+
+Value: [ \fIHANA_SITE\fR ]
+
+The node attribute hana_<sid>_site is set by SAPHanaTopology, according to the running HANA.
+The attribute is used by the SAPHana or SAPHanaController resource agent for setting up
+system replication.
+A dash (-) indicates the RA did not run or did not recognize the site.
+.PP
+.B srmode
+- HANA SR mode
+
+Value: [ sync | syncmem ]
+
+The node attribute hana_<sid>_srmode is set by SAPHanaTopology, according to the running HANA.
+The attribute is used by the SAPHana or SAPHanaController resource agent for setting up system
+replication. SAP HANA knows also async and fullsync (see URLs below).
+Those do not make sense for automating HANA system replication by an Linux cluster.
+.PP
+.B standby
+- maintenance state of Linux cluster node
+
+Value: [ on | off ]
+
+This is a Linux Cluster node attribute. It is set by an admin.
+The attribute is shown after it has been changed from the default.
+The field might appear or disappear, depending on cluster maintenance tasks.
+.PP
+.B sync_st
+and \fBsync_state\fR
+- HANA SR status
+
+Value: [ SOK | SFAIL | SWAIT | PRIM ]
+
+.\"TODO cluster property sync_state ?
+The cluster property sync_state is set by the SAPHana or SAPHanaController resource agent.
+The first three values are representing an HANA system replication status,
+recognized at latest RA run, see ocf_suse_SAPHana(7), ocf_suse_SAPHanaController(7) and
+systemReplicationStatus.py .
+.br
+The 4th value (PRIM) just indicates an HANA SR primary.
+.PP
+.\" TODO check srHook
+.B srHook
+
+Value: [ SOK | SFAIL | SWAIT | PRIM ]
+
+The cluster property hana_<sid>_site_srHook_<site> represents the HANA SR status from
+HA/DR provider API.
+.PP
+.B version
+- HANA version
+
+Value: [ \fIHANA_VERSION\fR ]
+
+.\"TODO set by ...
+Version of the HANA instance on that node. Of course, should be supported for
+the given Linux version.
+Should be same on all nodes, except during specific HANA upgrade procedure.
+.PP
+.B vhost
+- HANA virtual hostname
+
+Value: [ \fIHANA_VIRT_HOSTNAME\fR ]
+
+The virtual hostname is used by the HANA instance instead of Linux hostname.
+The node attribute hana_<sid>_vhost is set by SAPHanaTopology, according to the running HANA.
+The attribute is used by the SAPHana orSAPHanaController  resource agent for setting up system
+ replication.
+See also the  fields Hosts and remoteHost. SAPHanaToplogy needs the SAPHOSTAGENT to map from the local
+hostname to the HANA virtual hostname.
+.\" TODO details, see HANA global.ini
 .\"
 .SH OPTIONS
 .HP
