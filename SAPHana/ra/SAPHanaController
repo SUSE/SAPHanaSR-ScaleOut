@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.165.1"
+SAPHanaControllerVersion="0.170.0"
 #
 # Initialization:
 timeB=$(date '+%s')
