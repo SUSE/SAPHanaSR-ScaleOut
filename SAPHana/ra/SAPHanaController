@@ -2512,10 +2512,8 @@ function saphana_monitor_secondary()
             ;;
         2 | 3 | 4 ) # WARN INFO OK
             rc=$OCF_SUCCESS
-            sync_attr=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
-            if [ -z "$sync_attr" ]; then
-                sync_attr=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-            fi
+            # saphana_monitor_secondary - get SR attribute of OWN site (TODO: PRIO3: do we need to allow multi targets)
+            sync_attr=$(get_SRHOOK "$sr_name")
             local hanaOM=""
             local hanaOut1=""
             # TODO: PRIO 3: check, if using getParameter.py is the best option to analyze the set operationMode
@@ -2722,10 +2720,7 @@ function saphana_promote_clone() {
                 rc=$OCF_ERR_GENERIC
                 ;;
             * )
-                hana_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
-                if [ -z "$hana_sync" ]; then
-                    hana_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-                fi
+                hana_sync=$(get_SRHOOK "$sr_name")
                 case "$hana_sync" in
                      SOK )
                         if is_the_master_nameserver; then
