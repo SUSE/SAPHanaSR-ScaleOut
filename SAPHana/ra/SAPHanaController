@@ -1205,10 +1205,9 @@ function saphana_start() {
     #
     # DONE: ASK: PRIO5: For SCALE-OUT - do we need to use an other call like StartSystem? Or better to use the HDB command?
     #
-# TODO: PRIO0: Fuer die get_SRHOOK und set_SRHOOK Befehle noch mit scale-up abgleichen, wann die eigene Site, wann die remote site benoetigt wird
+    # set_SRHOOK() removed here. saphana_start() is used for primary and secondaries but would need different attribute values
     if is_the_master_nameserver; then
         if [ $rc -eq $OCF_SUCCESS ]; then
-            set_hana_attribute "X" "SWAIT" "${ATTR_NAME_HANA_SRHOOK[@]}"
             output=$($SAPCONTROL -nr $InstanceNr -function StartSystem)
             rc=$?
             super_ocf_log info "ACT: SAPHANA START: Starting System $SID-$InstanceName: $output"
