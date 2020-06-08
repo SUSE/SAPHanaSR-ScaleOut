@@ -2530,13 +2530,9 @@ function saphana_monitor_secondary()
                     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                     my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                    my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
-                    my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-                    my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
-                    if [ -z "$my_sync" ]; then
-                        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-                    fi
+                    my_srr=$(get_hana_attribute "X" "${ATTR[@]}"
                     my_role="${my_lss}:${my_srr}:${my_role}"
+                    my_sync=$(get_SRHOOK "$sr_name")
                     scoring_crm_master "$my_role" "$my_sync"
                     ;;
                 "SFAIL" ) # This is currently NOT a possible node to promote
