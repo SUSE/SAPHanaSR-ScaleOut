@@ -735,6 +735,9 @@ function saphana_init() {
     # SITE based attributes
     #
     LPA_ATTR=("hana_${sid}_site_lpt" "props")
+    #
+    # for MULTI-TARGET the ra needs a per-site attribute - not only a global one
+    #
     ATTR_NAME_HANA_SRHOOK=("hana_${sid}_site_srHook" "props")                    # external triggered SOK, SFAIL
     ATTR_NAME_HANA_LSS=("hana_${sid}_site_lss" "props")
     ATTR_NAME_HANA_SRR=("hana_${sid}_site_srr" "props")
@@ -2589,7 +2592,7 @@ function saphana_monitor_clone() {
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
     my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-### TODO: PRIO0: CHECK, IF WE NEED OWN OR REMOTE ATTRIBUTE !!!!
+    ### TODO: PRIO0: CHECK, IF WE NEED OWN OR REMOTE ATTRIBUTE !!!!
     my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
     if [ -z "$my_sync" ]; then
         my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
@@ -2739,7 +2742,7 @@ function saphana_promote_clone() {
                         fi
                         if check_for_primary; then
                             rc=$OCF_SUCCESS;
-# TODO: PRIO0: !!!
+                            # TODO: PRIO0: !!!
                             set_hana_attribute "X" "SWAIT" "${ATTR_NAME_HANA_SRHOOK[@]}"
                         else
                             rc=$OCF_FAILED_MASTER
