@@ -1358,7 +1358,7 @@ function saphana_start_primary()
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
     # saphana_start_primary - set SR attribute of primary to "PRIM"
-    my_sync=$(get_SRHOOK "$sr_name" "prim")
+    my_sync=$(set_SRHOOK "$sr_name" "prim")
     case "$lpa_dec" in
         0) lpa_advice="start" ;;
         1) lpa_advice="register" ;;
