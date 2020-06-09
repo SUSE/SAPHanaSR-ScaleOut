@@ -2740,8 +2740,8 @@ function saphana_promote_clone() {
                         fi
                         if check_for_primary; then
                             rc=$OCF_SUCCESS;
-                            # TODO: PRIO0: !!!
-                            set_hana_attribute "X" "SWAIT" "${ATTR_NAME_HANA_SRHOOK[@]}"
+                            # DONE: PRIO0: !!!
+                            set_SRHOOK "$remSR_name" "SWAIT"
                         else
                             rc=$OCF_FAILED_MASTER
                         fi
