@@ -1406,7 +1406,7 @@ function saphana_start_primary()
                     # DONE: PRIO2: Like Action in start_secondary
                     super_ocf_log info "LPA: landscape: DOWN, LPA: register ==> try to register"
                     super_ocf_log info "DEC: AN OTHER HANA IS AVAILABLE ==> LETS REGISTER"
-                    # TODO: PRIO0: For all master nodes of that site
+                    # DONE: PRIO0: For all master nodes of that site
                     set_crm_master  0
                     for m in "${masters[@]}"; do
                         set_crm_master  0 $m
