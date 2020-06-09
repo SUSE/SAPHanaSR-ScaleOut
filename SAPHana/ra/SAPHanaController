@@ -2357,8 +2357,9 @@ function saphana_monitor_primary()
                                 never | NEVER | Never )
                                     # TODO: PRIO 2: How to handle this attribute for srHOOK with NEVER?
                                     # Currently it is NOT allowed to implement the srHook together with the (unsupported) preferSitetakeover 'never'
-                                    # TODO: PRIO0: Check, if we need also to set the HOOK value or not??
+                                    # DONE: PRIO0: Check, if we need also to set the HOOK value or not??
                                     set_hana_attribute "X" "SNA" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
+                                    set_SRHOOK "$remSR_name" "SNA"
                                     ;;
                                 * )
                                     # TODO: PRIO 5: We could limit the analyze_hana_sync_statusSRS later
