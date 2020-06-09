@@ -2592,11 +2592,7 @@ function saphana_monitor_clone() {
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
     my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-    ### TODO: PRIO0: CHECK, IF WE NEED OWN OR REMOTE ATTRIBUTE !!!!
-    my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SRHOOK[@]}")
-    if [ -z "$my_sync" ]; then
-        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-    fi
+
     my_role="${my_lss}:${my_srr}:${my_role}"
 
     # TODO: PRIO2: check where we need to differ probes and regulary monitor calls
@@ -2664,6 +2660,8 @@ function saphana_monitor_clone() {
             fi
             #
         else
+            # for self-scoring always use the local sites SR-attribute
+            my_sync=$(get_SRKOOK "$sr_name")
             scoring_crm_master "$my_role" "$my_sync"
             # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
             #              This reflects the situation that swarm members get be started (as resource)
