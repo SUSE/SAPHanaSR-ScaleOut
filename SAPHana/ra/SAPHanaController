@@ -2473,7 +2473,7 @@ function saphana_monitor_secondary()
                 fi
                 promoted=0;
                 ;;
-            WAITING4NODES ) # TODO: PRIO0: HOW TO HANDLE WAITING4NODES IN DETAIL
+            WAITING4NODES ) # TODO: PRIO1: HOW TO HANDLE WAITING4NODES IN DETAIL
                 super_ocf_log info "ACT: Site still in status WAITING4NODES."
                 saphana_start_clone
                 promoted=0;
