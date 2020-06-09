@@ -2368,15 +2368,14 @@ function saphana_monitor_primary()
                                     #       of results of the SAP interfaces
                                     analyze_hana_sync_statusSRS
                                     if [ "$my_sync" = "SWAIT" ]; then
-                                        # TODO: PRIO0: Check, if we really should overwrite "SWAIT" or keep that value
+                                        # DONE: PRIO0: Check, if we really should overwrite "SWAIT" or keep that value
                                         # if we still did not got a hook time since the cluster start-up maybe the
                                         # HANA was already in (stable) sync, so the HANA Hook would never been called till
                                         # a new event comes up. This is why we transfer the 'polled' attribute to the Hook attribute.
                                         my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
+                                        # TODO: PRIO0: SCOPY is only to test - change to $my_sync later
+                                        set_SRHOOK "$remSR_name" "SCOPY"
                                         super_ocf_log info "DEC: ${ATTR_NAME_HANA_SRHOOK[0]} was still SWAIT, so copy attribute ${ATTR_NAME_HANA_SEC_SYNC_STATUS[0]} ($my_sync)"
-# TODO: PRIO0: !!!
-                                        set_hana_attribute "X" "$my_sync" "${ATTR_NAME_HANA_SRHOOK[@]}"
-                                        ####
                                     fi
                                     ;;
                             esac
