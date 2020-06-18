@@ -1,6 +1,6 @@
-.\" Version: 0.165.0
+.\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "4 Jun 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "18 Jun 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -207,8 +207,9 @@ Linux system.
 replicating node which needs to be stopped during take-over. Both HANA
 database systems are running memory-preload.
 .PP
-5. Only one system replication for the SAP HANA database.
-.\" TODO the above?
+5. Only one system replication between the two SAP HANA database system in
+the Linux cluster. Maximum one system replication to an HANA database outside
+the Linux cluster. See also item 9 below.
 .PP
 6. Both SAP HANA database systems have the same SAP Identifier (SID)
 and Instance Number.
