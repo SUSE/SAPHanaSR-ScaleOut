@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-showAttr 8 "16 Jun 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "18 Jun 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -188,7 +188,7 @@ Value: [ master | worker | slave | standby | shtdown ]
 .br
 
 The sub-fields 3-6 are primarily useful for HANA scale-out.
-.\" TODO scale-out
+.\" TODO details for scale-up
 .\" scale-out: master1:master:worker:master | master1:slave:standby:standby | :shtdown:shtdown:shtdown | ... [ master1 | master2 | master3 | worker | slave | shtdown ]
 For scale-up that four fields should be master1:master:worker:master.
 .\" TODO or ":shtdown:shtdown:shtdown"
@@ -205,6 +205,9 @@ scoring table. A value of 150 should cause the Linux cluster promoting the local
 instance to HANA SR primary master nameserver.
 140 indicates a HANA primary master nameserver candidate. 
 100 indicates the HANA secondary master nameserver. This field should not be empty.
+
+Note: The effective resource scoring used by the Linux cluster differs from the above
+values because the cluster engine takes into account other factors as well.  
 .PP
 .B site
 - HANA site where the host sits
