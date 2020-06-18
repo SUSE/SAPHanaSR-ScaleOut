@@ -1,6 +1,6 @@
-.\" Version: 0.165.0
+.\" Version: 0.170.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "04 Jun 2020" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "18 Jun 2020" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -255,6 +255,17 @@ hana_SLE_glob_filter="ra-act-dec-lpa"
 .RS 4
 # grep "SAPHanaController.*RA.*rc=[1-7,9]" /var/log/messages
 .\" TODO: output
+.RE
+.PP
+* Manually trigger an SAPHanaSRController probe action. Output goes to the
+usual logfiles.
+.PP
+.RS 4
+# OCF_ROOT=/usr/lib/ocf/ OCF_RESKEY_SID=HA1 OCF_RESKEY_InstanceNumber=00
+OCF_RESKEY_CRM_meta_clone_max=6 OCF_RESKEY_CRM_meta_clone_node_max=1
+OCF_RESKEY_CRM_meta_master_node_max=1 OCF_RESKEY_CRM_meta_master_max=1
+OCF_RESKEY_CRM_meta_interval=0
+/usr/lib/ocf/resource.d/suse/SAPHanaController monitor
 .RE
 .PP
 * Check for working NTP service:
