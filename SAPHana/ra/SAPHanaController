@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.0"
+SAPHanaControllerVersion="0.170.3"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -2668,8 +2668,18 @@ function saphana_monitor_clone() {
             #
         else
             # for self-scoring always use the local sites SR-attribute
-            my_sync=$(get_SRKOOK "$sr_name")
-            scoring_crm_master "$my_role" "$my_sync"
+            ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
+            my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
+            ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
+            my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+            my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+            my_sync=$(get_SRHOOK "$sr_name")
+            #
+            # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
+            #
+            my_hana_role="${my_lss}:${my_srr}:${my_role}"
+            super_ocf_log info "DEC: scoring $my_hana_role : $my_sync"
+            scoring_crm_master "$my_hana_role" "$my_sync"
             # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
             #              This reflects the situation that swarm members get be started (as resource)
             #              before the master nameserver runs the StartSystem command
@@ -2737,7 +2747,7 @@ function saphana_promote_clone() {
                             # TODO PRIO5: 145 should not be static but come from the scoring table
                             set_crm_master 145
                             set_hana_attribute "$NODENAME" "-" "${ATTR_NAME_HANA_SEC[@]}"
-                            set_SRHOOK "$sr_name" "prim"
+                            set_SRHOOK "$sr_name" "PRIM"
                             su - $sidadm -c "hdbnsutil -sr_takeover"
                             backup_global_and_nameserver
                             #
