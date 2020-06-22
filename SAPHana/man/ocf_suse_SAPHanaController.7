@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "18 Jun 2020" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "20 Jun 2020" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -207,7 +207,7 @@ In addition, log entries are written, which can be scanned by using a pattern li
 .\"
 .SH EXAMPLES
 * Below is an example configuration for a SAPHanaController master/slave resource in an HANA scale-out performance-optimised scenario.
-.RS 2
+.br
 The HANA consists of two sites with five nodes each. An additional cluster node is used as majority maker for split-brain situations. In addition, a SAPHanaTopology clone resource is needed to make this work.
 .RE
 .PP
@@ -268,10 +268,19 @@ OCF_RESKEY_CRM_meta_interval=0
 /usr/lib/ocf/resource.d/suse/SAPHanaController monitor
 .RE
 .PP
-* Check for working NTP service:
+* Check for working NTP service on ntpd-based systems:
 .PP
 .RS 4
 # ntpq -p
+.\" TODO: output
+.RE
+.PP
+.RS 2
+Respectively on chronyd-based systems:
+.RE
+.PP
+.RS 4
+# chronyc sources
 .\" TODO: output
 .RE
 .PP
@@ -357,21 +366,6 @@ nodeA: 30
 nodeB: 1479202132
 .RE
 .PP
-* Overview on maintenance procedure for HANA, the Linux cluster remains running.
-.RS 2
-1. set the Linux cluster into maintenance mode (crm configure property maintenance-mode=true)
-.br
-2. perform the HANA maintenance, e.g. update to latest SPS
-.br
-3. set the SAPHanaController master/slave resource to unmanaged (crm resource unmanage ...)
-.br
-4. set the Linux cluster back into ready mode (crm configure property maintenance-mode=false)
-.br
-5. cleanup the SAPHanaController master/slave resource (crm resource cleanup ...)
-.br
-6. set the SAPHanaController master/slave resource back to managed (crm resource manage ...)
-.RE
-.PP
 .\"
 .SH FILES
 .TP
@@ -395,7 +389,7 @@ For the current version of the SAPHanaController resource agent that comes with 
 .PP
 .\"
 .SH SEE ALSO
-\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_heartbeat_IPaddr2\fP(8) , \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) , \fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBcrm\fP(8) 
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_heartbeat_IPaddr2\fP(8) , \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR_maintenance_examples\fP(7) ,  \fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBcrm\fP(8) 
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
