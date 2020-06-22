@@ -1361,7 +1361,6 @@ function saphana_start_primary()
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
     # saphana_start_primary - set SR attribute of primary to "PRIM"
-    my_sync=$(set_SRHOOK "$sr_name" "prim")
     case "$lpa_dec" in
         0) lpa_advice="start" ;;
         1) lpa_advice="register" ;;
@@ -1372,7 +1371,8 @@ function saphana_start_primary()
     esac
 
     case "$lpa_advice" in
-        start )  # process a normal START
+        start )  # process a normal START            
+            set_SRHOOK "$sr_name" "PRIM"; my_sync="PRIM"
             case "$lss" in
                 2 | 3 | 4 ) # as landcape says we are up - just set the scores and return code
                     super_ocf_log info "LPA: landscape: UP, LPA: start ==> keep running"
