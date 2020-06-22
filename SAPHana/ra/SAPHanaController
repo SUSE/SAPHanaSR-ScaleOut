@@ -2728,9 +2728,10 @@ function saphana_promote_clone() {
                             lpa_push_lpt $LPTloc
                             backup_global_and_nameserver
                             set_hana_attribute "$NODENAME" "$sr_name" "${ATTR_NAME_HANA_PRIM[@]}"
-                            # TODO PRIO5: 122 should not be static but come from the scoring table
-                            set_crm_master 122
+                            # TODO PRIO5: 145 should not be static but come from the scoring table
+                            set_crm_master 145
                             set_hana_attribute "$NODENAME" "-" "${ATTR_NAME_HANA_SEC[@]}"
+                            set_SRHOOK "$sr_name" "prim"
                             su - $sidadm -c "hdbnsutil -sr_takeover"
                             backup_global_and_nameserver
                             #
