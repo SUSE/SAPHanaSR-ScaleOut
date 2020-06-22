@@ -2437,6 +2437,7 @@ function saphana_monitor_secondary()
     local promoted=0
     local init_attribute=0
     local lss
+    local my_role
     #
     # OK, we are running as HANA SECONDARY
     #
