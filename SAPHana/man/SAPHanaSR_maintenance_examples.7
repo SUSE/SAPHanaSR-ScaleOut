@@ -75,7 +75,8 @@ If everything looks fine, proceed.
 ~> sapcontrol ­nr 10 ­function StopSystem HDB
 .\"~> HDB stop
 .br
-~> sapcontrol ­nr 10 ­function TODO
+.\" TODO: check the below
+~> sapcontrol ­nr 10 ­function GetSystemInstanceList
 .br
 Only proceed, if you are absolutely shure, the HANA primary really is down.
 .RE
@@ -231,8 +232,9 @@ In case of any problem, please use your favourite SAP support process to open a 
 \fBcrm\fP(8) , \fBcrm_simulate\fP(8) , \fBcrm_mon\fP(8) ,
 .br
 https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
-https://www.suse.com/media/presentation/TUT90846_towards_zero_downtime%20_how_to_maintain_sap_hana_system_replication_clusters.pdf
+https://www.suse.com/media/presentation/TUT90846_towards_zero_downtime%20_how_to_maintain_sap_hana_system_replication_clusters.pdf ,
 .br
+https://help.sap.com/doc/eb75509ab0fd1014a2c6ba9b6d252832/1.0.12/en-US/SAP_HANA_Administration_Guide_en.pdf
 .PP
 .\"
 .SH AUTHORS
