@@ -18,7 +18,7 @@ Please see also the REQUIREMENTS section below.
 using the Linux cluster. 
 .br
 This procedure does not work for scale-out.
-If the cluster should also register the former primary as secondary, AUTOMATED_REGISTER="true" is needed. Before the takeover will be initiated, the status of the Linux cluster and the HANA system replication has to be checked. The takeover should only be initiated as forced migration. After takeover of the primary has been finished, the migration rule has to be deleted. If AUTOMATED_REGISTER="true" is set, finally the former primary will be registred as secondary, once the migration rule has been deleted.
+If the cluster should also register the former primary as secondary, AUTOMATED_REGISTER="true" is needed. Before the takeover will be initiated, the status of the Linux cluster and the HANA system replication has to be checked. The takeover should only be initiated as forced migration. After takeover of the primary has been finished, the migration rule has to be deleted. If AUTOMATED_REGISTER="true" is set, finally the former primary will be registered as secondary, once the migration rule has been deleted.
 .PP
 .RS 2
 # crm_mon -1r
@@ -40,12 +40,11 @@ If the cluster should also register the former primary as secondary, AUTOMATED_R
 # SAPHanaSR-showAttr
 .RE
 .PP
-Note: Former versions of the Linux cluster used "migrate" instead of "move" and "unmigrate" instead of "clear".  
+Note: Former versions of the Linux cluster used "migrate" instead of "move" and "unmigrate" instead of "clear".
 .PP
 \fB*\fR Perform an SAP HANA takeover by using SAP tools. 
 .br
-The procedures is described here for scale-up. If the commands for stopping and starting the
-HANA database are adapted, it works for scale-out as well. 
+The procedures is described here for scale-out. It works for scale-up as well. 
 The status of HANA databases, system replication and Linux cluster has to be checked. The SAP
 HANA resources are set into maintenance, an sr_takeover is performed, the old primary is
 registered as new secondary and finally the SAP HANA resources are given back to the Linux
@@ -67,56 +66,54 @@ If everything looks fine, proceed.
 # crm resource maintenance msl_SAPHana_SLE_HDB10
 .br
 # crm_mon -1r
-.br
 .RE
-2. On the HANA primary node (e.g. node1)
+2. On the HANA primary master nameserver (e.g. node11)
 .RS 2
 .br
 # su - sleadm
 .br
-~> HDB stop
+~> sapcontrol ­nr 10 ­function StopSystem HDB
+.\"~> HDB stop
 .br
+~> sapcontrol ­nr 10 ­function TODO
+.br
+Only proceed, if you are absolutely shure, the HANA primary really is down.
 .RE
-3. On the HANA secondary node (e.g. node2)
+3. On the HANA secondary master nameserver (e.g. node21)
 .RS 2
 .br
 # su - sleadm
 .br
 ~> hdbsnutil -sr_takeover
 .br
-~> cdpy
+~> HDBsettings.sh systemReplicationStatus.py; echo RC:$?
 .br
-~> python ./systemReplicationStatus.py; echo $?
-.br
-~> python ./landscapeConfigurationStatus.py; echo $? 
+~> HDBsettings.sh landscapeHostConfiguration.py; echo RC:$?
 .br
 If everything looks fine, proceed.
-.br
 .RE
-4. On the former HANA primary, now future secondary node (e.g. node1)
+4. On the former HANA primary master nameserver, now future secondary master nameserver (e.g. node11)
 .RS 2
 .br
-~> hdbsnutil -sr_register --remoteHost=node2 --remoteInstance=10 --replicationMode=sync
+~> hdbsnutil -sr_register --remoteHost=node21 --remoteInstance=10 --replicationMode=sync
 --name=site2 --operationMode=logreplay
 .br
-~> HDB start
+~> sapcontrol ­nr 10 ­function StartSystem HDB
+.\"~> HDB start
 .br
 ~> exit
 .br
 .RE
-5. On the new HANA primary node (e.g. node2)
+5. On the new HANA primary master nameserver (e.g. node21)
 .RS 2
 .br
-~> cdpy
+~> HDBsettings.sh systemReplicationStatus.py; echo RC:$?
 .br
-~> python ./systemReplicationStatus.py; echo $? 
-.br
-~> python ./landscapeConfigurationStatus.py; echo $? 
-.br
-If everything looks fine, proceed.
+~> HDBsettings.sh ./landscapeConfigurationStatus.py; echo RC:$?
 .br
 ~> exit
 .br
+If everything looks fine, proceed.
 .RE
 6. On either node
 .RS 2
@@ -160,17 +157,17 @@ If everything looks fine, proceed.
 \fB*\fR Overview on maintenance procedure for HANA, the Linux cluster remains running, on pacemaker-1.0.
 .PP
 .RS 2
-1. Set the Linux cluster into maintenance mode (crm configure property maintenance-mode=true)
+1. Set the Linux cluster into maintenance mode (crm configure property maintenance-mode=true).
 .br
-2. Perform the HANA maintenance, e.g. update to latest SPS
+2. Perform the HANA maintenance, e.g. update to latest SPS.
 .br
-3. Set the SAPHanaController master/slave resource to unmanaged (crm resource unmanage <resource>)
+3. Set the SAPHanaController master/slave resource to unmanaged (crm resource unmanage <resource>).
 .br
-4. Set the Linux cluster back into ready mode (crm configure property maintenance-mode=false)
+4. Set the Linux cluster back into ready mode (crm configure property maintenance-mode=false).
 .br
-5. Cleanup the SAPHanaController master/slave resource (crm resource cleanup <resource> node <node>)
+5. Cleanup the SAPHanaController master/slave resource (crm resource cleanup <resource> node <node>).
 .br
-6. Set the SAPHanaController master/slave resource back to managed (crm resource manage <resource>)
+6. Set the SAPHanaController master/slave resource back to managed (crm resource manage <resource>).
 .br
 7. Check if everything looks fine (crm_mon -1r, cs_clusterstate -i,
  SAPHanaSR-showAttr).
@@ -178,7 +175,27 @@ If everything looks fine, proceed.
 .RE
 Note: The YaST module hana_updater does something similar, combined with an
 administrative takeover.
-.\"TODO: On pacemaker-2.0 respectively
+.PP
+On pacemaker-2.0 respectively do the following. 
+.PP
+1. Set the SAPHanaController master/slave resource into maintenance mode.
+.RS 2
+# crm resource maintenance msl_SAPHanaCon_SLE_HDB10
+.RE
+2. Perform the HANA maintenance, e.g. update to latest SPS.
+.br
+3. Tell the cluster to forget about HANA states and to reprobe the resources.
+.RS 2
+# crm resource refresh msl_SAPHanaCon_SLE_HDB10
+.RE
+4. Set the SAPHanaController master/slave resource back to managed.
+.RS 2
+# crm resource maintenance msl_SAPHanaCon_SLE_HDB10 off
+.RE
+.PP
+The two procedures must not be mixed. If the procedure for pacemaker-1.0 has been
+used, left-over maintenance attribute have to be removed from the CIB before
+proceeding with the new procedure for pacemaker-2.0.
 .PP
 .\"
 .SH FILES
@@ -199,6 +216,7 @@ intervalls and timeouts.
 left-over migration constraints, and resource failures as well as the HANA
 landscape status, and the HANA SR status.
 .PP
+\fB*\fR Maintenance attributes for cluster, nodes and resources must not be mixed.
 .\"
 .SH BUGS
 .\" TODO
