@@ -1371,7 +1371,7 @@ function saphana_start_primary()
     esac
 
     case "$lpa_advice" in
-        start )  # process a normal START            
+        start )  # process a normal START
             set_SRHOOK "$sr_name" "PRIM"; my_sync="PRIM"
             case "$lss" in
                 2 | 3 | 4 ) # as landcape says we are up - just set the scores and return code
@@ -1437,6 +1437,7 @@ function saphana_start_primary()
             esac
             ;;
         wait )  # process a WAIT
+            set_SRHOOK "$sr_name" "PRIM"); my_sync="PRIM"
             case "$lss" in
                 2 | 3 | 4 ) # as we ARE up we just keep it up
                     # TODO: PRIO3: I now change from "just keep it up to take that down"
