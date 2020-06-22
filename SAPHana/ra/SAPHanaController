@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.0"
+SAPHanaControllerVersion="0.170.3"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -1361,7 +1361,6 @@ function saphana_start_primary()
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
     # saphana_start_primary - set SR attribute of primary to "PRIM"
-    my_sync=$(set_SRHOOK "$sr_name" "prim")
     case "$lpa_dec" in
         0) lpa_advice="start" ;;
         1) lpa_advice="register" ;;
@@ -1373,6 +1372,7 @@ function saphana_start_primary()
 
     case "$lpa_advice" in
         start )  # process a normal START
+            set_SRHOOK "$sr_name" "PRIM"; my_sync="PRIM"
             case "$lss" in
                 2 | 3 | 4 ) # as landcape says we are up - just set the scores and return code
                     super_ocf_log info "LPA: landscape: UP, LPA: start ==> keep running"
@@ -1395,6 +1395,7 @@ function saphana_start_primary()
             scoring_crm_master "$my_role" "$my_sync"
             ;;
         register ) # process a REGISTER
+            set_SRHOOK "$sr_name" "SREG"); my_sync="SREG"
             case "$lss" in
                 2 | 3 | 4 ) # upps we are up - but shoudn't? - we could not register with started HDB
                     # DONE: PRIO3: check if this reaction is correct - tell cluster about failed start
@@ -1436,6 +1437,7 @@ function saphana_start_primary()
             esac
             ;;
         wait )  # process a WAIT
+            set_SRHOOK "$sr_name" "PRIM"); my_sync="PRIM"
             case "$lss" in
                 2 | 3 | 4 ) # as we ARE up we just keep it up
                     # TODO: PRIO3: I now change from "just keep it up to take that down"
@@ -2437,6 +2439,7 @@ function saphana_monitor_secondary()
     local promoted=0
     local init_attribute=0
     local lss
+    local my_role
     #
     # OK, we are running as HANA SECONDARY
     #
@@ -2526,30 +2529,34 @@ function saphana_monitor_secondary()
             set_hana_attribute ${NODENAME} "$hanaOM" "${ATTR_NAME_HANA_OPERATION_MODE[@]}"
             super_ocf_log debug "DBG: sync_attr=$sync_attr"
             case "$sync_attr" in
-                "SOK"   ) # This is a possible node to promote, when primary is missing
+                SOK ) # This is a possible node to promote, when primary is missing
                     lpa_set_lpt  30 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status SOK ==> possible takeover node"
                     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                     my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                    my_srr=$(get_hana_attribute "X" "${ATTR[@]}"
-                    my_role="${my_lss}:${my_srr}:${my_role}"
-                    my_sync=$(get_SRHOOK "$sr_name")
-                    scoring_crm_master "$my_role" "$my_sync"
+                    my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+                    my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+                    #
+                    # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
+                    #
+                    my_hana_role="${my_lss}:${my_srr}:${my_role}"
+                    super_ocf_log info "DEC: scoring $my_hana_role : $sync_attr"
+                    scoring_crm_master "$my_hana_role" "$sync_attr"
                     ;;
-                "SFAIL" ) # This is currently NOT a possible node to promote
+                SFAIL ) # This is currently NOT a possible node to promote
                     super_ocf_log debug "DBG: 013a * lpa_set_lpt 10 $sr_name"
                     lpa_set_lpt  10 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status FAILED ==> EXCLUDE as posible takeover node"
                     set_crm_master -INFINITY
                     ;;
-                "SNA" ) # This is a never-takeover-node
+                SNA ) # This is a never-takeover-node
                     super_ocf_log debug "DBG: 013b * lpa_set_lpt 10 $sr_name"
                     lpa_set_lpt  10 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status n/a ==> EXCLUDE as posible takeover node"
                     set_crm_master -INFINITY
                     ;;
-                "*" )     # Unknown sync status
+                * ) # Unknown sync status
                     super_ocf_log debug "DBG: 014 * lpa_set_lpt 10 $sr_name"
                     lpa_set_lpt  10 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status UKNOWN/UNDEFINED ==> EXCLUDE as posible takeover node"
@@ -2661,8 +2668,18 @@ function saphana_monitor_clone() {
             #
         else
             # for self-scoring always use the local sites SR-attribute
-            my_sync=$(get_SRKOOK "$sr_name")
-            scoring_crm_master "$my_role" "$my_sync"
+            ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
+            my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
+            ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
+            my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+            my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+            my_sync=$(get_SRHOOK "$sr_name")
+            #
+            # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
+            #
+            my_hana_role="${my_lss}:${my_srr}:${my_role}"
+            super_ocf_log info "DEC: scoring $my_hana_role : $my_sync"
+            scoring_crm_master "$my_hana_role" "$my_sync"
             # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
             #              This reflects the situation that swarm members get be started (as resource)
             #              before the master nameserver runs the StartSystem command
@@ -2727,9 +2744,10 @@ function saphana_promote_clone() {
                             lpa_push_lpt $LPTloc
                             backup_global_and_nameserver
                             set_hana_attribute "$NODENAME" "$sr_name" "${ATTR_NAME_HANA_PRIM[@]}"
-                            # TODO PRIO5: 122 should not be static but come from the scoring table
-                            set_crm_master 122
+                            # TODO PRIO5: 145 should not be static but come from the scoring table
+                            set_crm_master 145
                             set_hana_attribute "$NODENAME" "-" "${ATTR_NAME_HANA_SEC[@]}"
+                            set_SRHOOK "$sr_name" "PRIM"
                             su - $sidadm -c "hdbnsutil -sr_takeover"
                             backup_global_and_nameserver
                             #
