@@ -1395,6 +1395,7 @@ function saphana_start_primary()
             scoring_crm_master "$my_role" "$my_sync"
             ;;
         register ) # process a REGISTER
+            set_SRHOOK "$sr_name" "SREG"); my_sync="SREG"
             case "$lss" in
                 2 | 3 | 4 ) # upps we are up - but shoudn't? - we could not register with started HDB
                     # DONE: PRIO3: check if this reaction is correct - tell cluster about failed start
