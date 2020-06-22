@@ -2529,30 +2529,34 @@ function saphana_monitor_secondary()
             set_hana_attribute ${NODENAME} "$hanaOM" "${ATTR_NAME_HANA_OPERATION_MODE[@]}"
             super_ocf_log debug "DBG: sync_attr=$sync_attr"
             case "$sync_attr" in
-                "SOK"   ) # This is a possible node to promote, when primary is missing
+                SOK ) # This is a possible node to promote, when primary is missing
                     lpa_set_lpt  30 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status SOK ==> possible takeover node"
                     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                     my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                    my_srr=$(get_hana_attribute "X" "${ATTR[@]}"
-                    my_role="${my_lss}:${my_srr}:${my_role}"
-                    my_sync=$(get_SRHOOK "$sr_name")
-                    scoring_crm_master "$my_role" "$my_sync"
+                    my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+                    my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+                    #
+                    # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
+                    #
+                    my_hana_role="${my_lss}:${my_srr}:${my_role}"
+                    super_ocf_log info "DEC: scoring $my_hana_role : $sync_attr"
+                    scoring_crm_master "$my_hana_role" "$sync_attr"
                     ;;
-                "SFAIL" ) # This is currently NOT a possible node to promote
+                SFAIL ) # This is currently NOT a possible node to promote
                     super_ocf_log debug "DBG: 013a * lpa_set_lpt 10 $sr_name"
                     lpa_set_lpt  10 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status FAILED ==> EXCLUDE as posible takeover node"
                     set_crm_master -INFINITY
                     ;;
-                "SNA" ) # This is a never-takeover-node
+                SNA ) # This is a never-takeover-node
                     super_ocf_log debug "DBG: 013b * lpa_set_lpt 10 $sr_name"
                     lpa_set_lpt  10 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status n/a ==> EXCLUDE as posible takeover node"
                     set_crm_master -INFINITY
                     ;;
-                "*" )     # Unknown sync status
+                * ) # Unknown sync status
                     super_ocf_log debug "DBG: 014 * lpa_set_lpt 10 $sr_name"
                     lpa_set_lpt  10 "$sr_name"
                     super_ocf_log info "DEC: secondary with sync status UKNOWN/UNDEFINED ==> EXCLUDE as posible takeover node"
