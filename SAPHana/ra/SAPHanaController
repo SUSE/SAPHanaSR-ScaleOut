@@ -2749,9 +2749,12 @@ function saphana_promote_clone() {
                             set_crm_master 145
                             set_hana_attribute "$NODENAME" "-" "${ATTR_NAME_HANA_SEC[@]}"
                             set_SRHOOK "$sr_name" "PRIM"
-                            set_hana_attribute "$NODENAME" "Z" ${ATTR_NAME_HANA_SRTAKEOVER[@]}"
-                            su - $sidadm -c "hdbnsutil -sr_takeover"
-                            set_hana_attribute "$NODENAME" "-" ${ATTR_NAME_HANA_SRTAKEOVER[@]}"
+                            super_ocf_log info "ACT: SAPHANA TAKEOVER: SET MARK"
+                            set_hana_attribute "$NODENAME" "T" "${ATTR_NAME_HANA_SRACTION[@]}"
+                            su - $sidadm -c "hdbnsutil -sr_takeover"; srt_rc=$?
+                            super_ocf_log info "ACT: SAPHANA TAKEOVER: srt_rc=$srt_rc"
+                            set_hana_attribute "$NODENAME" "-" "${ATTR_NAME_HANA_SRACTION[@]}"
+                            super_ocf_log info "ACT: SAPHANA TAKEOVER: REMOVE MARK"
                             backup_global_and_nameserver
                             #
                             # now gain check, if we are primary NOW
