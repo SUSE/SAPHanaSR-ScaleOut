@@ -718,6 +718,7 @@ function saphana_init() {
     ATTR_NAME_HANA_ROLES=("hana_${sid}_roles" "reboot")
     ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
+    ATTR_NAME_HANA_SRTAKEOVER=("hana_${sid}_z" "reboot")   # Marks, if cluster in a phase requesting  a takeover # TODO: PRIO0: Name of attribute
     #
     # new "central" attributes
     #
@@ -2748,7 +2749,9 @@ function saphana_promote_clone() {
                             set_crm_master 145
                             set_hana_attribute "$NODENAME" "-" "${ATTR_NAME_HANA_SEC[@]}"
                             set_SRHOOK "$sr_name" "PRIM"
+                            set_hana_attribute "$NODENAME" "Z" ${ATTR_NAME_HANA_SRTAKEOVER[@]}"
                             su - $sidadm -c "hdbnsutil -sr_takeover"
+                            set_hana_attribute "$NODENAME" "-" ${ATTR_NAME_HANA_SRTAKEOVER[@]}"
                             backup_global_and_nameserver
                             #
                             # now gain check, if we are primary NOW
