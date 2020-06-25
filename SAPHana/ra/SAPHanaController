@@ -718,7 +718,8 @@ function saphana_init() {
     ATTR_NAME_HANA_ROLES=("hana_${sid}_roles" "reboot")
     ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
-    ATTR_NAME_HANA_SRTAKEOVER=("hana_${sid}_z" "reboot")   # Marks, if cluster in a phase requesting  a takeover # TODO: PRIO0: Name of attribute
+    # TODO: PRIO0: Name of attribute
+    ATTR_NAME_HANA_SRACTION=("hana_${sid}_zzz" "reboot")   # Marks, if cluster in a phase requesting  a takeover (T?) or registration (R?)
     #
     # new "central" attributes
     #
@@ -1173,7 +1174,9 @@ function register_hana_secondary()
                remoteHanaHost=$remoteHost
            fi
            super_ocf_log info "ACT: SAPHANA REGISTER: hdbnsutil -sr_register --remoteHost=$remoteHanaHost --remoteInstance=$remoteInstance $hanaRM $hanaOM --name=$sr_name"
+           set_hana_attribute "$NODENAME" "R" "${ATTR_NAME_HANA_SRACTION[@]}"
            HANA_CALL --timeout inf --use-su --cmd "hdbnsutil -sr_register --remoteHost=$remoteHanaHost --remoteInstance=$remoteInstance $hanaRM $hanaOM --name=$sr_name"; rc=$?
+           set_hana_attribute "$NODENAME" "-" "${ATTR_NAME_HANA_SRACTION[@]}"
         else
            super_ocf_log info "ACT: SAPHANA: DROP REGISTER because AUTOMATED_REGISTER is set to FALSE"
            rc=1
