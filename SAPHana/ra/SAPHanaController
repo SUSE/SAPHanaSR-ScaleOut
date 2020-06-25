@@ -1395,7 +1395,7 @@ function saphana_start_primary()
             scoring_crm_master "$my_role" "$my_sync"
             ;;
         register ) # process a REGISTER
-            set_SRHOOK "$sr_name" "SREG"); my_sync="SREG"
+            set_SRHOOK "$sr_name" "SREG"; my_sync="SREG"
             case "$lss" in
                 2 | 3 | 4 ) # upps we are up - but shoudn't? - we could not register with started HDB
                     # DONE: PRIO3: check if this reaction is correct - tell cluster about failed start
@@ -1437,7 +1437,7 @@ function saphana_start_primary()
             esac
             ;;
         wait )  # process a WAIT
-            set_SRHOOK "$sr_name" "PRIM"); my_sync="PRIM"
+            set_SRHOOK "$sr_name" "PRIM"; my_sync="PRIM"
             case "$lss" in
                 2 | 3 | 4 ) # as we ARE up we just keep it up
                     # TODO: PRIO3: I now change from "just keep it up to take that down"
