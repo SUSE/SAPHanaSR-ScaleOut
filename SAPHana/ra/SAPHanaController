@@ -719,7 +719,7 @@ function saphana_init() {
     ATTR_NAME_HANA_VHOST=("hana_${sid}_vhost" "forever")
     ATTR_NAME_HANA_STATUS=("hana_${sid}_status" "reboot")
     # TODO: PRIO0: Name of attribute
-    ATTR_NAME_HANA_SRACTION=("hana_${sid}_zzz" "reboot")   # Marks, if cluster in a phase requesting  a takeover (T?) or registration (R?)
+    ATTR_NAME_HANA_SRACTION=("hana_${sid}_sra" "reboot")   # Marks, if cluster in a phase requesting  a takeover (T?) or registration (R?)
     #
     # new "central" attributes
     #
@@ -2768,8 +2768,10 @@ function saphana_promote_clone() {
                         if check_for_primary; then
                             rc=$OCF_SUCCESS;
                             # DONE: PRIO0: !!!
+                            super_ocf_log info "ACT: SAPHANA TAKEOVER: MARK FORMER PRIMARY AS SWAIT"
                             set_SRHOOK "$remSR_name" "SWAIT"
                         else
+                            super_ocf_log info "ACT: SAPHANA TAKEOVER: TAKEOVER FAILED? STILL NOT PRIMARY"
                             rc=$OCF_FAILED_MASTER
                         fi
                         ;;
