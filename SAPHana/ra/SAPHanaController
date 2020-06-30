@@ -904,7 +904,11 @@ function saphana_init() {
     if [ $ACTION = "stop" ]; then
        standbyFilter="--standbyFilter=off"
     fi
-    if is_master_nameserver; then master_walk $standbyFilter; fi
+    if is_master_nameserver; then
+       master_walk $standbyFilter
+    elif is_active_nameserver_slave; then
+       master_walk $standbyFilter
+    fi
     super_ocf_log info "FLOW $FUNCNAME rc=$OCF_SUCCESS"
     #############################
     # DONE: PRIO9: To be able to call landscapeHostConfig.py without su (so as root)
@@ -1258,6 +1262,31 @@ function saphana_start() {
     return $rc
 }
 
+function saphana_stopSystem() {
+  local rc=0
+  check_sapstartsrv; rc=$?
+  if [ $rc -eq $OCF_SUCCESS ]; then
+     ## TODO: PRIO 1: Only stop System, if I am the last master!
+     ## TODO: PRIO 2: Do we need a "last-man-switch-of-the-light" detection?
+     output=$($SAPCONTROL -nr $InstanceNr -function StopSystem)
+     rc=$?
+     super_ocf_log info "ACT: SAPHANA STOP: Stopping System $SID-$InstanceName: $output"
+  fi
+  if [ $rc -eq 0 ]; then
+      output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped 3600 1)
+      if [ $? -eq 0 ]; then
+          super_ocf_log info "ACT: SAPHANA: System $SID-$InstanceName stopped: $output"
+          rc=$OCF_SUCCESS
+      else
+          super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
+          rc=$OCF_ERR_GENERIC
+      fi
+  else
+      super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
+      rc=$OCF_ERR_GENERIC
+  fi
+}
+
 #
 # function: saphana_stop - stop a hana instance
 # params:   -
@@ -1267,36 +1296,15 @@ function saphana_start() {
 function saphana_stop() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local output=""
-    local rc=0
-    check_sapstartsrv; rc=$?
     if is_the_master_nameserver; then
-       if [ $rc -eq $OCF_SUCCESS ]; then
-          ## TODO: PRIO 1: Only stop System, if I am the last master!
-          ## TODO: PRIO 2: Do we need a "last-man-switch-of-the-light" detection?
-          output=$($SAPCONTROL -nr $InstanceNr -function StopSystem)
-          rc=$?
-          super_ocf_log info "ACT: SAPHANA STOP: Stopping System $SID-$InstanceName: $output"
-       fi
-       if [ $rc -eq 0 ]
-       then
-           output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped 3600 1)
-           if [ $? -eq 0 ]
-           then
-               super_ocf_log info "ACT: SAPHANA: System $SID-$InstanceName stopped: $output"
-               rc=$OCF_SUCCESS
-           else
-               super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
-               rc=$OCF_ERR_GENERIC
-           fi
-       else
-           super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
-           rc=$OCF_ERR_GENERIC
-       fi
+        saphana_stopSystem
+    elif [ is_active_nameserver_slave -a -z "$the_master" ]; then
+        saphana_stopSystem
     else
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW $F/UNCNAME rc=$rc"
     return $rc
 }
 
@@ -2034,6 +2042,32 @@ function master_walk() {
     super_ocf_log info "FLOW $FUNCNAME the_master=$the_master rc=0"
 }
 
+# function: is_active_nameserver_slave
+# params:   -
+# rc:       0: yes its a active nameserver slave (running)
+#           1: else
+# globals:
+#
+# true, if the node has an active (runnig) master nameserver slave role
+#
+is_active_nameserver_slave()
+{
+  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
+  nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
+  read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+  case "$nNsConf:$nNsCurr" in
+      slave:slave )
+         rc=0
+         ;;
+      * )
+         rc=1
+         ;;
+  esac
+  super_ocf_log info "DEC: is_active_nameserver_slave rc=$rc"
+  super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+  return $rc
+}
 
 # function: is_master_nameserver
 # params:   -
@@ -2041,7 +2075,7 @@ function master_walk() {
 #           1: else
 # globals:
 #
-# true, if the node has an active or configured master namesver role
+# true, if the node has an active or configured master nameserver role
 #
 function is_master_nameserver()
 {
@@ -2671,32 +2705,48 @@ function saphana_monitor_clone() {
             fi
             #
         else
-            # for self-scoring always use the local sites SR-attribute
-            ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-            my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
-            ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-            my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
-            my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-            my_sync=$(get_SRHOOK "$sr_name")
-            #
-            # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
-            #
-            my_hana_role="${my_lss}:${my_srr}:${my_role}"
-            super_ocf_log info "DEC: scoring $my_hana_role : $my_sync"
-            scoring_crm_master "$my_hana_role" "$my_sync"
-            # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
-            #              This reflects the situation that swarm members get be started (as resource)
-            #              before the master nameserver runs the StartSystem command
-            #           => However we need to check, if it could happen that NO started (warm) master namerver
-            #              is available and we miss to monitor the degraded HANA on a other node
-            case "$nState" in
-                DEMOTED ) rc=$OCF_SUCCESS;;              # local instance is up -> report SUCCESS
-                PROMOTED ) rc=$OCF_RUNNING_MASTER;;      # same but state is MASTER -> report RUNNING_MASTER
-                UNDEFINED ) rc=$OCF_NOT_RUNNING;;        # same but state is DOWN -> report NOT_RUNNING
-                * ) rc=$OCF_NOT_RUNNING;;
-            esac
+            super_ocf_log info "DEC: the_master=<<$the_master>>"
+            if [ is_active_nameserver_slave -a -z "$the_master" ]; then
+              #
+              # code for missing ALL master nameserver candidates
+              #
+              super_ocf_log info "DEC: left-over instance ???"
+              get_hana_landscape_status; lss=$?
+              if [ $lss -le 1 ]; then
+                 # we are a left-over sctive master nameserver nodes - report an error to the cluster to get this instance stopped
+                 rc=$OCF_NOT_RUNNING
+              fi
+            else
+              #
+              # code, if we still have ANY master nameserver candidates
+              #
+              # for self-scoring always use the local sites SR-attribute
+              #
+              ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
+              my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
+              ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
+              my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+              my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+              my_sync=$(get_SRHOOK "$sr_name")
+              #
+              # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
+              #
+              my_hana_role="${my_lss}:${my_srr}:${my_role}"
+              super_ocf_log info "DEC: scoring $my_hana_role : $my_sync"
+              scoring_crm_master "$my_hana_role" "$my_sync"
+              # TODO: PRIO2: So far we do NOT monitor the swarm, if we are NOT the master nameserver
+              #              This reflects the situation that swarm members get be started (as resource)
+              #              before the master nameserver runs the StartSystem command
+              #           => However we need to check, if it could happen that NO started (warm) master namerver
+              #              is available and we miss to monitor the degraded HANA on a other node
+              case "$nState" in
+                  DEMOTED ) rc=$OCF_SUCCESS;;              # local instance is up -> report SUCCESS
+                  PROMOTED ) rc=$OCF_RUNNING_MASTER;;      # same but state is MASTER -> report RUNNING_MASTER
+                  UNDEFINED ) rc=$OCF_NOT_RUNNING;;        # same but state is DOWN -> report NOT_RUNNING
+                  * ) rc=$OCF_NOT_RUNNING;;
+              esac
+            fi
         fi
-
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
