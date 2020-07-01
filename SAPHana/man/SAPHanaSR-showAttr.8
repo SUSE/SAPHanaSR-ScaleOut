@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-showAttr 8 "18 Jun 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "02 Jul 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -9,7 +9,6 @@ SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replica
 \fBSAPHanaSR-showAttr\fR [ --help | --version ]
 .br
 \fBSAPHanaSR-showAttr\fR [ --sid=SID[:INO] ] [ --sort=FIELD ] [ --format=FORMAT ] [ --cib=OFFLINE_CIB_FILE ]
-.\" TODO \fBSAPHanaSR-showAttr\fR [ --sid=SID[:INO]] [ --sort=FIELD ] [ --format=FORMAT ] [ --cib=OFFLINE_CIB_FILE ]
 .\"
 .SH DESCRIPTION
 SAPHanaSR-showAttr shows Linux cluster attributes for SAP HANA system replication automation.
@@ -61,15 +60,17 @@ actual master score on that node (\fBscore\fP)
 .br
 HANA site where the host sits (\fBsite\fP)
 .br
-HANA SR mode (\fBsrmode\fP)
+HANA system replication mode (\fBsrmode\fP)
 .br
 maintenance state of Linux cluster node (\fBstandby\fP)
 .br
-HANA SR status (\fBsync_state\fP)
+HANA system replication status (\fBsync_state\fP)
 .br
 HANA version (\fBversion\fP)
 .br
 HANA virtual host name (\fBvhost\fP)
+.br
+HANA system replication takeover action (\fBsra\fP)
 .PP
 Some fields are generated dynamically from the CIB. That fields might be missing,
 if no corresponding attribute exists, e.g. the standby field.
@@ -282,6 +283,21 @@ The attribute is used by the SAPHana orSAPHanaController  resource agent for set
 See also the  fields Hosts and remoteHost. SAPHanaToplogy needs the SAPHOSTAGENT to map from the local
 hostname to the HANA virtual hostname.
 .\" TODO details, see HANA global.ini
+.PP
+.B sra
+- HANA system replication action
+
+Value: [ T | R | - ]
+.\" TODO final values
+
+The node attribute system replication action is set by the HA/DR provider API.
+It indicates whether a take-over or registration is ongoing.
+.br
+T = Take-over on new primary (sr_takeover) ongoing.
+.br
+R = Registration on new secondary (sr_register) ongoing.
+.br
+- = No action pending.
 .\"
 .SH OPTIONS
 .HP
