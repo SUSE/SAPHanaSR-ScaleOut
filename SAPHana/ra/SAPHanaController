@@ -1304,7 +1304,7 @@ function saphana_stop() {
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
     fi
-    super_ocf_log info "FLOW $F/UNCNAME rc=$rc"
+    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
 }
 
