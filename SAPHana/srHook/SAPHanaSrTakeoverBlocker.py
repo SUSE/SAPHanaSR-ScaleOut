@@ -62,6 +62,15 @@ class SAPHanaSrTakeoverBlocker(HADRBase):
             self.tracer.info("%s.preTakeover myCMD is: %s" % (self.__class__.__name__, myCMD))
             mySRA = ""
             mySRAres = os.popen(myCMD)
+            """
+            Discussion about getting return code of object.popen() calls with either object.poll() or object.wait()
+               https://stackoverflow.com/questions/36596354/how-to-get-exit-code-from-subprocess-popen
+               # Wait until process terminates (without using p.wait())
+               while p.poll() is None:
+                   # Process hasn't exited yet, let's wait some
+                   time.sleep(0.5)
+               However they are using subprocess (maybe also python3) instead    
+            """
             mySRAlines = list(mySRAres)
             for line in mySRAlines:
                 mySRA = mySRA + line
