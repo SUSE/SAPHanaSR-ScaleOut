@@ -50,7 +50,7 @@ class SAPHanaSrTakeoverBlocker(HADRBase):
            *    RA does set the same attribute as checked here (key and value)
            *    Sudoers does allow the query of the attribute (alternatively add <sid>adm user(s) to hacluster group)
         """
-        self.tracer.info("%s.preTakeover method called with isForce=%s BASF" % (self.__class__.__name__, isForce))
+        self.tracer.info("%s.preTakeover method called with isForce=%s" % (self.__class__.__name__, isForce))
         if not isForce:
             # run pre takeover code
             # run pre-check, return != 0 in case of error => will abort takeover
@@ -59,20 +59,19 @@ class SAPHanaSrTakeoverBlocker(HADRBase):
             mysid = mySID.lower()
             myAttribute = "hana_" + mysid + "_sra"
             myCMD = "sudo /usr/sbin/crm_attribute -n hana_" + mysid + "_sra -G -t reboot -q"
-            self.tracer.info("%s.preTakeover myCMD is: %s BASF" % (self.__class__.__name__, myCMD))
+            self.tracer.info("%s.preTakeover myCMD is: %s" % (self.__class__.__name__, myCMD))
             mySRA = ""
             mySRAres = os.popen(myCMD)
             mySRAlines = list(mySRAres)
             for line in mySRAlines:
                 mySRA = mySRA + line
             mySRA = mySRA.rstrip()
-            self.tracer.info("%s.preTakeover sra attribute is: <<%s>> X BASF" % (self.__class__.__name__, mySRA))
             if ( mySRA == "T" ):
-               self.tracer.info("%s.preTakeover permit cluster action sr_takeover() %s BASF" % (self.__class__.__name__, mySRA))
-               rc = 0 
+               self.tracer.info("%s.preTakeover permit cluster action sr_takeover() sra=%s" % (self.__class__.__name__, mySRA))
+               rc = 0
             else:
-               self.tracer.info("%s.preTakeover reject non-cluster action sr_takeover() %s BASF" % (self.__class__.__name__, mySRA))
-               rc = 1 
+               self.tracer.info("%s.preTakeover reject non-cluster action sr_takeover() sra=%s" % (self.__class__.__name__, mySRA))
+               rc = 1
             return rc
         else:
             # possible force-takeover only code
