@@ -1,6 +1,6 @@
-.\" Version: 0.162.3
+.\" Version: 0.170.0
 .\"
-.TH SAPHanaSR.py 7 "26 Oct 2016" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "25 Jun 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -53,12 +53,26 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .PP
-* Example for entry in sudo permissions /etc/sudoers
+* Simple example for entry in sudo permissions /etc/sudoers
 .PP
 .RS 4
 # SAPHanaSR-ScaleOut needs for srHook
 .br
 ha1adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v *
+.\" TODO adapt example for multi-target replication?
+.RE
+.PP
+* More restricted example for entry in sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR
+.PP
+.RS 4
+# SAPHanaSR-ScaleOut needs for srHook
+.br
+Cmnd_Alias SOK = /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v SOK -t crm_config -s SAPHanaSR
+.br
+Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v SFAIL -t crm_config -s SAPHanaSR
+.br
+ha1adm ALL=(ALL) NOPASSWD: SOK, SFAIL
+.\" TODO adapt example for multi-target replication?
 .RE
 .PP
 * Example for entry in SAP HANA global configuration
@@ -83,6 +97,7 @@ ha_dr_saphanasr = info
 .PP
 * Example for creating the optional SAPHanaSR python object file manually.
 .PP
+.RS 4
 # mkdir -p /hana/shared/srhook
 .br
 # chown ha1adm.sapsys /hana/shared/srhook
@@ -94,8 +109,22 @@ ha_dr_saphanasr = info
 # python -m py_compile /usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
 .br
 # ls -l SAPHanaSR.pyc
+.RE
 .PP
-.\" TODO grep in HANA tracefile for srHook messages
+* Example for checking the HANA tracefiles for srConnectionChanged() events.
+.PP
+.RS 4
+# su - ha1adm
+.br
+~> cdtrace
+.br
+~> grep SAPHanaSR.srConnectionChanged.*called nameserver_*.trc
+.br
+~> grep crm_attribute.*SAPHanaSR nameserver_*.trc
+.br
+# exit
+.RE
+.PP
 .\"
 .SH FILES
 .TP
@@ -108,22 +137,28 @@ ha_dr_saphanasr = info
 /hana/shared/$SID/global/hdb/custom/config/global.ini
  the on-disk representation of HANA global system configuration
 .TP
-/etc/sudoers
+/etc/sudoers , /etc/sudoers.d/
  the sudo permissions configuration
-.\" TODO path to HANA trace file
+.TP
+/usr/sap/$SID/HDB$nr/$host/trace/
+ the directory with HANA trace files
 .PP
 .\"
 .SH REQUIREMENTS 
 1. SAP HANA starting with version 1.0 SPS 11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
+With the mentioned HANA versions uni-directional chained system replication
+is possible. Beginning with HANA 2.0 SPS 3 multi-target system replication
+is possible as well.
+.\" TODO check HANA 2.0 SPS
 .PP
-2. The user ${sid}adm needs execution permission as user root for the command crm_attribute. 
+2. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
 .PP
 3. The hook provider needs to be added to the HANA global configuration,
 in memory and on disk (in persistence).
 .PP
-4. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA
-has to be used.
+4. If the hook provider should be pre-compiled, the particular Python version that comes with
+SAP HANA has to be used.
 .\"
 .SH BUGS
 In case of any problem, please use your favourite SAP support process to open
@@ -137,7 +172,14 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
 \fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,
 .br
+https://documentation.suse.com/sbp/all/?context=sles-sap ,
+.br
+https://documentation.suse.com/sles-sap/ ,
+.br
 https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
+.br
+https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
+.\" TODO SUSECON 2020 sessions
 .br
 http://help.sap.com/saphelp_hanaplatform/helpdata/en/13/67c8fdefaa4808a7485b09815ae0f3/content.htm ,
 .br
@@ -155,7 +197,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
-(c) 2017-2019 SUSE LLC
+(c) 2017-2020 SUSE LLC
 .br
 SAPHanaSR.py comes with ABSOLUTELY NO WARRANTY.
 .br

@@ -1,6 +1,6 @@
-.\" Version: 0.162.3
+.\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "30 Jun 2017" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "18 Jun 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -32,7 +32,9 @@ SAPHanaController is also able to restart former failed worker nodes as standby.
 In addition to the SAPHanaTopology RA, the SAPHanaSR-ScaleOut solution uses a
 "HA/DR providers" API provided by HANA to get informed about the current state
 of the system replication.
-.\" TODO HANA handles site-internal fail-over, Linux cluster handles split-brain detection, node fencing on general errors, take-over from primary to secondary site including IP address
+.\" TODO active/active read-enabled with scale-out?
+.PP
+In a nutshell: HANA can handle site-internal fail-over. Linux cluster handles split-brain detection, node fencing on general errors, take-over from primary to secondary site including IP address.
 .PP
 Note: To automate SAP HANA SR in scale-up setups, please use the package
 SAPHanaSR.
@@ -99,7 +101,7 @@ The Linux cluster will follow this administrative decision. In both cases the
 administrator should register and start a secondary as soon as posible. This
 avoids a full log partition with consequence of a DATABASE STUCK.
 .PP
-3. \fBAutomatic registration as secondary after site failure and takeover\fR
+3. \fBAutomatic registration as secondary after site failure and take-over\fR
 .br
 The cluster can be configured to register a former primary database
 automatically as secondary. If this option is set, the resource agent 
@@ -108,15 +110,16 @@ start.
 .PP
 4. \fBSite take-over not preferred over local re-start\fR
 .br
-SAPHanaSR-ScaleOut allows to configure, if you prefer to takeover to the
+SAPHanaSR-ScaleOut allows to configure, if you prefer to take-over to the
 secondary after the primary landscape fails. The alternative is to restart the
-primary landscape, if it fails and only to takeover when no local restart is
+primary landscape, if it fails and only to take-over when no local restart is
 possible anymore. This can be tuned by SAPHanaController(7) parameters.
 .br
-The current implementation only allows to takeover in case the landscape status
-reports 1 (ERROR). The cluster will not takeover, when the SAP HANA still tries
+Preferring take-over over local restart usually has been choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of take-over could be combined with HANA's persistent memory features.
+.br
+The current implementation only allows to take-over in case the landscape status
+reports 1 (ERROR). The cluster will not take-over, when the SAP HANA still tries
 to repair a local failure.
-.\" see \fBPREFER_SITE_TAKEOVER\fR
 .PP
 5. \fBRecovering from failure of master nameserver\fR
 .br
@@ -126,6 +129,8 @@ configured as additional nameserver candidates. At least one of them should be
 a standby node to optimize failover time. The Linux cluster will detect the
 change and move the IP address to the new active master nameserver.
 .PP
+.\" TODO scenario filesystem full or inaccesible: additional Filsystem RA
+.\" 
 \fBImplementation\fR
 .PP
 The two HANA database systems (primary and secondary site) are managed by the
@@ -149,8 +154,10 @@ candidate.
 \fB*\fR Use two independent corosync rings, at least one of them on bonded
 network. Resulting in at least three physical links. Unicast is preferred. 
 .PP
-\fB*\fR Use Stonith Block Device (SBD), shared LUNs across all nodes on all
-(three) sites. Of course, together with hardware watchdog.
+\fB*\fR Use Stonith Block Device (SBD) for node fencing.
+Of course, always together with hardware watchdog.
+The SBD can be implemented disk-based with shared LUNs across all nodes on all
+(three) sites. Or it can be implemented as diskless SBD.
 .PP
 \fB*\fR Align all timeouts in the Linux cluster with the timeouts of the
 underlying storage and multipathing.
@@ -158,8 +165,8 @@ underlying storage and multipathing.
 \fB*\fR Check the installation of OS and Linux cluster on all nodes before
 doing any functional tests.
 .PP
-\fB*\fR Carefully define, perform, and document tests for all scenarios that
-should be covered. 
+\fB*\fR Carefully define, perform, and document tests for all failure scenarios
+that should be covered, as well as all maintenance procedures. 
 .PP
 \fB*\fR Test HANA HA and SR features without Linux cluster before doing the
 overall cluster tests.
@@ -181,22 +188,28 @@ landscape status, and the HANA SR status.
 For the current version of the package SAPHanaSR-ScaleOut, the support is
 limited to the following scenarios and parameters:
 .PP
-1. HANA scale-out cluster with system replication. The two HANA database
+1. HANA scale-out cluster with system replication.
+The HANA system replication secondary runs memory preload (aka performance-optimised scenario).
+The two HANA database
 systems (primary and secondary site) are managed by the same single Linux
 cluster. The maximum number of nodes in that single Linux cluster is given by
 the Linux cluster limit. An odd number of nodes is needed to handle split-brain
 situations automatically.
-A dedicated cluster node might be used as majority maker. 
+A dedicated cluster node is used as majority maker. An odd number of nodes leads
+to a Linux cluster in either one site or across three sites.
 .PP
 2. Technical users and groups such as sidadm are defined locally in the
 Linux system.
 .PP
-3. Strict time synchronization between the cluster nodes, f.e. NTP.
+3. Strict time synchronization between the cluster nodes, e.g. NTP.
 .PP
 4. For scale-out there is no other SAP HANA system (like QA) on the
-replicating node which needs to be stopped during take-over.
+replicating node which needs to be stopped during take-over. Both HANA
+database systems are running memory-preload.
 .PP
-5. Only one system replication for the SAP HANA database.
+5. Only one system replication between the two SAP HANA database system in
+the Linux cluster. Maximum one system replication to an HANA database outside
+the Linux cluster. See also item 9 below.
 .PP
 6. Both SAP HANA database systems have the same SAP Identifier (SID)
 and Instance Number.
@@ -210,6 +223,12 @@ must be switched off.
 9. For scale-out, the current resource agent supports SAP HANA in system
 replication beginning with HANA version 1.0 SPS 11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
+With the mentioned HANA versions uni-directional chained system replication
+is possible. Beginning with HANA 2.0 SPS 3 multi-target system replication
+is possible as well. Even in HANA multi-target environments, the current
+resource agent manages only two sites. Thus only two HANA sites are part
+of the Linux cluster. 
+.\" TODO: check HANA version for multi-target
 .PP
 10. For scale-out, if the shared storage is implemented with another cluster,
 that one does not interfere with the Linux cluster. All three clusters
@@ -217,9 +236,6 @@ that one does not interfere with the Linux cluster. All three clusters
 .PP
 11. The RAs SAPHanaController and SAPHanaToplogy need to be installed on all
 cluster nodes, even the majority maker.
-.PP
-12. For scale-out, the current resource agent supports SAP HANA in system
-replication beginning with HANA version 1.0 SPS 11 patch level 112.
 .PP
 .\"
 .SH BUGS
@@ -234,9 +250,11 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR.py\fP(7) , 
 \fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBsbd\fP(8) , \fBstonith_sbd\fP(7) ,
 \fBcrm\fP(8) , \fBcorosync.conf\fP(5) , \fBcrm_no_quorum_policy\fP(7) ,
-\fBcs_precheck_for_hana\fP(8) , \fBcs_add_watchdog_to_initrd\fP(8)
+\fBsaptune\fP(8) , \fBcs_show_hana_info\fP(8) , 
 .br
-https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
+https://documentation.suse.com/sbp/all/?context=sles-sap ,
+.br
+https://documentation.suse.com/sles-sap/ ,
 .br
 https://www.suse.com/releasenotes/ ,
 .br
@@ -244,11 +262,11 @@ https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
 https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
 .br
-http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution ,
+https://archive.sap.com/documents/docs/DOC-60334 ,
 .br
-http://scn.sap.com/docs/DOC-60334 ,
+http://scn.sap.com/community/hana-in-memory/blog/2015/12/14/sap-hana-sps-11-whats-new-ha-and-dr--by-the-sap-hana-academy ,
 .br
-http://scn.sap.com/community/hana-in-memory/blog/2015/12/14/sap-hana-sps-11-whats-new-ha-and-dr--by-the-sap-hana-academy
+https://blogs.sap.com/2020/01/30/sap-hana-and-persistent-memory/
 .PP
 .SH AUTHORS
 .br
@@ -258,7 +276,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2018-2019 SUSE LLC
+(c) 2018-2020 SUSE LLC
 .br
 The package SAPHanaSR-ScaleOut comes with ABSOLUTELY NO WARRANTY.
 .br

@@ -1,0 +1,4 @@
+# SAPHanaSR-ScaleOut needs for srHook
+ha1adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute *
+ha1adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v *
+ha1adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_ha1_site_srHook* -v *

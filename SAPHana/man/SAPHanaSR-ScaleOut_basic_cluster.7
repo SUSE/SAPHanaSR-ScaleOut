@@ -1,6 +1,6 @@
-.\" Version: 0.162.3
+.\" Version: 0.165.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "22 Feb 2018" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "04 Jun 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAP HANA System Replication scale-out basic cluster configuration.
@@ -23,28 +23,38 @@ The crm basic parameter no-quorum-policy defines how the cluster should act in
 case of quorum loss. With more than two nodes, the cluster must not ignore the
 quorum loss. For SAPHanaSR-ScaleOut, an odd number of nodes is required. Setting
 no-quorum-policy to 'freeze' won't allow the partition to shoot any other node
-when it doesn't have quorum. Cluster will not be able to add and start new resources.
+when it doesn't have quorum. Cluster will not be able to add and start new resources,
+but unning will stay alive.
+If the cluster uses disk-less SBD, the no-quorum-policy 'suicide' is required. 
 
 \fBdefault-resource-stickiness = 1000\fR
 
 The crm basic parameter default-resource-stickiness defines the 'stickiness' score
 a resource gets on the node where it is currently running. This prevents
 the cluster from moving resources around whithout an urgent need during a
-cluster transition.
+cluster transition. The correct value depends on number of resources and colocation
+rules. Too high value might prevent not only unwanted but also useful actions.
 
 \fBconcurrent-fencing = true\fR
 
 The crm basic parameter concurrent-fencing allows the cluster to fence more
 than one node at a time. This helps to reduce the time needed for a take over in
 case a whole data center is lost. If nodes are fenced one by one, the time needed
-would be equal to the \fBnumber of nodes * stonith timeout\fR. With concurrent-fencing enabled
-the time needed is always \fBstonith timeout\fR, independent of the number of nodes.
-See also \fBpcmk_action_limit\fR below.
+would be equal to the \fBnumber of nodes * stonith timeout\fR. With concurrent-fencing
+enabled the time needed is in the range of \fB2 * stonith timeout\fR, independent of
+the number of nodes. See also \fBpcmk_action_limit\fR below.
+
+\fBfailure-timeout = 86400s\fR
+
+The crm basic parameter migration-threshold defines how long failed actions will
+be kept in the CIB. After that time the failure record will be deleted. 
+See also \fBmigration-threshold\fR below.
 
 \fBmigration-threshold = 50\fR
 
 The crm basic parameter migration-threshold defines how many errors on a
 resource can be detected before this resource will be migrated to another node.
+See also \fBfailure-timeout\fR.
 
 \fBrecord-pending = false\fR
 
@@ -63,13 +73,13 @@ concurrent fencing actions. It allows parallel fencing of multiple nodes.
 A value of '-1' means virtually unlimited. 
 See also \fBconcurrent-fencing\fR above.
 
-\fBpcmk_delay_max = 30s\fR
+\fBpcmk_delay_max = 1s\fR
 
 The sbd stonith parameter pcmk_delay_max defines an upper limit for waiting
 before a fencing/stonith request will be triggerd.
 This parameter should prevent the cluster from unwanted double fencing in case
-of spilt-brain. It is required in two-node clusters. It might not be needed in
-usual SAPHanaSR-ScaleOut setups.
+of spilt-brain. A value around 30 seconds required in two-node clusters. It is not
+needed in usual SAPHanaSR-ScaleOut setups.
 
 .PP
 .\"
@@ -79,14 +89,14 @@ usual SAPHanaSR-ScaleOut setups.
 
 Below is an example crm basic configuration for SAPHanaSR-ScaleOut. Shown are
 specific parameters which are needed. Some general parameters are left out.
-The example has been taken from SLE-HA 11 SP4. It should work on SLE-HA 12 SP1
-and later as well. 
+.br
+This example has been taken from SLE-HA 11 SP4 with disk-based SBD:
 .PP
 .RS 4
 .br
 property $id="cib-bootstrap-options" \\
 .br
-	expected-quorum-votes="35" \\
+	expected-quorum-votes="31" \\
 .br
 	no-quorum-policy="freeze" \\
 .br
@@ -119,19 +129,57 @@ op_defaults $id="op_defaults-options" \\
 	timeout="300s"
 .RE
 .PP
+The following example is from SLE-HA 12 SP4 with disk-based SBD:
+.PP
+.RS 4
+.br
+property cib-bootstrap-options: \\
+.br
+	have-watchdog=true \\
+.br
+	cluster-infrastructure=corosync \\
+.br
+	cluster-name=hacluster \\
+.br
+	stonith-enabled=true \\
+.br
+	placement-strategy=balanced \\
+.br
+	stonith-timeout=180 \\
+.br
+	no-quorum-policy=freeze \\
+.br
+	concurrent-fencing=true
+.br
+rsc_defaults rsc-options: \\
+.br
+	resource-stickiness=120 \\
+.br
+	migration-threshold=50 \\
+.br
+	failure-timeout=86400
+.br
+op_defaults op-options: \\
+.br
+	timeout=600 \\
+.br
+	record-pending=true
+.RE
+.PP
+.\" TODO: example for SLE-HA 15 SP1 and 12 SP5 with disk-based and diskless SBD.
 
 \fB* crm sbd stonith configuration\fR
 
 To complete the SBD setup, it is necessary to activate SBD as STONITH/fencing
 mechanism in the CIB. The SBD is normally used for SAPHanaSR-ScaleOut instead
-of any other fencing/stonith mechanism.
+of any other fencing/stonith mechanism. Example for disk-based SBD:
 
 .PP
 .RS 4
 .br
 primitive rsc_stonith_sbd stonith:external/sbd \\
 .br
-        params pcmk_action_limit="-1" pcmk_delay_max="30s"
+	params pcmk_action_limit="-1" pcmk_delay_max="1"
 .RE
 .PP
 .\"
@@ -145,8 +193,11 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBcrm_no_quorum_policy\fP(7) ,
 \fBcrm\fP(8) , \fBcrm_simulate\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
+\fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
 .br
-https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
+https://documentation.suse.com/sbp/all/?context=sles-sap ,
+.br
+https://documentation.suse.com/sles-sap/ ,
 .br
 https://www.clusterlabs.org
 .PP
@@ -158,7 +209,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2018 SUSE Linux GmbH, Germany.
 .br
-(c) 2019 SUSE LLC
+(c) 2019-2020 SUSE LLC
 .br
 For details see the GNU General Public License at
 http://www.gnu.org/licenses/gpl.html
