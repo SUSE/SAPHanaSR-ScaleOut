@@ -1,23 +1,29 @@
+"""
+# SAPHana
+# Author:       Fabian Herschel, 2015
+# License:      GNU General Public License (GPL)
+# Copyright:    (c) 2015-2016 SUSE Linux GmbH
+# Copyright:    (c) 2017-2020 SUSE LLC
+
+SAPHanaSR needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
+"""
+
 from hdb_ha_dr.client import HADRBase
 import os
 
 """
 Only for SAP HANA >= 2.0 SPS3
 
-Sample for a HA/DR hook provider.
-When using your own code in here, please copy this file to location on
-/hana/shared outside the HANA installation.
-To use this HA/DR hook provide please add the following lines (or
-similar) to your global.ini:
+To use this HA/DR hook provide please add the following lines (or similar) to your global.ini:
     [ha_dr_provider_SAPHanaSR]
     provider = SAPHanaSR
-    path = /hana/shared/myHooks/SAPHanaSR-ScaleOut
+    path = /usr/share/SAPHanaSR-ScaleOut
     execution_order = 1
 
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.162.0.0629.1538"
+fhSRHookVersion = "0.170.3.0706.1648"
 
 
 class SAPHanaSR(HADRBase):
