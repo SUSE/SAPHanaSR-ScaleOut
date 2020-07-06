@@ -1,46 +1,60 @@
+"""
+# SAPHana
+# Author:       Fabian Herschel, June 2020
+# License:      GNU General Public License (GPL)
+# Copyright:    (c) 2020 SUSE LLC
 
+SAPHanaSrTakeoverBlocker needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
+"""
 import os, time
 
-fhSRHookVersion = "0.170.3.0706.1316"
+fhSRHookVersion = "0.170.3.0706.1618"
 
 try:
     from hdb_ha_dr.client import HADRBase
 except ImportError as e:
-    print("Module HADRBase not found - running outside if SAP HANA? - {0}".format(e))
+    print("Module HADRBase not found - running outside of SAP HANA? - {0}".format(e))
 
 try:
     class SAPHanaSrTakeoverBlocker(HADRBase):
 
-        def __init__(self, *args, **kwargs):            
+        def __init__(self, *args, **kwargs):
             # delegate construction to base class
             super(SAPHanaSrTakeoverBlocker, self).__init__(*args, **kwargs)
-            self.tracer.info("Initialize {0} {1}".format(self.__class__.__name__,fhSRHookVersion))
+            method="init"
+            self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__,method,fhSRHookVersion))
 
         def about(self):
+            method="about"
+            self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__,method,fhSRHookVersion))
             return {"provider_company": "SUSE",
                     "provider_name": "SAPHanaSrTakeoverBlocker",  # class name
                     "provider_description": "Inform Cluster about SR state",
                     "provider_version": "1.0"}
 
         def startup(self, hostname, storage_partition, sr_mode, **kwargs):
+            method="startup"
             self.tracer.debug("enter startup hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave startup hook")
             return 0
 
         def shutdown(self, hostname, storage_partition, sr_mode, **kwargs):
+            method="shutdown"
             self.tracer.debug("enter shutdown hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave shutdown hook")
             return 0
 
         def failover(self, hostname, storage_partition, sr_mode, **kwargs):
+            method="failover"
             self.tracer.debug("enter failover hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave failover hook")
             return 0
 
         def stonith(self, failingHost, **kwargs):
+            method="stonith"
             self.tracer.debug("enter stonith hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             # e.g. stonith of params["failed_host"]
@@ -56,7 +70,8 @@ try:
                *    RA does set the same attribute as checked here (key and value)
                *    Sudoers does allow the query of the attribute (alternatively add <sid>adm user(s) to hacluster group)
             """
-            self.tracer.info("{0}.preTakeover method called with isForce={1}".format(self.__class__.__name__, isForce))
+            method="preTakeover"
+            self.tracer.info("{0}.{1}() called with isForce={2}".format(self.__class__.__name__, method, isForce))
             if not isForce:
                 # run pre takeover code
                 # run pre-check, return != 0 in case of error => will abort takeover
@@ -65,7 +80,7 @@ try:
                 mysid = mySID.lower()
                 myAttribute = "hana_{0}_sra".format( mysid )
                 myCMD = "sudo /usr/sbin/crm_attribute -n {0} -G -t reboot -q".format( myAttribute )
-                self.tracer.info("{0}.preTakeover myCMD is: {1}".format(self.__class__.__name__, myCMD))
+                self.tracer.info("{0}.{1}() myCMD is: {2}".format(self.__class__.__name__, method, myCMD))
                 mySRA = ""
                 mySRAres = os.popen(myCMD)
                 """
@@ -82,10 +97,10 @@ try:
                     mySRA = mySRA + line
                 mySRA = mySRA.rstrip()
                 if ( mySRA == "T" ):
-                   self.tracer.info("{0}.preTakeover permit cluster action sr_takeover() sra={1}".format(self.__class__.__name__, mySRA))
+                   self.tracer.info("{0}.{1}() permit cluster action sr_takeover() sra={2}".format(self.__class__.__name__, method, mySRA))
                    rc = 0
                 else:
-                   self.tracer.info("{0}.preTakeover reject non-cluster action sr_takeover() sra={1}".format(self.__class__.__name__, mySRA))
+                   self.tracer.info("{0}.{1}() reject non-cluster action sr_takeover() sra={2}".format(self.__class__.__name__, method, mySRA))
                    try:
                        rc = self.errorCodeClusterConfigured # take the correct rc from HANA settings
                    except:
@@ -98,7 +113,8 @@ try:
 
         def postTakeover(self, rc, **kwargs):
             """Post takeover hook."""
-            self.tracer.info("{0}.postTakeover method called with rc={1}".format(self.__class__.__name__, rc))
+            methos="postTakeover"
+            self.tracer.info("{0}.{1}() method called with rc={2}".format(self.__class__.__name__, method, rc))
             if rc == 0:
                 # normal takeover succeeded
                 return 0
@@ -111,6 +127,7 @@ try:
 
         def srConnectionChanged(self, ParamDict, **kwargs):
             """ This hook should just do nothing for this HA/DR method """
+            method="srConnectionChanged"
             return 0
 except NameError as e:
         print("Could not find base class ({0})".format(e))
