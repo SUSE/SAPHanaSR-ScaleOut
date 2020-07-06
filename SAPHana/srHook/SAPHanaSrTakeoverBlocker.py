@@ -1,7 +1,7 @@
 from hdb_ha_dr.client import HADRBase
 import os, time
 
-fhSRHookVersion = "0.162.0"
+fhSRHookVersion = "0.170.3.0706.1112"
 
 
 class SAPHanaSrTakeoverBlocker(HADRBase):
@@ -71,7 +71,10 @@ class SAPHanaSrTakeoverBlocker(HADRBase):
                rc = 0
             else:
                self.tracer.info("%s.preTakeover reject non-cluster action sr_takeover() sra=%s" % (self.__class__.__name__, mySRA))
-               rc = 1
+               try:
+                   rc = self.errorCodeClusterConfigured # take the correct rc from HANA settings
+               except:
+                   rc = 50277  # fallback for self.errorCodeClusterConfigured, if HANA does not already provide the rc codes
             return rc
         else:
             # possible force-takeover only code
