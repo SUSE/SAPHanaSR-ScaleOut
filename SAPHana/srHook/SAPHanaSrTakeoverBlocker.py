@@ -11,10 +11,10 @@ except ImportError as e:
 try:
     class SAPHanaSrTakeoverBlocker(HADRBase):
 
-        def __init__(self, *args, **kwargs):
-            self.tracer.info("Initialize {0} {1}".format(self.__class__.__name__,fhSRHookVersion))
+        def __init__(self, *args, **kwargs):            
             # delegate construction to base class
             super(SAPHanaSrTakeoverBlocker, self).__init__(*args, **kwargs)
+            self.tracer.info("Initialize {0} {1}".format(self.__class__.__name__,fhSRHookVersion))
 
         def about(self):
             return {"provider_company": "SUSE",
