@@ -35,33 +35,41 @@ try:
         def __init__(self, *args, **kwargs):
             # delegate construction to base class
             super(SAPHanaSR, self).__init__(*args, **kwargs)
+            method="init"
+            self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__,method,fhSRHookVersion))
 
         def about(self):
+            method="about"
+            self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__,method,fhSRHookVersion))
             return {"provider_company": "SUSE",
                     "provider_name": "SAPHanaSR",  # class name
                     "provider_description": "Inform Cluster about SR state",
                     "provider_version": "1.0"}
 
         def startup(self, hostname, storage_partition, sr_mode, **kwargs):
-            self.tracer.debug("enter startup hook; %s" % locals())
+            method="startup"
+            self.tracer.debug("enter startup hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave startup hook")
             return 0
 
         def shutdown(self, hostname, storage_partition, sr_mode, **kwargs):
-            self.tracer.debug("enter shutdown hook; %s" % locals())
+            method="shutdown"
+            self.tracer.debug("enter shutdown hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave shutdown hook")
             return 0
 
         def failover(self, hostname, storage_partition, sr_mode, **kwargs):
-            self.tracer.debug("enter failover hook; %s" % locals())
+            method="failover"
+            self.tracer.debug("enter failover hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave failover hook")
             return 0
 
         def stonith(self, failingHost, **kwargs):
-            self.tracer.debug("enter stonith hook; %s" % locals())
+            method="stonith"
+            self.tracer.debug("enter stonith hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             # e.g. stonith of params["failed_host"]
             # e-g- set vIP active
@@ -70,7 +78,8 @@ try:
 
         def preTakeover(self, isForce, **kwargs):
             """Pre takeover hook."""
-            self.tracer.info("%s.preTakeover method called with isForce=%s" % (self.__class__.__name__, isForce))
+            method="preTakeover"
+            self.tracer.info("{0}.{1}() method called with isForce={2}".format(self.__class__.__name__, method, isForce))
             if not isForce:
                 # run pre takeover code
                 # run pre-check, return != 0 in case of error => will abort takeover
@@ -81,8 +90,9 @@ try:
                 return 0
 
         def postTakeover(self, rc, **kwargs):
+            method="postTakeover"
             """Post takeover hook."""
-            self.tracer.info("%s.postTakeover method called with rc=%s" % (self.__class__.__name__, rc))
+            self.tracer.info("{0}.{1}() method called with rc={2}".format(self.__class__.__name__, method, rc))
             if rc == 0:
                 # normal takeover succeeded
                 return 0
@@ -94,8 +104,9 @@ try:
                 return 0
 
         def srConnectionChanged(self, ParamDict, **kwargs):
+            method="srConnectionChanged"
             """ finally we got the srConnection hook :) """
-            self.tracer.info("SAPHanaSR (%s) %s.srConnectionChanged method called with Dict=%s" % (fhSRHookVersion, self.__class__.__name__, ParamDict))
+            self.tracer.info("{0}.{1}() method called with Dict={2} (version {3})".format(self.__class__.__name__, method, ParamDict,fhSRHookVersion))
             # myHostname = socket.gethostname()
             # myDatebase = ParamDict["database"]
             mySystemStatus = ParamDict["system_status"]
@@ -109,23 +120,20 @@ try:
             else:
                 if (myInSync):
                     # ignoring the SFAIL, because we are still in sync
-                    self.tracer.info("SAPHanaSR (%s) %s.srConnectionChanged ignoring bad SR status because of is_in_sync=True (reason=%s)" % (fhSRHookVersion, self.__class__.__name__, myReason))
+                    self.tracer.info("{0}.{1}() ignoring bad SR status because of is_in_sync=True (reason={2})".format(self.__class__.__name__, method, myReason))
                     mySRS = ""
                 else:
                     mySRS = "SFAIL"
             if ( mySRS == "" ):
-                self.tracer.info("SAPHanaSR (%s) 001" % (self.__class__.__name__))
                 myMSG = "### Ignoring bad SR status because of is_in_sync=True ###"
-                self.tracer.info("SAPHanaSR (%s) 002" % (self.__class__.__name__))
             elif ( mySite == "" ):
                 myMSG = "### Ignoring bad SR status because of empty site name in call params ###"
-                self.tracer.info("SAPHanaSR (%s) was called with empty site name. Ignoring call." % (self.__class__.__name__))
+                self.tracer.info("{0}.{1}() was called with empty site name. Ignoring call.".format(self.__class__.__name__, method))
             else:
-                myCMD = "sudo /usr/sbin/crm_attribute -n hana_%s_site_srHook_%s -v %s -t crm_config -s SAPHanaSR" % (mysid, mySite, mySRS)
+                myCMD = "sudo /usr/sbin/crm_attribute -n hana_{0}_site_srHook_{1} -v {2} -t crm_config -s SAPHanaSR".format(mysid, mySite, mySRS)
                 rc = os.system(myCMD)
                 myMSG = "CALLING CRM: <" + myCMD + "> rc=" + str(rc)
-            self.tracer.info("SAPHanaSR %s.srConnectionChanged method called with Dict=%s ###\n" % (self.__class__.__name__, ParamDict))
-            self.tracer.info("SAPHanaSR %s \n" % (myMSG))
+            self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
             return 0
 except NameError as e:
         print("Could not find base class ({0})".format(e))
