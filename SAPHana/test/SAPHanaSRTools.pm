@@ -31,10 +31,27 @@ my $cibFile="";
 
 #    @EXPORT_OK    = qw(max  mysyslog get_nodes_online);
 
-my $refGName;
-my $refHName;
-my $refSName;
-my $refSite;
+# The X-Hashes     contain the structure OBJECT -> ATTRIBUTE (KEY) - VALUE
+# The XName-Hashes contain the structure ATTRIBUTE (KEY -> OBJECT - VALUE
+#
+# Depending on the hashes OBJECT could be "global", node-name, site-name, resource-id
+# ATTRIBUTES could be clone_state, srHook
+#
+# There are xxx types of hashes:
+#
+# G and GName: Hashes for global attribues (object is always "global")
+# H and HName: Hashes for the host specific attributes (objects are host-names)
+# R and RName: Hashes for the resource specific attributes (object are resource-names)
+# S and SName: Hashes for the site specific attributes (objects are site-names)
+# 
+# 
+#
+
+my $refGName;  # reference to GlobalTableKeyName Hash attribute -> object - value
+my $refHName;  # reference to HostTableKeyName Hash
+my $refSName;  # reference to SiteTableKeyName Hash
+my $refRName;  # reference to ResourceTableKeyName Hash
+my $refSite;   # reference to Site-Hash
 
 sub set_Site($)
 {
