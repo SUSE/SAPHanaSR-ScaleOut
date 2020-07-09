@@ -65,6 +65,10 @@ sub set_GName($)
 {
    $refGName=shift();
 }
+sub set_RName($)
+{
+   $refRName=shift();
+}
 sub set_SName($)
 {
    $refSName=shift();
@@ -205,9 +209,9 @@ sub insertAttribute($$$$$$) {
        # printf "%-8s %-20s %-30s\n", $1, $2, $3;
 }
 ################
-sub get_hana_attributes($$$$$$$)
+sub get_hana_attributes
 {
-    my ($sid, $refHH, $refHN, $refGL, $refGN, $refST, $refSN ) = @_;
+    my ($sid, $refHH, $refHN, $refGL, $refGN, $refST, $refSN, $refRL, $refRN ) = @_;
     my %id2uname;
     my $CIB;
     if ( $cibFile eq "" ) {
@@ -222,6 +226,28 @@ while (<$CIB>) {
       # printf "CIB-time: %s\n", $1;
       insertAttribute($sid, $refGL, $refGN, "global", "cib-time", $1);
    }
+
+   # search for is-managed and maintenance attributes
+   my $id, $value;
+    if ( / name=\"?(is-managed|maintenance)\"?/ ) {
+       $name = $1;
+       if ( / id="([^\"]*)"/ ) {
+           $id=$1;
+           if ( $id =~ /([^-]*)-/ ) {
+		   $id=$1;
+           }
+       }
+       if ( / value="([^\"]*)"/ ) {
+           $value=$1;
+       }
+      if ( $id eq "cib" ) {
+	      insertAttribute($sid, $refGL, $refGN, "global", "$name", "$value");
+      } elsif ( $id eq "nodes" ) {
+              # to be processed in node section (below)
+      } else {
+	      insertAttribute($sid, $refRL, $refRN, "$id", "$name", "$value");
+      }
+    }
    my $SID=uc($sid);
    if ( $_ =~ /<node / ) {
       # catch a node definition line
