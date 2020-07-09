@@ -44,8 +44,8 @@ my $cibFile="";
 # H and HName: Hashes for the host specific attributes (objects are host-names)
 # R and RName: Hashes for the resource specific attributes (object are resource-names)
 # S and SName: Hashes for the site specific attributes (objects are site-names)
-# 
-# 
+#
+#
 #
 
 my $refGName;  # reference to GlobalTableKeyName Hash attribute -> object - value
@@ -54,55 +54,55 @@ my $refSName;  # reference to SiteTableKeyName Hash
 my $refRName;  # reference to ResourceTableKeyName Hash
 my $refSite;   # reference to Site-Hash
 
-sub set_Site($)
+sub set_Site
 {
    $refSite=shift();
 }
-sub set_HName($)
+sub set_HName
 {
    $refHName=shift();
 }
-sub set_GName($)
+sub set_GName
 {
    $refGName=shift();
 }
-sub set_RName($)
+sub set_RName
 {
    $refRName=shift();
 }
-sub set_SName($)
+sub set_SName
 {
    $refSName=shift();
 }
 
-sub set_new_attribute_model()
+sub set_new_attribute_model
 {
     $newAttributeModel=1;
 }
 
-sub set_cibFile($)
+sub set_cibFile
 {
     $cibFile=shift();
 }
 
-sub get_new_attribute_model()
+sub get_new_attribute_model
 {
     return $newAttributeModel;
 }
 
-sub max { 
+sub max {
  # thanks to http://www.perlunity.de/perl/forum/thread_018329.shtml
  my $a = shift;
  my $b = shift;
  return $a > $b ? $a : $b;
 }
 
-sub mysyslog ( $$$ ) {
+sub mysyslog {
    my ($prio, $form, @param) = ( @_ );
    syslog $prio, $form, @param;
 }
 
-sub get_nodes_online 
+sub get_nodes_online
 {
     my $result=0;
     my $sid=shift;
@@ -115,7 +115,7 @@ sub get_nodes_online
     return $result;
 }
 
-sub get_node_status($)
+sub get_node_status
 {
     # typically returns online, standby or offline
     # since pacemaker ?? online/offile and standby (on/off) are 2 different attributes
@@ -133,12 +133,12 @@ sub get_node_status($)
     return $result;
 }
 
-sub get_node_list()
+sub get_node_list
 {
     # crm_node -l | awk '$3 == "member" { if ($2 != me) { print $2 }}'
     my @nodes;
     foreach my $h ( keys(%{$$refHName{node_state}}) ) {
-        if ( ! ( $h =~ "^_" )) { 
+        if ( ! ( $h =~ "^_" )) {
             push (@nodes, $h);
         }
     }
@@ -148,7 +148,7 @@ sub get_node_list()
 #
 # works only, if ONE SAPinstance (here HANA) is installed on the cluster
 #
-sub get_sid_and_InstNr()
+sub get_sid_and_InstNr
 {
     my $sid=""; my $Inr=""; my $noDAACount = 0; my $gotAnswer = 0;
     my @sid_ino;
@@ -179,7 +179,7 @@ sub get_sid_and_InstNr()
 
 my $table_title = "Host \\ Attr";
 
-sub insertAttribute($$$$$$) { 
+sub insertAttribute {
     my ($sid, $refHash, $refN, $object, $attribute, $value) = @_;
     my $table_titleH="";
     if ( $attribute =~ /hana_${sid}_(.*)/ ) {
@@ -205,7 +205,7 @@ sub insertAttribute($$$$$$) {
        } else {
           $$refN{$attribute}->{_length} = length($value );
        }
-       $$refN{$attribute}->{_title} = $attribute; 
+       $$refN{$attribute}->{_title} = $attribute;
        $$refN{$attribute}->{_length} = max($$refN{$attribute}->{_length}, length( $$refN{$attribute}->{_title}));
        # printf "%-8s %-20s %-30s\n", $1, $2, $3;
 }
@@ -264,7 +264,7 @@ while (<$CIB>) {
          $id2uname{$nodeID}=$nodeUNAME;
          # printf STDERR "%s -> %s\n", $nodeID, $id2uname{$nodeID};
       }
-   } 
+   }
    #
    #  <nvpair id="nodes-1234567890-standby" name="standby" value="off"/>
    #
@@ -354,11 +354,11 @@ close CIB;
 
 ################
 
-sub get_hana_sync_state($)
+sub get_hana_sync_state
 {
     my $sid=shift;
     my $result="";
-    if ( $newAttributeModel == 1 ) {    
+    if ( $newAttributeModel == 1 ) {
         $result = $$refGName{sync_state}->{"global"};
     } else  {
         foreach my $h ( keys(%{$$refHName{sync_state}}) ) {
@@ -370,10 +370,10 @@ sub get_hana_sync_state($)
     return $result;
 }
 
-sub get_secondary_score($)
+sub get_secondary_score
 {
     my $result="-";
-    if ( $newAttributeModel == 1 ) {    
+    if ( $newAttributeModel == 1 ) {
         foreach my $s ( keys(%{$$refSName{"srr"}}) ) {
 # TODO
             $result="-";
@@ -391,12 +391,12 @@ sub get_secondary_score($)
     return $result;
 }
 
-sub get_number_primary($ $)
+sub get_number_primary
 {
     my $sid=shift;
     my $lss=shift;
     my $rc=0;
-    if ( $newAttributeModel == 1 ) {    
+    if ( $newAttributeModel == 1 ) {
         foreach my $s ( keys(%{$$refSName{"srr"}}) ) {
             if ( ( $$refSName{"srr"}->{$s} =~ /P/ ) && ( $$refSName{"lss"}->{$s} =~ /[$lss]/ )) {
                $rc++;
@@ -412,7 +412,7 @@ sub get_number_primary($ $)
     return $rc;
 }
 
-sub get_number_HANA_standby($$)
+sub get_number_HANA_standby
 {
     my $sid=shift;
     my $site=shift;
@@ -431,7 +431,7 @@ sub get_number_HANA_standby($$)
     return $standby;
 }
 
-sub get_HANA_nodes($$)
+sub get_HANA_nodes
 {
     my $sid=shift;
     my $site=shift;
@@ -442,17 +442,17 @@ sub get_HANA_nodes($$)
             if ( $hSite eq $site ) {
                 push (@nodes, $h);
             }
-        } 
+        }
     }
     return @nodes;
 }
 
-sub check_node_status($$$)
+sub check_node_status
 {
     my $sid=shift;
     my $lss=shift;
     my $h=shift;
-    if ( $newAttributeModel == 1 ) {    
+    if ( $newAttributeModel == 1 ) {
         my $site1=$$refHName{"site"}{$h};
         if ( $$refSName{"lss"}{$site1} =~ /^[$lss]/ ) {
             return 1;
@@ -465,12 +465,12 @@ sub check_node_status($$$)
     return 0;
 }
 
-sub check_node_mode($$$)
+sub check_node_mode
 {
     my $sid=shift;
     my $mode=shift;
     my $h=shift;
-    if ( $newAttributeModel == 1 ) {    
+    if ( $newAttributeModel == 1 ) {
         my $site1=$$refHName{"site"}{$h};
         if ( $$refSName{"srr"}{$site1} =~ /^$mode/ ) {
             return 1;
@@ -483,7 +483,7 @@ sub check_node_mode($$$)
     return 0;
 }
 
-sub get_cluster_status()
+sub get_cluster_status
 {
     my $return="";
     foreach my $h ( keys(%{$$refHName{"node_state"}} )) {
@@ -498,12 +498,12 @@ sub get_cluster_status()
     return $return;
 }
 
-sub get_number_secondary($ $)
+sub get_number_secondary
 {
     my $sid=shift;
     my $lss=shift;
     my $rc=0;
-    if ( $newAttributeModel == 1 ) {    
+    if ( $newAttributeModel == 1 ) {
         foreach my $s ( keys(%{$$refSName{"srr"}}) ) {
             if ( ( $$refSName{"srr"}->{$s} =~ /S/ ) && ( $$refSName{"lss"}->{$s} =~ /[$lss]/ )) {
                $rc++;
@@ -519,12 +519,12 @@ sub get_number_secondary($ $)
     return $rc;
 }
 
-sub get_host_primary($ $)
+sub get_host_primary
 {
     my $sid=shift;
     my $lss=shift;
     my $result="";
-    if ( $newAttributeModel == 1 ) {    
+    if ( $newAttributeModel == 1 ) {
         foreach my $s ( keys(%{$$refSName{"srr"}}) ) {
             if ( ( $$refSName{"srr"}->{$s} =~ /P/ ) && ( $$refSName{"lss"}->{$s} =~ /[$lss]/ )) {
                $result=$$refSName{"mns"}->{$s};
@@ -540,12 +540,12 @@ sub get_host_primary($ $)
     return $result;
 }
 
-sub get_host_secondary($ $)
+sub get_host_secondary
 {
     my $sid=shift;
     my $lss=shift;
     my $result="";
-    if ( $newAttributeModel == 1 ) {    
+    if ( $newAttributeModel == 1 ) {
         foreach my $s ( keys(%{$$refSName{"srr"}}) ) {
             if ( ( $$refSName{"srr"}->{$s} =~ /S/ ) && ( $$refSName{"lss"}->{$s} =~ /[$lss]/ )) {
                $result=$$refSName{"mns"}->{$s};
@@ -561,7 +561,7 @@ sub get_host_secondary($ $)
     return $result;
 }
 
-sub get_site_by_host($ $)
+sub get_site_by_host
 {
     my $result="";
     my $sid=shift;
@@ -571,7 +571,7 @@ sub get_site_by_host($ $)
     return $result;
 }
 
-sub get_lpa_by_host($$)
+sub get_lpa_by_host
 {
     my $result="";
     my $sid=shift;
@@ -589,7 +589,7 @@ sub get_lpa_by_host($$)
 my $check_lpa_msg="";
 my $check_lpa_col="";
 
-sub check_lpa_status($$$)
+sub check_lpa_status
 {
     my $sid=shift;
     my $node1=shift;
@@ -635,7 +635,7 @@ sub check_lpa_status($$$)
     return ( $check_lpa_col, $check_lpa_msg);
 }
 
-sub check_all_ok($$)
+sub check_all_ok
 {
     my $sid=shift;
     my $ClusterNodes=shift;
@@ -644,23 +644,23 @@ sub check_all_ok($$)
     my $result;
     $result=get_nodes_online;
     if ( $result != $ClusterNodes ) {
-         $rc++;  
-         $failed .= " #N=$result"; 
+         $rc++;
+         $failed .= " #N=$result";
     }
     $result=get_hana_sync_state($sid);
     # printf "+++ get_hana_sync_state($sid): %s\n", get_hana_sync_state($sid);
     if ( $result ne "SOK" ) {
-         $rc++;  
+         $rc++;
          $failed .= " sync=$result ";
     }
     $result=get_number_primary($sid, "34");
     if ( $result != 1 ) {
-         $rc++;  
+         $rc++;
          $failed .= " #P=$result ";
     }
     $result=get_number_secondary($sid, "34");
     if ( $result != 1 ) {
-         $rc++;  
+         $rc++;
          $failed .= " #S=$result ";
     }
     $result=get_secondary_score($sid);
@@ -676,7 +676,7 @@ sub check_all_ok($$)
     return ($rc, $failed);
 }
 
-#sub print_attr_host()
+#sub print_attr_host
 #{
 #	printf "%-22s", "Attribute \\ Host";
 #	foreach my $HKey (sort keys %Host) {
@@ -723,7 +723,7 @@ sub host_attr2string
             if ($AKey ne "_hosts") {
                 $len = $$refN{$AKey}->{_length};
                 $line_len=$line_len+$len+1;
-                
+
                 if ( $AKey eq $sort ) {
                    $string.=sprintf "*%-$len.${len}s ", $$refN{$AKey}->{_title};
                 } else {
@@ -755,7 +755,7 @@ sub host_attr2string
             if ( $format eq "tables" ) {
                 $string.=sprintf "\n";
             }
-        }    
+        }
     } else {
        # try to sort by site (other attrs to follow)
        # first try to get a ordered list of attribute values assigned host names
@@ -783,7 +783,7 @@ sub host_attr2string
            #printf "TST: <%s> -> <%s>\n", $sortV, $StrHosts;
        }
     }
-    
+
     if ( $format eq "tables" ) {
 	    $string.=sprintf "\n";
     }
@@ -804,11 +804,11 @@ sub print_host_attr
     return 0;
 }
 
-sub get_master_nameserver()
+sub get_master_nameserver
 {
     my @msns;
     foreach my $SKey (sort keys %$refSite) {
-        push(@msns, $$refSite{$SKey}->{"mns"}); 
+        push(@msns, $$refSite{$SKey}->{"mns"});
     }
     return @msns;
 }
