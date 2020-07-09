@@ -5,7 +5,7 @@
 # (c) 2015-2018 SUSE Linux GmbH
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.23.2018.05.11.1
+# Version: 0.24.0708.0936
 #
 ##################################################################
 
