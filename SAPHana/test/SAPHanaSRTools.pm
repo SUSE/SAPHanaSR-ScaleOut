@@ -696,44 +696,64 @@ sub check_all_ok($$)
 #	return 0;
 #}
 
-sub host_attr2string($$$$)
+sub host_attr2string
 {
     my $string="";
-    my ($refH, $refN, $title, $sort) = @_;
+    my ($refH, $refN, $title, $sort, $format) = @_;
     my ($len, $line_len, $hclen);
-    $hclen=$$refN{_hosts}->{_length};
-    $line_len=$hclen+1;
-    $string.=sprintf "%-$hclen.${hclen}s ", "$title";
     #
-    # headline
+    # leave function if hash is empty
+    #    in this case an empty string is returned
     #
-    foreach my $AKey (sort keys %$refN) {
-        if ($AKey ne "_hosts") {
-            $len = $$refN{$AKey}->{_length};
-            $line_len=$line_len+$len+1;
-            
-            if ( $AKey eq $sort ) {
-               $string.=sprintf "*%-$len.${len}s ", $$refN{$AKey}->{_title};
-            } else {
-               $string.=sprintf "%-$len.${len}s ", "$$refN{$AKey}->{_title}";
-            }
-        }
+    if ( ! ( keys %$refN )) {
+       return "";
     }
-    $string.=sprintf "\n";
-    $string.=sprintf "%s\n", "-" x $line_len ;
+    if ( ! defined $format) {
+        $format="tables"
+    }
+    if ( $format eq "tables" ) {
+	    $hclen=$$refN{_hosts}->{_length};
+	    $line_len=$hclen+1;
+	    $string.=sprintf "%-$hclen.${hclen}s ", "$title";
+        #
+        # headline
+        #
+        foreach my $AKey (sort keys %$refN) {
+            if ($AKey ne "_hosts") {
+                $len = $$refN{$AKey}->{_length};
+                $line_len=$line_len+$len+1;
+                
+                if ( $AKey eq $sort ) {
+                   $string.=sprintf "*%-$len.${len}s ", $$refN{$AKey}->{_title};
+                } else {
+                   $string.=sprintf "%-$len.${len}s ", "$$refN{$AKey}->{_title}";
+                }
+            }
+	    }
+	    $string.=sprintf "\n";
+	    $string.=sprintf "%s\n", "-" x $line_len ;
+    }
     #
     # object / name / value lines
     #
     if ( $sort eq "" ) {
         foreach my $HKey (sort keys %$refH) {
-            $string.=sprintf "%-$hclen.${hclen}s ", $HKey;
+            if ( $format eq "tables" ) {
+                $string.=sprintf "%-$hclen.${hclen}s ", $HKey;
+            }
             foreach my $AKey (sort keys %$refN) {
                 if ($AKey ne "_hosts") {
                     $len = $$refN{$AKey}->{_length};
-                    $string.=sprintf "%-$len.${len}s ", $$refH{$HKey} -> {$AKey};
+                    if ( $format eq "tables" ) {
+                        $string.=sprintf "%-$len.${len}s ", $$refH{$HKey} -> {$AKey};
+                    } elsif ( $format eq "tables" ) {
+                        $string.=sprintf "%s/%s/%s=\"%s\"\n", $title, $HKey, $AKey, $$refH{$HKey} -> {$AKey};
+                    }
                 }
             }
-            $string.=sprintf "\n";
+            if ( $format eq "tables" ) {
+                $string.=sprintf "\n";
+            }
         }    
     } else {
        # try to sort by site (other attrs to follow)
@@ -762,17 +782,24 @@ sub host_attr2string($$$$)
            #printf "TST: <%s> -> <%s>\n", $sortV, $StrHosts;
        }
     }
-    $string.=sprintf "\n";
+    
+    if ( $format eq "tables" ) {
+	    $string.=sprintf "\n";
+    }
     return $string;
 }
 
-sub print_host_attr($$$$)
+sub print_host_attr
 {
     my $string="";
-    my ($refH, $refN, $title, $sort) = @_;
-    my ($AKey, $HKey, $len, $line_len, $hclen);
-
-    printf "%s\n", host_attr2string($refH, $refN, $title, $sort);
+    my ($refH, $refN, $title, $sort, $format) = @_;
+    if ( ! defined $format) {
+        $format="tables"
+    }
+    my $print_attributes_result = host_attr2string($refH, $refN, $title, $sort, $format);
+    if ( $print_attributes_result ) {
+        printf "%s", $print_attributes_result;
+    }
     return 0;
 }
 
