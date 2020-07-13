@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.3.0713.1301"
+SAPHanaControllerVersion="0.170.3.0713.1635"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -2695,16 +2695,26 @@ function saphana_monitor_clone() {
             # IF LS>=2 AND ROLE STANDBY "RESTART" INSTANCE
             get_hana_landscape_status; lss=$?
             if [ $lss -gt 2 ]; then
+                super_ocf_log info "DEC: local instance is down landscape is up (lss=$lss)"
                 rc=$OCF_NOT_RUNNING
             else
                 #
-                # local instance AND landscape are down - report NOT_RUNNING
+                # local instance AND landscape are down
                 #
+                super_ocf_log info "DEC: local instance AND landscape are down (lss=$lss)"
                 case "$nState" in
-                    DEMOTED ) rc=$OCF_SUCCESS;;          # landscape is up but local instance is down -> report OK
-                    PROMOTED ) rc=$OCF_FAILED_MASTER;;   # same, but for MASTER -> report FAILED_MASTER
-                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;    # same is DEMOTED, but target should be down -> report NOT_RUNNING
-                    * ) rc=$OCF_NOT_RUNNING;;
+                    DEMOTED )
+                                super_ocf_log info "DEC: DEMOTED => OCF_SUCCESS"
+                                rc=$OCF_SUCCESS;;          # landscape is up but local instance is down -> report OK
+                    PROMOTED )
+                                super_ocf_log info "DEC: PROMOTED => OCF_FAILED_MASTER"
+                                rc=$OCF_FAILED_MASTER;;   # same, but for MASTER -> report FAILED_MASTER
+                    UNDEFINED )
+                                super_ocf_log info "DEC: UNDEFINED => OCF_NOT_RUNNING"
+                                rc=$OCF_NOT_RUNNING;;    # same is DEMOTED, but target should be down -> report NOT_RUNNING
+                    * )
+                                super_ocf_log info "DEC: <<UNKNOWN>> => OCF_NOT_RUNNING"
+                                rc=$OCF_NOT_RUNNING;;
                 esac
             fi
             #
@@ -2725,7 +2735,7 @@ function saphana_monitor_clone() {
                     get_hana_landscape_status; lss=$?
                     if [ $lss -le 1 ]; then
                         #
-                        # landscape alraedy reports down / error but local instance is up and running
+                        # landscape already reports down / error but local instance is up and running
                         # we are a left-over active instance without master nameserver nodes - report an error to the cluster to get this instance stopped
                         #
                         super_ocf_log info "DEC: left-over instance and lss=$lss - report generic error for lost instance"
