@@ -1,6 +1,6 @@
-.\" Version: 0.165.0
+.\" Version: 0.1i70.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "04 Jun 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "14 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAP HANA System Replication scale-out basic cluster configuration.
@@ -24,16 +24,19 @@ case of quorum loss. With more than two nodes, the cluster must not ignore the
 quorum loss. For SAPHanaSR-ScaleOut, an odd number of nodes is required. Setting
 no-quorum-policy to 'freeze' won't allow the partition to shoot any other node
 when it doesn't have quorum. Cluster will not be able to add and start new resources,
-but unning will stay alive.
+but running will stay alive.
 If the cluster uses disk-less SBD, the no-quorum-policy 'suicide' is required. 
 
 \fBdefault-resource-stickiness = 1000\fR
 
-The crm basic parameter default-resource-stickiness defines the 'stickiness' score
-a resource gets on the node where it is currently running. This prevents
+The crm basic parameter default-resource-stickiness defines the 'stickiness'
+score a resource gets on the node where it is currently running. This prevents
 the cluster from moving resources around whithout an urgent need during a
-cluster transition. The correct value depends on number of resources and colocation
-rules. Too high value might prevent not only unwanted but also useful actions.
+cluster transition. The correct value depends on number of resources, colocation rules and resource groups. Particularly additional groups colocated to the
+HANA primary master resource can affect cluster decisions. 
+Too high value might prevent not only unwanted but also useful actions.
+This is because SAPHanaSR uses an internal scoring table for placing the HANA
+roles on the right nodes.
 
 \fBconcurrent-fencing = true\fR
 
@@ -153,6 +156,7 @@ property cib-bootstrap-options: \\
 .br
 rsc_defaults rsc-options: \\
 .br
+.\" TODO resource-stickiness=120 or 1000?
 	resource-stickiness=120 \\
 .br
 	migration-threshold=50 \\
@@ -173,13 +177,25 @@ op_defaults op-options: \\
 To complete the SBD setup, it is necessary to activate SBD as STONITH/fencing
 mechanism in the CIB. The SBD is normally used for SAPHanaSR-ScaleOut instead
 of any other fencing/stonith mechanism. Example for disk-based SBD:
-
 .PP
 .RS 4
 .br
 primitive rsc_stonith_sbd stonith:external/sbd \\
 .br
 	params pcmk_action_limit="-1" pcmk_delay_max="1"
+.RE
+.PP
+
+\fB* check how resource stickiness affects promotion scoring\fR
+
+SAPHanaSR uses an internal scoring table. The promotion scores for HANA
+primary and secondary master are in a certain range. The scores used by the
+Linux cluster should be in the same range.
+
+.br
+	# SAPHanaSR-showAttr | grep master.:master
+.br
+	# crm_simulate -Ls | grep promotion
 .RE
 .PP
 .\"
@@ -193,7 +209,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBcrm_no_quorum_policy\fP(7) ,
 \fBcrm\fP(8) , \fBcrm_simulate\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
-\fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
+\fBSAPHanaSR-showAttr\fP(7) , \fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br

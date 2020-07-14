@@ -2613,7 +2613,7 @@ function saphana_monitor_secondary()
 #
 # function: saphana_monitor_clone - monitor a hana clone instance
 # params:   -
-# globals:  OCF_*, ATTR_NAME_*, HOSTNANE, HANA_STATE_*
+# globals:  OCF_*, ATTR_NAME_*, HOSTNAME, HANA_STATE_*
 # saphana_monitor_clone
 #
 function saphana_monitor_clone() {
