@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-showAttr 8 "18 Jun 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "02 Jul 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -9,15 +9,12 @@ SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replica
 \fBSAPHanaSR-showAttr\fR [ --help | --version ]
 .br
 \fBSAPHanaSR-showAttr\fR [ --sid=SID[:INO] ] [ --sort=FIELD ] [ --format=FORMAT ] [ --cib=OFFLINE_CIB_FILE ]
-.\" TODO \fBSAPHanaSR-showAttr\fR [ --sid=SID[:INO]] [ --sort=FIELD ] [ --format=FORMAT ] [ --cib=OFFLINE_CIB_FILE ]
 .\"
 .SH DESCRIPTION
 SAPHanaSR-showAttr shows Linux cluster attributes for SAP HANA system replication automation.
 The overall system replication (SR) state is shown as well as the HANA state on each node.
-Because the HANA srHook method srConnectionChanged() is used, the respective information
-shows up as well.
-The information is fetched from the Linux cluster information base (CIB), not from HANA
-directly.
+Because the HANA srHook methods srConnectionChanged() and postTakeover() are used, the respective information shows up as well.
+The information is fetched from the Linux cluster information base (CIB), not from HANA directly.
 .PP
 The output shows three sections, containing all or some of the listed fields:
 .\" TODO check with existing script.
@@ -32,7 +29,7 @@ HANA primary replication site (\fBprim\fP)
 .br
 HANA secondary replication site (\fBsec\fP)
 .br
-HANA replication channel state indicated by srConnectionChanged (\fBsrHook\fP)
+HANA replication channel state, indicated by srConnectionChanged (\fBsrHook\fP)
 .br
 HANA replication state of secondary site, indicated by systemReplicationStatus.py (\fBsync_state\fP)
 .TP
@@ -61,15 +58,17 @@ actual master score on that node (\fBscore\fP)
 .br
 HANA site where the host sits (\fBsite\fP)
 .br
-HANA SR mode (\fBsrmode\fP)
+HANA system replication mode (\fBsrmode\fP)
 .br
 maintenance state of Linux cluster node (\fBstandby\fP)
 .br
-HANA SR status (\fBsync_state\fP)
+HANA system replication status (\fBsync_state\fP)
 .br
 HANA version (\fBversion\fP)
 .br
 HANA virtual host name (\fBvhost\fP)
+.br
+HANA system replication takeover action, indicated by postTakeover() (\fBsra\fP)
 .PP
 Some fields are generated dynamically from the CIB. That fields might be missing,
 if no corresponding attribute exists, e.g. the standby field.
@@ -238,8 +237,7 @@ This is a Linux Cluster node attribute. It is set by an admin.
 The attribute is shown after it has been changed from the default.
 The field might appear or disappear, depending on cluster maintenance tasks.
 .PP
-.B sync_st
-and \fBsync_state\fR
+.B sync_state
 - HANA SR status
 
 Value: [ SOK | SFAIL | SWAIT | PRIM ]
@@ -257,8 +255,7 @@ The 4th value (PRIM) just indicates an HANA SR primary.
 
 Value: [ SOK | SFAIL | SWAIT | PRIM ]
 
-The cluster property hana_<sid>_site_srHook_<site> represents the HANA SR status from
-HA/DR provider API.
+The cluster property hana_<sid>_site_srHook_<site> represents the HANA SR status from HA/DR provider API method srConnectionChanged().
 .PP
 .B version
 - HANA version
@@ -282,6 +279,21 @@ The attribute is used by the SAPHana orSAPHanaController  resource agent for set
 See also the  fields Hosts and remoteHost. SAPHanaToplogy needs the SAPHOSTAGENT to map from the local
 hostname to the HANA virtual hostname.
 .\" TODO details, see HANA global.ini
+.PP
+.B sra
+- HANA system replication action
+
+Value: [ T | R | - ]
+.\" TODO final values
+
+The node attribute system replication action is set by the HA/DR provider API method postTakeover().
+It indicates whether a take-over or registration is ongoing.
+.br
+T = Take-over on new primary (sr_takeover) ongoing.
+.br
+R = Registration on new secondary (sr_register) ongoing.
+.br
+- = No action pending.
 .\"
 .SH OPTIONS
 .HP
