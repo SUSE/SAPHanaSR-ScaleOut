@@ -256,13 +256,11 @@ The 4th value (PRIM) just indicates an HANA SR primary.
 
 Value: [ SOK | SFAIL | SWAIT | PRIM ]
 
-The cluster property related to srHook represents the HANA SR status from HA/DR provider
-API method srConnectionChanged(). Version 1.0 of that API supports only one system replication.
-Version 2.0 also supports multi-tier system replication.
+The cluster property related to srHook represents the HANA SR status from HA/DR provider API method srConnectionChanged(). See SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
 .br
-For SAPHanaSR-ScaleOut up to version 0.169 hana_<sid>_glob_srHook shows one HANA SR status. 
-For version 0.170 and later hana_<sid>_site_srHook_<site> shows the HANA SR status specific
-to the respective site.
+The cluster property \fBhana_<sid>_glob_srHook\fR shows one HANA SR status. It does
+not work for multi-tier and multi-target system replication.
+\fBhana_<sid>_site_srHook_<site>\fR shows the HANA SR status specific to the respective site.
 .br
 Note: Global and site-specific properties must not appear at same time.
 .PP
