@@ -135,8 +135,9 @@ This case fits for bigger scale-out HANAs, e.g. BW systems.
 .PP
 6. \fBLocal stop of orphaned worker node\fR
 .br
-If the HANA master nameserver fails and can not be recoverd, the orphaned
-HANA worker will be stopped by the Linux cluster.
+If the HANA master nameserver fails, the HANA landscape status goes to "ERROR",
+and HANA can not recover on its own, the orphaned HANA worker will be stopped
+by the Linux cluster.
 This case fits for small scale-out HANAs, e.g. ERP systems with two nodes.
 .\" TODO scenario filesystem full or inaccesible: additional Filsystem RA
 .PP
