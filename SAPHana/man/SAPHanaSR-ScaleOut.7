@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "18 Jun 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "14 Jul 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -115,7 +115,10 @@ secondary after the primary landscape fails. The alternative is to restart the
 primary landscape, if it fails and only to take-over when no local restart is
 possible anymore. This can be tuned by SAPHanaController(7) parameters.
 .br
-Preferring take-over over local restart usually has been choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of take-over could be combined with HANA's persistent memory features.
+Preferring take-over over local restart usually has been choosen for HANA
+system replication performance-optimised setups. On the other hand local
+restart of the master instead of take-over could be combined with HANA's
+persistent memory features.
 .br
 The current implementation only allows to take-over in case the landscape status
 reports 1 (ERROR). The cluster will not take-over, when the SAP HANA still tries
@@ -128,8 +131,15 @@ the nameserver on another node. Therefore usually up to two nodes are
 configured as additional nameserver candidates. At least one of them should be
 a standby node to optimize failover time. The Linux cluster will detect the
 change and move the IP address to the new active master nameserver.
+This case fits for bigger scale-out HANAs, e.g. BW systems. 
 .PP
+6. \fBLocal stop of orphaned worker node\fR
+.br
+If the HANA master nameserver fails and can not be recoverd, the orphaned
+HANA worker will be stopped by the Linux cluster.
+This case fits for small scale-out HANAs, e.g. ERP systems with two nodes.
 .\" TODO scenario filesystem full or inaccesible: additional Filsystem RA
+.PP
 .\" 
 \fBImplementation\fR
 .PP
@@ -142,6 +152,8 @@ The HANA consists of two sites with same number of nodes each. There are no
 HANA nodes outside the Linux cluster. An additional Linux cluster node is used
 as majority maker for split-brain situations. This dedicated node does not need
 to have HANA installed and must not run any SAP HANA resources for the same SID.
+.PP
+The HANA HADR provider is used for detecting system replication status changes.
 .PP
 A common STONITH mechanism is set up for all nodes across all the sites.
 .PP
@@ -227,7 +239,7 @@ With the mentioned HANA versions uni-directional chained system replication
 is possible. Beginning with HANA 2.0 SPS 3 multi-target system replication
 is possible as well. Even in HANA multi-target environments, the current
 resource agent manages only two sites. Thus only two HANA sites are part
-of the Linux cluster. 
+of the Linux cluster. See also item 5 above.
 .\" TODO check HANA version for multi-target
 .\" TODO up to version 0.169 vs. version 0.170 and later
 .PP
@@ -247,7 +259,8 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .PP
 .\"
 .SH SEE ALSO
-\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) , \fBocf_heartbeat_IPaddr2\fP(7) ,
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
+\fBocf_heartbeat_IPaddr2\fP(7) , \fBSAPHanaSR-ScaleOut_basic_cluster\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR.py\fP(7) , 
 \fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBsbd\fP(8) , \fBstonith_sbd\fP(7) ,
 \fBcrm\fP(8) , \fBcorosync.conf\fP(5) , \fBcrm_no_quorum_policy\fP(7) ,
