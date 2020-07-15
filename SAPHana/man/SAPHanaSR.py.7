@@ -59,7 +59,7 @@ Usage, syntax or execution errors.
 .PP
 * Simple example for permissions in /etc/sudoers. HANA 1.0 Scale-Out, SID is SLE.
 .PP
-.RS 4
+.RS 2
 # SAPHanaSR-ScaleOut needs for srHook
 .br
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
@@ -67,7 +67,7 @@ sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
 .PP
 * More restricted exmaple for sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up, SID is SLE.
 .PP
-.RS 4
+.RS 2
 # SAPHanaSR needs for srHook
 .br
 Cmnd_Alias SOK = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SOK -t crm_config -s SAPHanaSR
@@ -84,7 +84,7 @@ sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
 This file is needed at both sites. The HANA has to be stopped before the files
 can be edited.
 .PP
-.RS 4
+.RS 2
 [ha_dr_provider_SAPHanaSR]
 .br
 provider = SAPHanaSR
@@ -100,7 +100,7 @@ ha_dr_saphanasr = info
 .PP
 * Example for creating the optional SAPHanaSR python object file manually. SID is SLE.
 .PP
-.RS 4
+.RS 2
 # mkdir -p /hana/shared/srhook
 .br
 # chown sleadm.sapsys /hana/shared/srhook
@@ -117,13 +117,13 @@ ha_dr_saphanasr = info
 .PP
 * Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. 
 .PP
-.RS 4
+.RS 2
 # grep "sudo.*crm_attribute.*srHook" /var/log/messages
 .RE
 .PP
 * Example for checking the HANA tracefiles for srConnectionChanged() events.
 .PP
-.RS 4
+.RS 2
 # su - sleadm
 .br
 ~> cdtrace
