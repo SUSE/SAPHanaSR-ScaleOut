@@ -9,7 +9,7 @@ SAPHanaSR needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
 import os, time
 
-fhSRHookVersion = "0.170.3.0706.1711"
+fhSRHookVersion = "0.170.3.0716.1509"
 
 try:
     from hdb_ha_dr.client import HADRBase
@@ -35,40 +35,40 @@ try:
         def __init__(self, *args, **kwargs):
             # delegate construction to base class
             super(SAPHanaSR, self).__init__(*args, **kwargs)
-            method="init"
-            self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__,method,fhSRHookVersion))
+            method = "init"
+            self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
 
         def about(self):
-            method="about"
-            self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__,method,fhSRHookVersion))
+            method = "about"
+            self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
             return {"provider_company": "SUSE",
                     "provider_name": "SAPHanaSR",  # class name
                     "provider_description": "Inform Cluster about SR state",
                     "provider_version": "1.0"}
 
         def startup(self, hostname, storage_partition, sr_mode, **kwargs):
-            method="startup"
+            method = "startup"
             self.tracer.debug("enter startup hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave startup hook")
             return 0
 
         def shutdown(self, hostname, storage_partition, sr_mode, **kwargs):
-            method="shutdown"
+            method = "shutdown"
             self.tracer.debug("enter shutdown hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave shutdown hook")
             return 0
 
         def failover(self, hostname, storage_partition, sr_mode, **kwargs):
-            method="failover"
+            method = "failover"
             self.tracer.debug("enter failover hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             self.tracer.info("leave failover hook")
             return 0
 
         def stonith(self, failingHost, **kwargs):
-            method="stonith"
+            method = "stonith"
             self.tracer.debug("enter stonith hook; {0}".format(locals()))
             self.tracer.debug(self.config.toString())
             # e.g. stonith of params["failed_host"]
@@ -78,7 +78,7 @@ try:
 
         def preTakeover(self, isForce, **kwargs):
             """Pre takeover hook."""
-            method="preTakeover"
+            method = "preTakeover"
             self.tracer.info("{0}.{1}() method called with isForce={2}".format(self.__class__.__name__, method, isForce))
             if not isForce:
                 # run pre takeover code
@@ -90,7 +90,7 @@ try:
                 return 0
 
         def postTakeover(self, rc, **kwargs):
-            method="postTakeover"
+            method = "postTakeover"
             """Post takeover hook."""
             self.tracer.info("{0}.{1}() method called with rc={2}".format(self.__class__.__name__, method, rc))
             if rc == 0:
@@ -104,9 +104,9 @@ try:
                 return 0
 
         def srConnectionChanged(self, ParamDict, **kwargs):
-            method="srConnectionChanged"
+            method = "srConnectionChanged"
             """ finally we got the srConnection hook :) """
-            self.tracer.info("{0}.{1}() method called with Dict={2} (version {3})".format(self.__class__.__name__, method, ParamDict,fhSRHookVersion))
+            self.tracer.info("{0}.{1}() method called with Dict={2} (version {3})".format(self.__class__.__name__, method, ParamDict, fhSRHookVersion))
             # myHostname = socket.gethostname()
             # myDatebase = ParamDict["database"]
             mySystemStatus = ParamDict["system_status"]
@@ -115,18 +115,18 @@ try:
             myInSync = ParamDict["is_in_sync"]
             myReason = ParamDict["reason"]
             mySite = ParamDict["siteName"]
-            if (mySystemStatus == 15):
+            if mySystemStatus == 15:
                 mySRS = "SOK"
             else:
-                if (myInSync):
+                if myInSync:
                     # ignoring the SFAIL, because we are still in sync
                     self.tracer.info("{0}.{1}() ignoring bad SR status because of is_in_sync=True (reason={2})".format(self.__class__.__name__, method, myReason))
                     mySRS = ""
                 else:
                     mySRS = "SFAIL"
-            if ( mySRS == "" ):
+            if  mySRS == "" :
                 myMSG = "### Ignoring bad SR status because of is_in_sync=True ###"
-            elif ( mySite == "" ):
+            elif mySite == "" :
                 myMSG = "### Ignoring bad SR status because of empty site name in call params ###"
                 self.tracer.info("{0}.{1}() was called with empty site name. Ignoring call.".format(self.__class__.__name__, method))
             else:
