@@ -5,11 +5,11 @@
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
 # Copyright:    (c) 2017-2020 SUSE LLC
 
-SAPHanaSR needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
+SAPHanaSrMt needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
 import os, time
 
-fhSRHookVersion = "0.170.3.0716.1509"
+fhSRHookVersion = "0.170.3.0716.1640"
 
 try:
     from hdb_ha_dr.client import HADRBase
@@ -20,8 +20,8 @@ except ImportError as e:
 Only for SAP HANA >= 2.0 SPS3
 
 To use this HA/DR hook provide please add the following lines (or similar) to your global.ini:
-    [ha_dr_provider_SAPHanaSR]
-    provider = SAPHanaSR
+    [ha_dr_provider_SAPHanaSrMt]
+    provider = SAPHanaSrMt
     path = /usr/share/SAPHanaSR-ScaleOut
     execution_order = 1
 
@@ -30,11 +30,11 @@ To use this HA/DR hook provide please add the following lines (or similar) to yo
 """
 
 try:
-    class SAPHanaSR(HADRBase):
+    class SAPHanaSrMt(HADRBase):
 
         def __init__(self, *args, **kwargs):
             # delegate construction to base class
-            super(SAPHanaSR, self).__init__(*args, **kwargs)
+            super(SAPHanaSrMt, self).__init__(*args, **kwargs)
             method = "init"
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
 
@@ -42,7 +42,7 @@ try:
             method = "about"
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
             return {"provider_company": "SUSE",
-                    "provider_name": "SAPHanaSR",  # class name
+                    "provider_name": "SAPHanaSrMt",  # class name
                     "provider_description": "Inform Cluster about SR state",
                     "provider_version": "1.0"}
 
@@ -124,16 +124,17 @@ try:
                     mySRS = ""
                 else:
                     mySRS = "SFAIL"
-            if  mySRS == "" :
+            if mySRS == "":
                 myMSG = "### Ignoring bad SR status because of is_in_sync=True ###"
-            elif mySite == "" :
+                self.tracer.info("{0}.{1}() {2}\n".format( self.__class__.__name__, method, myMSG ))
+            elif mySite == "":
                 myMSG = "### Ignoring bad SR status because of empty site name in call params ###"
                 self.tracer.info("{0}.{1}() was called with empty site name. Ignoring call.".format(self.__class__.__name__, method))
             else:
                 myCMD = "sudo /usr/sbin/crm_attribute -n hana_{0}_site_srHook_{1} -v {2} -t crm_config -s SAPHanaSR".format(mysid, mySite, mySRS)
                 rc = os.system(myCMD)
-                myMSG = "CALLING CRM: <" + myCMD + "> rc=" + str(rc)
-            self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
+                myMSG = "CALLING CRM: <{0}> rc={1}".format( myCMD, rc )
+                self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
             return 0
 except NameError as e:
         print("Could not find base class ({0})".format(e))
