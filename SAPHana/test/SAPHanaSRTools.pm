@@ -747,7 +747,7 @@ sub host_attr2string
                     $len = $$refN{$AKey}->{_length};
                     if ( $format eq "tables" ) {
                         $string.=sprintf "%-$len.${len}s ", $$refH{$HKey} -> {$AKey};
-                    } elsif ( $format eq "tables" ) {
+                    } elsif ( $format eq "script" ) {
                         $string.=sprintf "%s/%s/%s=\"%s\"\n", $title, $HKey, $AKey, $$refH{$HKey} -> {$AKey};
                     }
                 }
