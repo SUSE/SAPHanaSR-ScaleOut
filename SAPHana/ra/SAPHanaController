@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.3.0701.1549"
+SAPHanaControllerVersion="0.170.3.0713.1635"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -2613,7 +2613,7 @@ function saphana_monitor_secondary()
 #
 # function: saphana_monitor_clone - monitor a hana clone instance
 # params:   -
-# globals:  OCF_*, ATTR_NAME_*, HOSTNANE, HANA_STATE_*
+# globals:  OCF_*, ATTR_NAME_*, HOSTNAME, HANA_STATE_*
 # saphana_monitor_clone
 #
 function saphana_monitor_clone() {
@@ -2683,39 +2683,78 @@ function saphana_monitor_clone() {
             fi
         fi
     else
+        #
+        # instance is not THE master nameserver
+        #
         nState=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_CLONE_STATE[@]}")
         # TODO: PRIO2: Check, if we need to (re) start a failed SAP HANA instance in a swarm
         if ! saphana_check_local_instance; then
+            #
+            # local instance is not THE master nameserver and is currently stopped
+            #
             # IF LS>=2 AND ROLE STANDBY "RESTART" INSTANCE
             get_hana_landscape_status; lss=$?
             if [ $lss -gt 2 ]; then
-                case "$nState" in
-                    DEMOTED ) rc=$OCF_NOT_RUNNING;;      # landscape is up but local instance is down -> report NOT_RUNNING
-                    PROMOTED ) rc=$OCF_NOT_RUNNING;;     # same, but for MASTER -> report NOT_RUNNING
-                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;    # same is DEMOTED, but target should be down -> report NOT_RUNNING
-                    * ) rc=$OCF_NOT_RUNNING;;
-                esac
+                super_ocf_log info "DEC: local instance is down landscape is up (lss=$lss)"
+                rc=$OCF_NOT_RUNNING
             else
+                #
+                # local instance AND landscape are down
+                #
+                super_ocf_log info "DEC: local instance AND landscape are down (lss=$lss)"
                 case "$nState" in
-                    DEMOTED ) rc=$OCF_SUCCESS;;          # landscape is down and local instance is down -> report SUCCESS
-                    PROMOTED ) rc=$OCF_NOT_RUNNING;;     # same, but for MASTER -> report NOT_RUNNING
-                    UNDEFINED ) rc=$OCF_NOT_RUNNING;;    # same is DEMOTED, but target should be down -> report NOT_RUNNING
-                    * ) rc=$OCF_NOT_RUNNING;;
+                    DEMOTED )
+                                super_ocf_log info "DEC: DEMOTED => OCF_SUCCESS"
+                                rc=$OCF_SUCCESS;;          # landscape is up but local instance is down -> report OK
+                    PROMOTED )
+                                super_ocf_log info "DEC: PROMOTED => OCF_FAILED_MASTER"
+                                rc=$OCF_FAILED_MASTER;;   # same, but for MASTER -> report FAILED_MASTER
+                    UNDEFINED )
+                                super_ocf_log info "DEC: UNDEFINED => OCF_NOT_RUNNING"
+                                rc=$OCF_NOT_RUNNING;;    # same is DEMOTED, but target should be down -> report NOT_RUNNING
+                    * )
+                                super_ocf_log info "DEC: <<UNKNOWN>> => OCF_NOT_RUNNING"
+                                rc=$OCF_NOT_RUNNING;;
                 esac
             fi
             #
         else
+            #
+            # local instance not THE master nameserver, but up-and-running
+            #
             super_ocf_log info "DEC: the_master=<<$the_master>>"
-            if [ is_active_nameserver_slave -a -z "$the_master" ]; then
-              #
-              # code for missing ALL master nameserver candidates
-              #
-              super_ocf_log info "DEC: left-over instance ???"
-              get_hana_landscape_status; lss=$?
-              if [ $lss -le 1 ]; then
-                 # we are a left-over sctive master nameserver nodes - report an error to the cluster to get this instance stopped
-                 rc=$OCF_NOT_RUNNING
-              fi
+            if [ -z "$the_master"  ]; then
+                #
+                # code for missing ALL master nameserver candidates
+                #
+                if is_active_nameserver_slave; then
+                    #
+                    # missing ALL master nameser candidates, but local instance still running -> we need to trigger the cluster to take us down
+                    #
+                    super_ocf_log info "DEC: left-over instance ???"
+                    get_hana_landscape_status; lss=$?
+                    if [ $lss -le 1 ]; then
+                        #
+                        # landscape already reports down / error but local instance is up and running
+                        # we are a left-over active instance without master nameserver nodes - report an error to the cluster to get this instance stopped
+                        #
+                        super_ocf_log info "DEC: left-over instance and lss=$lss - report generic error for lost instance"
+                        rc=$OCF_ERR_GENERIC
+                    else
+                        #
+                        # landscape still reports a running swarm AND local instance is up and running
+                        # we are a left-over active instance without master nameserver nodes - wait till landscape status falls down to error
+                        #
+                        super_ocf_log info "DEC: left-over instance and lss=$lss - wait till lss falls down to error and SAP HANA did a final decission"
+                        rc=$OCF_SUCCESS
+                    fi
+                else
+                    #
+                    # missing ALL master nameser candidates AND local instance is also stopped -> just inform the cluster we are down
+                    #
+                    super_ocf_log info "DEC: left-over instance but already down"
+                    rc=$OCF_NOT_RUNNING
+                fi
             else
               #
               # code, if we still have ANY master nameserver candidates
