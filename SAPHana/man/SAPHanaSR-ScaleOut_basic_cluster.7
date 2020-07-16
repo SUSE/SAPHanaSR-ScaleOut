@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "14 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "15 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAP HANA System Replication scale-out basic cluster configuration.
@@ -33,7 +33,8 @@ If the cluster uses disk-less SBD, the no-quorum-policy 'suicide' is required.
 The crm basic parameter default-resource-stickiness defines the 'stickiness'
 score a resource gets on the node where it is currently running. This prevents
 the cluster from moving resources around whithout an urgent need during a
-cluster transition. The correct value depends on number of resources, colocation rules and resource groups. Particularly additional groups colocated to the
+cluster transition. The correct value depends on number of resources, colocation
+rules and resource groups. Particularly additional groups colocated to the
 HANA primary master resource can affect cluster decisions. 
 Too high value might prevent not only unwanted but also useful actions.
 This is because SAPHanaSR uses an internal scoring table for placing the HANA
@@ -133,7 +134,7 @@ op_defaults $id="op_defaults-options" \\
  timeout="300s"
 .RE
 .PP
-The following example is from SLE-HA 12 SP4 with disk-based SBD:
+The following example is for SLE-HA 12 SP4 and 15 SP1 with disk-based SBD:
 .PP
 .RS 2
 .br
@@ -269,7 +270,7 @@ might not take action. To solve this, a dummy filesystem resource could
 be added. If this filesystem reports monitor failures, the node gets fenced
 and a take-over is initiated.
 .br
-Note: Understanding the impact before implementing helps.
+Note: Understand the impact before implementing.
 .PP
 .RS 2
 primitive rsc_fs_check_SLE_HDB00 Filesystem \\
