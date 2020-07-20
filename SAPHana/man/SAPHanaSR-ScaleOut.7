@@ -131,14 +131,15 @@ the nameserver on another node. Therefore usually up to two nodes are
 configured as additional nameserver candidates. At least one of them should be
 a standby node to optimize failover time. The Linux cluster will detect the
 change and move the IP address to the new active master nameserver.
-This case fits for bigger scale-out HANAs, e.g. BW systems. 
+This case fits for scale-out HANAs with big number of nodes, e.g. BW systems. 
 .PP
 6. \fBLocal stop of orphaned worker node\fR
 .br
 If the HANA master nameserver fails, the HANA landscape status goes to "ERROR",
 and HANA can not recover on its own, the orphaned HANA worker will be stopped
 by the Linux cluster.
-This case fits for small scale-out HANAs, e.g. ERP systems with two nodes.
+This case fits for scale-out HANAs with small number of nodes, e.g. ERP systems
+with two nodes.
 .\" TODO scenario filesystem full or inaccesible: additional Filsystem RA
 .PP
 .\" 
@@ -153,6 +154,7 @@ The HANA consists of two sites with same number of nodes each. There are no
 HANA nodes outside the Linux cluster. An additional Linux cluster node is used
 as majority maker for split-brain situations. This dedicated node does not need
 to have HANA installed and must not run any SAP HANA resources for the same SID.
+Supported combinations of CPU architectures are given by the Linux cluster. 
 .PP
 The HANA HADR provider is used for detecting system replication status changes.
 .PP
