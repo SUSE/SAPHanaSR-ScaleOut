@@ -1298,7 +1298,7 @@ function saphana_stop() {
     local output=""
     if is_the_master_nameserver; then
         saphana_stopSystem
-    elif [ is_active_nameserver_slave -a -z "$the_master" ]; then
+    elif is_active_nameserver_slave && [ -z "$the_master" ]; then
         saphana_stopSystem
     else
         # TODO: PRIO1: Do we need to set a clone state here?

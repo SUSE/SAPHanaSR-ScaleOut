@@ -1,4 +1,44 @@
 -------------------------------------------------------------------
+Thu Jul 16 16:53:01 UTC 2020 - abriel@suse.com
+
+- change version to 0.170.3 - Testversion
+- extent the SAP HANA ressource agents from single replication
+  automation to multi replication automation, which means
+  adding multi-target support (srHook - SAPHanaSrMultiTarget.py)
+  (jsc#SLE-11217)
+- block manually takeover, if the cluster just initiates and
+  performs an automatically takeover
+  (srHook - SAPHanaSrTakeoverBlocker.py)
+- During a SR takeover there may be a small time frame where the
+  srHook gets a state change from the API with an empty site name.
+  This results in a mis-configuration of the cluster. So log the
+  occurrence of an empty site name, but do not generate bad
+  formatted cluster attribute name.
+- handle 'leftover instances'
+  if HANA is configured to have only one master name server, but
+  no additional master name server candidates, there may be the
+  situation, where the master name serve died and so the landscape
+  has no active name server anymore.
+  But there are other instances running with active communication
+  channels. To prevent data corruption or operations on outdated
+  data, we identify and stop these 'leftover' instances.
+- fix documentation of some parameter defaults
+- adjust start/stop/promote/monitor action timeouts to match
+  official recommendations
+- manual page updates:
+  SAPHanaSR-ScaleOut.7 (bsc#1144442)
+  SAPHanaSR-showAttr.8 (bsc#1144312)
+- adjust README file
+  (bsc#1144729)
+
+-------------------------------------------------------------------
+Thu May 14 15:28:09 UTC 2020 - abriel@suse.com
+
+- let the SAPHanaSR-ScaleOut-doc package conflict with the
+  SAPHanaSR-doc package
+  (bsc#1157685)
+
+-------------------------------------------------------------------
 Mon Nov 11 10:44:44 UTC 2019 - abriel@suse.com
 
 - change version to 0.164.0

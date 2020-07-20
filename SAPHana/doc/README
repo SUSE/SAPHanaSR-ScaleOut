@@ -1,35 +1,78 @@
 I. Installation
-Just install the package SAPHanaSR (and SAPHanaSR-doc). Please follow the
-instructions of the Setup-Guide published in our web site at
-https://www.suse.com/products/sles-for-sap/resource-library/ (in the near
-future) and also in the package SAPHanaSR-doc. In addition please check, if there
-will be additional notes and findings in a SAP Note with component BC-OP-LNX-SUSE
-(we will update this readme with the SAP Note number, when such a SAP Note will
-be created).
+Just install the package SAPHanaSR-ScaleOut (and SAPHanaSR-ScalOut-doc).
+Please follow the instructions of the Setup-Guide published in our web site at
+https://documentation.suse.com/sbp/all/?context=sles-sap and also in the
+package SAPHanaSR-ScaleOut-doc.
 
 
 II. Supported Scenarios and Prerequisites
-For the first version of the SAPHanaSR resource agent software package we limit
-the support to the following scenarios and parameters:
 
-1. Two-node clusters
-2. Scale-UP (single-box to single-box) system replication
-3. Both nodes are in the same network segment (layer 2)
-4. Technical users and groups such as sidadm are defined locally in the Linux 
-   system
-5. Name resolution of the cluster nodes and the virtual IP address can be done 
-   locally on all cluster nodes
-6. Time synchronization between the cluster nodes using NTP
-7. There is no other SAP HANA system (like QA) on the replicating node which 
-   needs to be stopped during takeover.
-8. Only one system replication for the SAP HANA database
-9. Both SAP HANA instances have the same SAP Identifier (SID) and 
-   Instance-Number
-10. If the cluster nodes are installed in different data centers or data center 
-    areas, the environment must match the requirements of the SLE HAE cluster 
-    product. This in special means the network latencies between the nodes and 
-    the recommended maximum distance. Please review our product documentation 
-    for SLE HAE about those recommendations.
-11. As a good starting configuration for PoCs and projects we recommend to 
-    switch-off the automated registration of a failed primary. The setup 
-    AUTOMATED_REGISTER=”false” is also the default since version 0.139.
+For the current version of the package SAPHanaSR-ScaleOut, the support is
+limited to the following scenarios and parameters:
+
+1. HANA scale-out cluster with system replication.
+   Performance optimized, single container (A => B) and
+   Performance optimized, multi-tenancy also named MDC (%A => %B).
+2. It does NOT support cost optimized scenario.
+3. It does NOT support multi-tier or multi-target system replication.
+   (a 'third' site, e.g. A => B -> C)
+	This restriction will be removed with the next version.
+4. It does NOT manage any service IP address for a read-enabled secondary site.
+	This restriction will be removed with the next version.
+5. The replication mode should be either 'sync' or 'syncmem'.
+6. The HANA consists of two sites with same number of nodes each.
+7. The two HANA database systems (primary and secondary site) are managed by
+   the same single Linux cluster.
+8. There are no HANA nodes outside the Linux cluster.
+	This restriction will be removed with the multi-target support
+	as the 3rd site will not be managed by the cluster.
+9. The maximum number of nodes in that single Linux cluster is given by the
+   Linux cluster limit.
+10. An odd number of nodes is needed to handle split-brain situations
+    automatically.
+11. A dedicated cluster node might be used as majority maker.
+    This dedicated node does not need to have HANA installed and must not run
+    any SAP HANA resources for the same SID. Nevertheless resource agents and
+    saphostagent needs to be installed and configured, including users.
+12. The cluster must include a valid STONITH method.
+13. As the STONITH mechanism SBD is recommended. Either disk-based or diskless.
+14. Both sites are either in the same network segment (layer 2) to allow an
+    easy takeover ofan IP Address, or you need a technique like overlay IP
+    addresses in virtual private clouds.
+15. Technical users and groups such as <sid>adm are defined locally in the Linux
+    system.
+16. Name resolution of the cluster nodes and the virtual IP address should be
+    done locally on all cluster nodes.
+17. Strict time synchronization between the cluster nodes using reliable time
+    services like NTP.
+18. There is no other SAP HANA system (like QA) on the replicating node which
+    needs to be stopped during take-over.
+    see 2. No cost optimized scenario is supported.
+19. Only one system replication for the SAP HANA database.
+    see 3. multi-target not supported
+20. Both SAP HANA database systems have the same SAP Identifier (SID) and
+    Instance Number.
+21. The SAP HANA scale-out system must have only one active master name server
+    per site.
+22. It must have up to three master name server candidates (SAP HANA nodes with
+    a configured role 'master<N>').
+	This restriction will be removed with the next version.
+23. The SAP HANA scale-out system must have only one failover group.
+24. The SAP hostagent must be installed and started on your system.
+25. Automated start of SAP HANA database systems during system boot must be
+    switched off.
+    All SAP HANA instances controlled by the cluster must not be activated
+    via sapinit autostart.
+26. If the shared storage is implemented with another cluster, that one does
+    not interfere with the Linux cluster.
+    All three clusters (HANA, storage, Linux) have to be aligned.
+27. Automated registration of a failed primary after takeover is possible.
+    And for optimal automation, AUTOMATED_REGISTER="true" is recommended.
+    But as a good starting configuration for projects, it is recommended to
+    switch off the automated registration of a failed primary, therefore the
+    AUTOMATED_REGISTER="false" is the default.
+    In this case, you need to register a failed primary after a takeover
+    manually. Use SAPtools like hanastudio or hdbnsutil.
+28. The current resource agent for Scale-Out supports SAP HANA in system
+    replication beginning with HANA version 1.0 SPS12 (121) or HANA 2.0 SPS2.
+    Older versions do not provide the srHook method srConnectionChanged().
