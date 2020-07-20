@@ -5,11 +5,11 @@
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
 # Copyright:    (c) 2017-2020 SUSE LLC
 
-SAPHanaSrMt needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
+SAPHanaSrMultiTarget needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
 import os, time
 
-fhSRHookVersion = "0.170.3.0716.1640"
+fhSRHookVersion = "0.170.3.0720.2102"
 
 try:
     from hdb_ha_dr.client import HADRBase
@@ -20,8 +20,8 @@ except ImportError as e:
 Only for SAP HANA >= 2.0 SPS3
 
 To use this HA/DR hook provide please add the following lines (or similar) to your global.ini:
-    [ha_dr_provider_SAPHanaSrMt]
-    provider = SAPHanaSrMt
+    [ha_dr_provider_SAPHanaSrMultiTarget]
+    provider = SAPHanaSrMultiTarget
     path = /usr/share/SAPHanaSR-ScaleOut
     execution_order = 1
 
@@ -30,11 +30,11 @@ To use this HA/DR hook provide please add the following lines (or similar) to yo
 """
 
 try:
-    class SAPHanaSrMt(HADRBase):
+    class SAPHanaSrMultiTarget(HADRBase):
 
         def __init__(self, *args, **kwargs):
             # delegate construction to base class
-            super(SAPHanaSrMt, self).__init__(*args, **kwargs)
+            super(SAPHanaSrMultiTarget, self).__init__(*args, **kwargs)
             method = "init"
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
 
@@ -42,7 +42,7 @@ try:
             method = "about"
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
             return {"provider_company": "SUSE",
-                    "provider_name": "SAPHanaSrMt",  # class name
+                    "provider_name": "SAPHanaSrMultiTarget",  # class name
                     "provider_description": "Inform Cluster about SR state",
                     "provider_version": "1.0"}
 
