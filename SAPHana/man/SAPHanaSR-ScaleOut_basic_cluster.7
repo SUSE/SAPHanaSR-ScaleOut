@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "14 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "15 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAP HANA System Replication scale-out basic cluster configuration.
@@ -9,7 +9,8 @@ SAP HANA System Replication scale-out basic cluster configuration.
 .SH DESCRIPTION
 .\"
 The SAP HANA System Replication scale-out scenario needs a certain basic
-cluster configuration. 
+cluster configuration. Besides this necessary settings, some additional
+configurations might match specific needs.
 .\"
 .\" \fB* Corosync Basics\fR
 .\"
@@ -32,7 +33,8 @@ If the cluster uses disk-less SBD, the no-quorum-policy 'suicide' is required.
 The crm basic parameter default-resource-stickiness defines the 'stickiness'
 score a resource gets on the node where it is currently running. This prevents
 the cluster from moving resources around whithout an urgent need during a
-cluster transition. The correct value depends on number of resources, colocation rules and resource groups. Particularly additional groups colocated to the
+cluster transition. The correct value depends on number of resources, colocation
+rules and resource groups. Particularly additional groups colocated to the
 HANA primary master resource can affect cluster decisions. 
 Too high value might prevent not only unwanted but also useful actions.
 This is because SAPHanaSR uses an internal scoring table for placing the HANA
@@ -95,94 +97,203 @@ specific parameters which are needed. Some general parameters are left out.
 .br
 This example has been taken from SLE-HA 11 SP4 with disk-based SBD:
 .PP
-.RS 4
+.RS 2
 .br
 property $id="cib-bootstrap-options" \\
 .br
-	expected-quorum-votes="31" \\
+ expected-quorum-votes="31" \\
 .br
-	no-quorum-policy="freeze" \\
+ no-quorum-policy="freeze" \\
 .br
-	dc-deadtime="20s" \\
+ dc-deadtime="20s" \\
 .br
-	default-resource-stickiness="1000" \\
+ default-resource-stickiness="1000" \\
 .br
-	stonith-enabled="true" \\
+ stonith-enabled="true" \\
 .br
-	stonith-timeout="180s" \\
+ stonith-timeout="180s" \\
 .br
-	concurrent-fencing="true"
+ concurrent-fencing="true"
 .br
 rsc_defaults $id="rsc_defaults-options" \\
 .br
-	resource-stickiness="1000" \\
+ resource-stickiness="1000" \\
 .br
-	migration-threshold="50" \\
+ migration-threshold="50" \\
 .br
-	failure-timeout="86400s"
+ failure-timeout="86400s"
 .br
 op_defaults $id="op-options" \\
 .br
-	record-pending="false" \\
+ record-pending="false" \\
 .br
-	timeout="600s"
+ timeout="600s"
 .br
 op_defaults $id="op_defaults-options" \\
 .br
-	timeout="300s"
+ timeout="300s"
 .RE
 .PP
-The following example is from SLE-HA 12 SP4 with disk-based SBD:
+The following example is for SLE-HA 12 SP4 and 15 SP1 with disk-based SBD:
 .PP
-.RS 4
+.RS 2
 .br
 property cib-bootstrap-options: \\
 .br
-	have-watchdog=true \\
+ have-watchdog=true \\
 .br
-	cluster-infrastructure=corosync \\
+ cluster-infrastructure=corosync \\
 .br
-	cluster-name=hacluster \\
+ cluster-name=hacluster \\
 .br
-	stonith-enabled=true \\
+ stonith-enabled=true \\
 .br
-	placement-strategy=balanced \\
+ placement-strategy=balanced \\
 .br
-	stonith-timeout=180 \\
+ stonith-timeout=180 \\
 .br
-	no-quorum-policy=freeze \\
+ no-quorum-policy=freeze \\
 .br
-	concurrent-fencing=true
+ concurrent-fencing=true
 .br
 rsc_defaults rsc-options: \\
 .br
 .\" TODO resource-stickiness=120 or 1000?
-	resource-stickiness=120 \\
+ resource-stickiness=120 \\
 .br
-	migration-threshold=50 \\
+ migration-threshold=50 \\
 .br
-	failure-timeout=86400
+ failure-timeout=86400
 .br
 op_defaults op-options: \\
 .br
-	timeout=600 \\
+ timeout=600 \\
 .br
-	record-pending=true
+ record-pending=true
 .RE
 .PP
-.\" TODO: example for SLE-HA 15 SP1 and 12 SP5 with disk-based and diskless SBD.
+.\" TODO example for SLE-HA 15 SP1 and 12 SP5 with disk-based and diskless SBD.
 
-\fB* crm sbd stonith configuration\fR
+\fB* crm SBD stonith configuration\fR
 
 To complete the SBD setup, it is necessary to activate SBD as STONITH/fencing
 mechanism in the CIB. The SBD is normally used for SAPHanaSR-ScaleOut instead
 of any other fencing/stonith mechanism. Example for disk-based SBD:
 .PP
-.RS 4
+.RS 2
 .br
 primitive rsc_stonith_sbd stonith:external/sbd \\
 .br
-	params pcmk_action_limit="-1" pcmk_delay_max="1"
+ params pcmk_action_limit="-1" pcmk_delay_max="1"
+.RE
+.PP
+
+\fB* crm simple IP address resource configuration\fR
+
+Let the Linux cluster manage one IP address and move that address along
+with the HANA primary master nameserver.
+.PP
+.RS 2
+.br
+primitive rsc_ip_SLE_HDB00 IPAddr2 \\
+.br
+ op monitor interval=10s timeout=20s \\
+.br
+ params ip=192.168.178.188
+.br
+colocation col_ip_with_SLE_HDB00 \\
+.br
+ 2000: rsc_ip_SLE_HDB00:Started msl_SAPHanaCon_SLE_HDB00:Master
+.RE
+.PP
+
+\fB* crm IP address for active/active read-enabled resource configuration\fR
+
+Let the Linux cluster manage an additional IP address and move that address
+along with the HANA secondary master nameserver.
+.br
+Note: This example works for two-node HANA scale-out.
+.PP
+.RS 2
+.br
+primitive rsc_ip_ro_SLE_HDB00 IPAddr2 \\
+.br
+ op monitor interval=10s timeout=20s \\
+.br
+ params ip=192.168.178.199
+.br
+colocation col_ip_ro_with_slave_SLE_HDB00 \\
+.br
+ 2000: rsc_ip_ro_SLE_HDB00:Started msl_SAPHanaCon_SLE_HDB00:Slave
+.br
+location loc_ip_ro_not_master_SLE_HDB00 \\
+.br
+ rsc_ip_ro_SLE_HDB00 \\
+.br
+ rule -inf: hana_sle_roles ne master1:master:worker:master
+.RE
+.PP
+
+\fB* crm grouped IP address resource configuration\fR
+
+Let the Linux cluster manage one IP address and move that address along
+with the HANA primary master nameserver. An auxiliary resource is needed
+for specific public cloud purpose.
+.\" TODO
+.PP
+.RS 2
+.br
+primitive rsc_ip_SLE_HDB00 IPAddr2 \\
+.br
+ op monitor interval=10s timeout=20s \\
+.br
+ params ip=192.168.178.188
+.br
+primitive rsc_lb_SLE_HDB00 azure-lb \\
+.br
+ params port=62502
+.br
+group grp_ip_SLE_HDB00 rsc_lb_SLE_HDB00 rsc_ip_SLE_HDB00 \\
+.br
+ meta resource-stickiness=1
+.br 
+colocation col_ip_with_SLE_HDB00 \\
+.br
+ 8000: grp_ip_SLE_HDB00:Started msl_SAPHanaCon_SLE_HDB00:Master
+.RE
+.PP
+
+\fB* crm NFS check resource configuration\fR
+
+In case of NFS failure, HANA might stop working but the Linux cluster
+might not take action. To solve this, a dummy filesystem resource could
+be added. If this filesystem reports monitor failures, the node gets fenced
+and a take-over is initiated.
+.br
+Note: Understand the impact before implementing.
+.PP
+.RS 2
+primitive rsc_fs_check_SLE_HDB00 Filesystem \\
+.br
+  params device="/hana/shared/SLE/check/" \\
+  directory="/hana/shared/check/" fstype=nfs4 \\
+.br
+options="bind,defaults,rw,hard,proto=tcp,intr,noatime,vers=4,lock" \\
+.br
+ op monitor interval=120 timeout=120 on-fail=fence \\
+.br
+ op_params OCF_CHECK_LEVEL=20 \\
+.br
+ op start interval=0 timeout=120 \\
+.br
+ op stop interval=0 timeout=120
+.br
+clone cln_fs_check_SLE_HDB00 rsc_fs_check_SLE_HDB00 \\
+.br
+  meta clone-node-max=1 interleave=true
+.br
+location fs_check_not_on_majority_maker \\
+ cln_fs_check_SLE_HDB00 -inf: vm-majority
 .RE
 .PP
 
@@ -191,11 +302,12 @@ primitive rsc_stonith_sbd stonith:external/sbd \\
 SAPHanaSR uses an internal scoring table. The promotion scores for HANA
 primary and secondary master are in a certain range. The scores used by the
 Linux cluster should be in the same range.
-
+.PP
+.RS 2
 .br
-	# SAPHanaSR-showAttr | grep master.:master
+# SAPHanaSR-showAttr | grep master.:master
 .br
-	# crm_simulate -Ls | grep promotion
+# crm_simulate -Ls | grep promotion
 .RE
 .PP
 .\"
@@ -207,9 +319,11 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .\"
 .SH SEE ALSO
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
+\fBocf_heartbeat_IPAddr2\fP(7) , \fBocf_heartbeat_Filesystem\fP(7) ,
 \fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBcrm_no_quorum_policy\fP(7) ,
 \fBcrm\fP(8) , \fBcrm_simulate\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
 \fBSAPHanaSR-showAttr\fP(7) , \fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
+\fBnfs\fP(5) , \fBmount\fP(8) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br

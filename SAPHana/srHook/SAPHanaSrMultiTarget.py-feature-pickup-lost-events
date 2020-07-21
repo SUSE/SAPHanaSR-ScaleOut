@@ -9,7 +9,7 @@ SAPHanaSrMultiTarget needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
 import os, time
 
-fhSRHookVersion = "0.170.3.0720.2102"
+fhSRHookVersion = "0.170.3.0720.2107"
 
 try:
     from hdb_ha_dr.client import HADRBase
@@ -135,6 +135,24 @@ try:
                 rc = os.system(myCMD)
                 myMSG = "CALLING CRM: <{0}> rc={1}".format( myCMD, rc )
                 self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
+                #
+                # TODO: remove the true condition - it's only to test the code to be called in a test cluster more often
+                #if ( rc != 0 ):
+                if ( True ) or ( rc != 0 ):
+                    #
+                    # FALLBACK
+                    # sending attribute to the cluster failed - using failback method and write status to a file - RA to pick-up the value during next SAPHanaController monitor operation
+                    #
+                    myMSG = "sending attribute to the cluster failed - using local file as fallback"
+                    self.tracer.info("{0}.{1}() {2}\n".format( self.__class__.__name__, method, myMSG ))
+                    #
+                    # cwd of hana is /hana/shared/<SID>/HDB00/<hananode> we use a relative path to cwd this gives us a <sid>adm permitted directory
+                    #     however we go one level up (..) to have the file accessable for all SAP HANA swarm nodes
+                    #
+                    fallbackFileObject = open("../.crm_attribute.stage", "w")
+                    fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format( mysid, mySite, mySRS  ))
+                    fallbackFileObject.close()
+                    os.rename( "../.crm_attribute.stage", "../.crm_attribute" )
             return 0
 except NameError as e:
         print("Could not find base class ({0})".format(e))

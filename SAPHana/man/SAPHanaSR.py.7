@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR.py 7 "25 Jun 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "15 Jul 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -16,10 +16,10 @@ srConnectionChanged().
 
 The SAP HANA nameserver provides a Python-based API ("HA/DR providers"), which 
 is called at important points of the host auto-failover and system replication 
-takeover process. These so called hooks can be used for arbitrary operations that
-need to be executed. The method srConnectionChanged() is called on the master
-nameserver as soon as one of the replicating services loses or establishes
-the system replication connection. This method is called only once.
+takeover process. These so called hooks can be used for arbitrary operations
+that need to be executed. The method srConnectionChanged() is called on the
+master nameserver as soon as one of the replicating services loses or
+establishes the system replication connection. This method is called only once.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
@@ -32,15 +32,19 @@ ha_dr_provider_SAPHanaSR section:
 .TP
 \fBexecution_order = 50\fP
 .PP
-The "HA/DR providers" API accepts the following parameter for the trace section
-(as of SAP HANA 1.x):
+The "HA/DR providers" API accepts the following parameter for the trace section:
 .TP
 \fBha_dr_saphanasr = [ info | debug ]\fP
 .PP
-SAPHanaController recognizes the effecting system replication status via the 
-following cluster attribute:
+The SAPHanaController and SAPHana RA recognize the effecting system replication 
+status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API
+versions and scenarios. For old SAPHanaSR-ScaleOut one global attribute is used:
 .TP
-\fBhana_${sid}_glob_srHook\fP
+\fBhana_<sid>_glob_srHook = [ SOK | SFAIL | SWAIT ]\fP
+.PP
+For new SAPHanaSR and  SAPHanaSR-ScaleOut site-specific attributes are used:
+.TP
+\fBhana_<sid>_site_srHook_<site> = [ SOK | SFAIL | SWAIT | PRIM ]\fP
 .PP
 .\"
 .SH RETURN CODES
@@ -53,25 +57,24 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .PP
-* Simple example for entry in sudo permissions /etc/sudoers
+* Simple example for permissions in /etc/sudoers. HANA 1.0 Scale-Out, SID is SLE.
 .PP
-.RS 4
+.RS 2
 # SAPHanaSR-ScaleOut needs for srHook
 .br
-ha1adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v *
-.\" TODO adapt example for multi-target replication?
+sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
 .RE
 .PP
-* More restricted example for entry in sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR
+* More restricted exmaple for sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up, SID is SLE.
 .PP
-.RS 4
-# SAPHanaSR-ScaleOut needs for srHook
+.RS 2
+# SAPHanaSR needs for srHook
 .br
-Cmnd_Alias SOK = /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v SOK -t crm_config -s SAPHanaSR
+Cmnd_Alias SOK = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SOK -t crm_config -s SAPHanaSR
 .br
-Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_ha1_glob_srHook -v SFAIL -t crm_config -s SAPHanaSR
+Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SFAIL -t crm_config -s SAPHanaSR
 .br
-ha1adm ALL=(ALL) NOPASSWD: SOK, SFAIL
+sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
 .\" TODO adapt example for multi-target replication?
 .RE
 .PP
@@ -81,7 +84,7 @@ ha1adm ALL=(ALL) NOPASSWD: SOK, SFAIL
 This file is needed at both sites. The HANA has to be stopped before the files
 can be edited.
 .PP
-.RS 4
+.RS 2
 [ha_dr_provider_SAPHanaSR]
 .br
 provider = SAPHanaSR
@@ -95,26 +98,33 @@ execution_order = 50
 ha_dr_saphanasr = info
 .RE
 .PP
-* Example for creating the optional SAPHanaSR python object file manually.
+* Example for creating the optional SAPHanaSR python object file manually. SID is SLE.
 .PP
-.RS 4
+.RS 2
 # mkdir -p /hana/shared/srhook
 .br
-# chown ha1adm.sapsys /hana/shared/srhook
+# chown sleadm.sapsys /hana/shared/srhook
 .br
-# su - ha1adm
+# su - sleadm
 .br
 # cd /hana/shared/srhook
 .br
 # python -m py_compile /usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
 .br
 # ls -l SAPHanaSR.pyc
+.\" TODO chmod 755?
+.RE
+.PP
+* Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. 
+.PP
+.RS 2
+# grep "sudo.*crm_attribute.*srHook" /var/log/messages
 .RE
 .PP
 * Example for checking the HANA tracefiles for srConnectionChanged() events.
 .PP
-.RS 4
-# su - ha1adm
+.RS 2
+# su - sleadm
 .br
 ~> cdtrace
 .br
@@ -149,7 +159,7 @@ ha_dr_saphanasr = info
 Older versions do not provide the srHook method srConnectionChanged().
 With the mentioned HANA versions uni-directional chained system replication
 is possible. Beginning with HANA 2.0 SPS 3 multi-target system replication
-is possible as well.
+is possible as well. See also SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
 .\" TODO check HANA 2.0 SPS
 .PP
 2. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
@@ -157,10 +167,13 @@ is possible as well.
 3. The hook provider needs to be added to the HANA global configuration,
 in memory and on disk (in persistence).
 .PP
-4. If the hook provider should be pre-compiled, the particular Python version that comes with
-SAP HANA has to be used.
+4. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA has to be used.
+.PP
 .\"
 .SH BUGS
+Global and site-specific properties for HANA SR status can not be used at same
+time.
+.br
 In case of any problem, please use your favourite SAP support process to open
 a request for the component BC-OP-LNX-SUSE.
 Please report any other feedback and suggestions to feedback@suse.com.
