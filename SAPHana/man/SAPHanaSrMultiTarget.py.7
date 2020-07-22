@@ -107,8 +107,8 @@ ha_dr_saphanasr = info
 .RE
 .PP
 * Example for entry in SAP HANA 2.0 global configuration
-/hana/shared/$SID/global/hdb/custom/config/global.ini with site-specific
-attributes.
+/hana/shared/$SID/global/hdb/custom/config/global.ini with multi-target aware,
+site-specific attributes.
 .br
 This file is needed at both sites. The HANA has to be stopped before the files
 can be edited.
@@ -118,7 +118,7 @@ can be edited.
 .br
 provider = SAPHanaSrMultiTarget
 .br
-path = /usr/share/SAPHanaSR-ScaleOut\
+path = /usr/share/SAPHanaSR-ScaleOut/
 .br
 execution_order = 1
 .br
