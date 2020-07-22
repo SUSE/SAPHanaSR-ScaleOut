@@ -67,12 +67,12 @@ Usage, syntax or execution errors.
 * Simple example for permissions in /etc/sudoers. HANA 1.0 Scale-Out, SID is SLE.
 .PP
 .RS 2
-# SAPHanaSR-ScaleOut needs for srHook
+# SAPHanaSR-ScaleOut old-style needs for srHook
 .br
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
 .RE
 .PP
-* More restricted exmaple for sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up, SID is SLE.
+* More restricted exmaple for sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
 .PP
 .RS 2
 # SAPHanaSR needs for srHook
