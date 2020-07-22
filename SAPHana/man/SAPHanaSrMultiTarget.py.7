@@ -18,8 +18,7 @@ The SAP HANA nameserver provides a Python-based API ("HA/DR providers"), which
 is called at important points of the host auto-failover and system replication 
 takeover process. These so called hooks can be used for arbitrary operations
 that need to be executed. The method srConnectionChanged() is called on the
-master nameserver as soon as one of the replicating services loses or
-establishes the system replication connection. This method is called only once.
+master nameserver as soon as one of the replicating services loses or establishes the system replication connection. This method is called only once.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
@@ -43,7 +42,7 @@ The "HA/DR providers" API accepts the following parameter for the trace section:
 The SAPHanaController and SAPHana RA recognize the effecting system replication 
 status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API
 versions and scenarios. For old SAPHanaSR-ScaleOut the SAPHanaSR.py provides
-one global attribute is used:
+one global attribute:
 .TP
 \fBhana_<sid>_glob_srHook = [ SOK | SFAIL | SWAIT ]\fP
 .TP
