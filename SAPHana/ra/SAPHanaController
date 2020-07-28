@@ -134,6 +134,7 @@ function saphana_usage() {
     The 'notify'       operation always returns SUCCESS
     The 'validate-all' operation reports whether the parameters are valid
     The 'methods'      operation reports on the methods $0 supports
+    The 'reload'       operation allows to adapt resource parameters
 
 EOF
     return $rc
@@ -1402,8 +1403,8 @@ function saphana_start_primary()
                     my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                     ;;
             esac
-            my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
             my_role="${my_lss}:${my_srr}:${my_role}"
+            super_ocf_log info "SCORE: saphana_start_primary: scoring_crm_master($my_role,$my_sync)"
             scoring_crm_master "$my_role" "$my_sync"
             ;;
         register ) # process a REGISTER
