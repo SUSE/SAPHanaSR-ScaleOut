@@ -405,11 +405,15 @@ function get_hana_attribute()
     dstr=$(date)
     case "$attr_store" in
         reboot | forever )
-            echo "$dstr: SAPHanaController: crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> $log_attr_file
+            if ocf_is_true "$log_attributes"; then
+                echo "$dstr: SAPHanaController: crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> $log_attr_file
+            fi
             crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q -d "$attr_default" 2>>$log_attr_file; rc=$?
             ;;
         props )
-            echo "$dstr: SAPHanaController: crm_attribute -G -n \"$attr_name\" -t crm_config -q" >> $log_attr_file
+            if ocf_is_true "$log_attributes"; then
+                echo "$dstr: SAPHanaController: crm_attribute -G -n \"$attr_name\" -t crm_config -q" >> $log_attr_file
+            fi
             crm_attribute -G -n "$attr_name" -t crm_config -q -d "$attr_default" 2>>$log_attr_file; rc=$?
             ;;
     esac
@@ -438,11 +442,15 @@ function set_hana_attribute()
         dstr=$(date)
         case "$attr_store" in
             reboot | forever )
-                echo "$dstr: SAPHanaController: crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> $log_attr_file
+                if ocf_is_true "$log_attributes"; then
+                    echo "$dstr: SAPHanaController: crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> $log_attr_file
+                fi
                 crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store 2>>$log_attr_file; rc=$?
                 ;;
             props )
-                echo "$dstr: SAPHanaController: crm_attribute -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> $log_attr_file
+                if ocf_is_true "$log_attributes"; then
+                    echo "$dstr: SAPHanaController: crm_attribute -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> $log_attr_file
+                fi
                 crm_attribute -v $attr_value -n "$attr_name" -t crm_config  -s SAPHanaSR 2>>$log_attr_file; rc=$?
                 ;;
         esac
@@ -498,7 +506,9 @@ function set_crm_master()
     oldscore=$(${HA_SBIN_DIR}/crm_master $node -G -q -l reboot)
     if [ "$oldscore" != "$score" ]; then
        dstr=$(date)
-       echo "$dstr: SAPHanaController: crm_master $node -v $score -l reboot " >> $log_attr_file
+       if ocf_is_true "$log_attributes"; then
+           echo "$dstr: SAPHanaController: crm_master $node -v $score -l reboot " >> $log_attr_file
+       fi
        super_ocf_log debug "DBG: SET crm master: $node $score (old: $oldscore)"
        ${HA_SBIN_DIR}/crm_master $node -v $score -l reboot; rc=$?
     else
