@@ -297,7 +297,6 @@ return $rc
 function saphana_methods() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0 m
-    for m in start stop status monitor promote demote notify validate-all methods meta-data usage; do
     for m in start stop status monitor promote demote notify validate-all methods meta-data usage reload; do
         echo "$m"
     done
