@@ -222,10 +222,10 @@ The resource agent uses the following four interfaces provided by SAP:
         <longdesc lang="en">Should cluster/RA prefer to switchover to slave instance instead of restarting master locally? Default="yes"
         no: Do prefer restart locally
         yes: Do prefer takever to remote site
-        never: Do never run a sr_takeover (promote) at the secondary side
+        never: Do never run a sr_takeover (promote) at the secondary side. THIS VALUE IS CURRENTLY NOT SUPPORTED.
         </longdesc>
         <shortdesc lang="en">Local or site recover preferred?</shortdesc>
-        <content type="string" default="yes" />
+        <content type="string" default="false" />
     </parameter>
     <parameter name="AUTOMATED_REGISTER"  unique="0" required="0">
         <shortdesc lang="en">Define, if a former primary should automatically be registered.</shortdesc>
@@ -511,7 +511,7 @@ function set_crm_master()
 }
 
 #
-# function: scoring_crm_master - score instance due to role ans sync match (table SCORING_TABLE)
+# function: scoring_crm_master - score instance due to role and sync match (table SCORING_TABLE)
 # params:   NODE_ROLES NODE_SYNC_STATUS
 # globals:  SCORING_TABLE[@],
 #
@@ -689,10 +689,10 @@ function saphana_init() {
     # DONE: PRIO4: SAPVIRHOST might be different to NODENAME
     # DONE: PRIO1: ASK: Is the output format of ListInstances fix? Could we take that as an API? Answer: Yes
     # try to catch:  Inst Info : LNX - 42 - lv9041 - 740, patch 36, changelist 1444691
-    # We rely on the following format: SID is word#4, NR is work#6, vHost is word#8
+    # We rely on the following format: SID is word#4, SYSNR is word#6, vHost is word#8
     if [ -e /usr/sap/hostctrl/exe/saphostctrl ]; then
         vName=$(/usr/sap/hostctrl/exe/saphostctrl -function ListInstances \
-            | awk '$4 == SID && $6=NR { print $8 }' SID=$SID NR=$InstanceNr 2>/dev/null )
+            | awk '$4 == SID && $6 == SYSNR { print $8 }' SID=$SID SYSNR=$InstanceNr 2>/dev/null )
         super_ocf_log debug "DBG: ListInstances: $(/usr/sap/hostctrl/exe/saphostctrl -function ListInstances)"
     else
         super_ocf_log error "ERR: SAPHOSTAGENT is not installed at /usr/sap/hostctrl/exe (saphostctrl missing)"
@@ -1598,7 +1598,7 @@ function saphana_start_secondary()
                super_ocf_log info "ACT: PRIMARY seams to be down now ==> WAITING"
                set_hana_attribute ${NODENAME} "WAITING4PRIM" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                set_crm_master -INFINITY
-               rc=$OCF_SUCCSESS
+               rc=$OCF_SUCCESS
            fi
        else
            super_ocf_log debug "DBG: 006 * lpa_set_lpt 10 $sr_name"
@@ -1608,7 +1608,7 @@ function saphana_start_secondary()
        super_ocf_log info "ACT: wait_for_primary_master ==> WAITING"
        set_hana_attribute ${NODENAME} "WAITING4PRIM" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
        set_crm_master -INFINITY
-       rc=$OCF_SUCCSESS
+       rc=$OCF_SUCCESS
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
@@ -2357,7 +2357,7 @@ function saphana_monitor_primary()
                 else
                     # INSTANCE IS FAILED PRIMARY IN DEMOTED STATE
                     # TODO: PRIO3: Adjust with set_crm_master?
-                    #       Current decission: Do NOT adjust master score now as other
+                    #       Current decision: Do NOT adjust master score now as other
                     #       steps should already have done that
                     #
                     super_ocf_log info "DEC: PRIMDEFECT (in DEMOTED status)"
@@ -2492,14 +2492,14 @@ function saphana_monitor_secondary()
     super_ocf_log debug "DBG: saphana_monitor_clone: $ATTR_NAME_HANA_CLONE_STATE=$promote_attr"
     if [ -z "$promote_attr" ]; then
         init_attribute=1
-        #  DONE: PRIO3: do we need to inizialize also the DEMOTED attribute value?
+        #  DONE: PRIO3: do we need to initialise also the DEMOTED attribute value?
         set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
         promoted=0;
     else
         case "$promote_attr" in
-            PROMOTED ) # However - PROMOTED should never happen for a SECONDARY
+            PROMOTED ) # However - PROMOTED should only happen when coming back from maintenance
                 promoted=1;
-                ;;
+                ;;an
             DEMOTED )  # This is the status we expect
                 promoted=0;
                 ;;
