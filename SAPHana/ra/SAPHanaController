@@ -536,8 +536,10 @@ scoring_crm_master()
             read rolePatt syncPatt score <<< $scan
             if grep "$rolePatt" <<< "$roles"; then
                if grep "$syncPatt" <<< "$sync"; then
+                  super_ocf_log info "SCORE: scoring_crm_master: roles($roles) are matching pattern ($rolePatt)"
+                  super_ocf_log info "SCORE: scoring_crm_master: sync($sync) is  matching syncPattern ($syncPatt)"
+                  super_ocf_log info "SCORE: scoring_crm_master: set score $score"
                   skip=1
-                  super_ocf_log debug "DBG: scoring_crm_master roles ($roles) and sync ($sync) matching rolePatt ($rolePatt) and syncPatt ($syncPatt) - set score $score"
                   myScore=$score
                fi
             fi
