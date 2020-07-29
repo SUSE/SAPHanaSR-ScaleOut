@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.3.0728.1445"
+SAPHanaControllerVersion="0.170.3.0729.1457"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -2523,7 +2523,7 @@ function saphana_monitor_secondary()
         case "$promote_attr" in
             PROMOTED ) # However - PROMOTED should only happen when coming back from maintenance
                 promoted=1;
-                ;;an
+                ;;
             DEMOTED )  # This is the status we expect
                 promoted=0;
                 ;;
@@ -2670,6 +2670,18 @@ function saphana_monitor_clone() {
     # TODO: PRIO2: check where we need to differ probes and regulary monitor calls
     if ocf_is_probe; then
         super_ocf_log debug "DBG: PROBE ONLY"
+        #
+        # check during probe, if this instance is *NOT* running as master
+        # setting clone_state to "DEMOTED" is needed to avoid misleading "PROMOTED"/"PROMOTED"
+        #
+        master_node_name=$(crm_resource -W -r "$OCF_RESOURCE_INSTANCE"  | awk '$7 == "Master" { print $6 }')
+        if [ "$master_node_name" != "$NODENAME" ]; then
+            if [ "$my_lss" -ge 2 ]; then
+                # we are in a probe, hana is running and we need to reset the clone_state
+                # TODO PRIO5: Only reset attribute, if it is currently set to "PROMOTED"?
+                set_hana_attribute "${NODENAME}" "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
+            fi
+        fi
     else
         super_ocf_log debug "DBG: REGULAR MONITOR"
     fi
