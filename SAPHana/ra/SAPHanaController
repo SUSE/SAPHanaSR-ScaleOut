@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.3.0729.1457"
+SAPHanaControllerVersion="0.170.4.0730.1454"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -1416,6 +1416,7 @@ function saphana_start_primary()
                     my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
                     ;;
             esac
+            my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
             my_role="${my_lss}:${my_srr}:${my_role}"
             super_ocf_log info "SCORE: saphana_start_primary: scoring_crm_master($my_role,$my_sync)"
             scoring_crm_master "$my_role" "$my_sync"
@@ -2411,7 +2412,38 @@ function saphana_monitor_primary()
                 ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                 my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                 my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+                #
+                # first check, if we have a pending HA/DR provider attribute in the interface files
+                #
+                srHookAttributeFile="/hana/shared/$SID/$InstanceName/.crm_attribute"
+                if [ -f "$srHookAttributeFile" ]; then
+                    #
+                    # need to read attribute from the file
+                    #
+                    # TODO: PRIO0: also allow a=b instead of a = b
+                    read srATTR EQS srVALUE <"$srHookAttributeFile"
+                    super_ocf_log info "DEC: srHookAttribute file found - recover lost SAP HA/DR event ($srATTR=$srVALUE)"
+                    #
+                    # TODO: PRIO0 - add check for srATTR name here
+                    #
+                    case "$srVALUE" in
+                        SOK )
+                              super_ocf_log info "DEC: calling set_SRHOOK $remSR_name SOK"
+                              set_SRHOOK "$remSR_name" "SOK"
+                              ;;
+                        SFAIL )
+                              super_ocf_log info "DEC: calling set_SRHOOK $remSR_name SFAIL"
+                              set_SRHOOK "$remSR_name" "SFAIL"
+                              ;;
+                        * )
+                              super_ocf_log info "DEC: Unknown value <<$srVALUE>>"
+                              ;;
+                    esac
+                    rm "$srHookAttributeFile"
+                fi
+                #
                 # saphana_monitor_primary - get SR attribute of "the" remote site (TODO: PRIO3: allow multi targets in the
+                #
                 my_sync=$(get_SRHOOK "$remSR_name")
                 my_role="${my_lss}:${my_srr}:${my_role}"
                 case "$my_role" in
