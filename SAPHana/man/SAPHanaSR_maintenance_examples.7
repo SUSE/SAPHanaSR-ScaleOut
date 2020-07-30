@@ -192,11 +192,12 @@ On pacemaker-2.0 respectively do the following.
 # crm resource maintenance msl_SAPHanaCon_SLE_HDB10 off
 .RE
 .PP
-The two procedures must not be mixed. If the procedure for pacemaker-1.0 has been
-used, left-over maintenance attribute have to be removed from the CIB before
-proceeding with the new procedure for pacemaker-2.0.
+The two procedures must not be mixed. If the procedure for pacemaker-1.0 has
+been used, left-over maintenance attribute have to be removed from the CIB
+before proceeding with the new procedure for pacemaker-2.0.
 .PP
-.\" TODO \fB*\fR Overview on maintenance procedure for Linux, HANA remains running, on pacemaker-2.0.
+\fB*\fR Overview on maintenance procedure for Linux, HANA remains running, on pacemaker-2.0.
+.PP
 .\"
 .SH FILES
 .br
@@ -215,6 +216,7 @@ left-over migration constraints, and resource failures as well as the HANA
 landscape status, and the HANA SR status.
 .PP
 \fB*\fR Maintenance attributes for cluster, nodes and resources must not be mixed.
+.PP
 .\"
 .SH BUGS
 .\" TODO
