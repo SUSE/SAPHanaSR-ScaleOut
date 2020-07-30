@@ -1,9 +1,9 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "15 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "27 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
-SAP HANA System Replication scale-out basic cluster configuration.
+SAPHanaSR-ScaleOut_basic_cluster \- SAP HANA System Replication scale-out basic cluster configuration.
 .PP
 .\"
 .SH DESCRIPTION
@@ -178,7 +178,8 @@ op_defaults op-options: \\
 
 To complete the SBD setup, it is necessary to activate SBD as STONITH/fencing
 mechanism in the CIB. The SBD is normally used for SAPHanaSR-ScaleOut instead
-of any other fencing/stonith mechanism. Example for disk-based SBD:
+of any other fencing/stonith mechanism. Example for a basic disk-based SBD
+resource:
 .PP
 .RS 2
 .br

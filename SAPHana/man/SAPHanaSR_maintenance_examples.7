@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR_maintenance_examples 7 "20 Jun 2020" "" "SAPHanaSR"
+.TH SAPHanaSR_maintenance_examples 7 "22 Jun 2020" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR_maintenance_examples \- maintenance examples for SAPHana and SAPHanaController.
@@ -14,8 +14,7 @@ Please see also the REQUIREMENTS section below.
 .\"
 .SH EXAMPLES
 .PP
-\fB*\fR Initiate an administrative takeover of the HANA primary from one node to the other by
-using the Linux cluster. 
+\fB*\fR Initiate an administrative takeover of the HANA primary from one node to the other by using the Linux cluster. 
 .br
 This procedure does not work for scale-out.
 If the cluster should also register the former primary as secondary, AUTOMATED_REGISTER="true" is needed. Before the takeover will be initiated, the status of the Linux cluster and the HANA system replication has to be checked. The takeover should only be initiated as forced migration. After takeover of the primary has been finished, the migration rule has to be deleted. If AUTOMATED_REGISTER="true" is set, finally the former primary will be registered as secondary, once the migration rule has been deleted.
@@ -45,10 +44,10 @@ Note: Former versions of the Linux cluster used "migrate" instead of "move" and 
 \fB*\fR Perform an SAP HANA takeover by using SAP tools. 
 .br
 The procedures is described here for scale-out. It works for scale-up as well. 
-The status of HANA databases, system replication and Linux cluster has to be checked. The SAP
-HANA resources are set into maintenance, an sr_takeover is performed, the old primary is
-registered as new secondary and finally the SAP HANA resources are given back to the Linux
-cluster.
+The status of HANA databases, system replication and Linux cluster has to be
+checked. The SAP HANA resources are set into maintenance, an sr_takeover is
+performed, the old primary is registered as new secondary and finally the SAP
+HANA resources are given back to the Linux cluster.
 .PP
 1. On either node
 .br
@@ -72,11 +71,10 @@ If everything looks fine, proceed.
 .br
 # su - sleadm
 .br
-~> sapcontrol ­nr 10 ­function StopSystem HDB
-.\"~> HDB stop
+~> sapcontrol -nr 10 -function StopSystem HDB
 .br
 .\" TODO: check the below
-~> sapcontrol ­nr 10 ­function GetSystemInstanceList
+~> sapcontrol -nr 10 -function GetSystemInstanceList
 .PP
 \fBOnly proceed after you made sure the HANA primary is down!\fR
 .PP
@@ -86,7 +84,7 @@ If everything looks fine, proceed.
 .br
 # su - sleadm
 .br
-~> hdbsnutil -sr_takeover
+~> hdbnsutil -sr_takeover
 .br
 ~> HDBsettings.sh systemReplicationStatus.py; echo RC:$?
 .br
@@ -97,11 +95,10 @@ If everything looks fine, proceed.
 4. On the former HANA primary master nameserver, now future secondary master nameserver (e.g. node11)
 .RS 2
 .br
-~> hdbsnutil -sr_register --remoteHost=node21 --remoteInstance=10 --replicationMode=sync
+~> hdbnsutil -sr_register --remoteHost=node21 --remoteInstance=10 --replicationMode=sync
 --name=site2 --operationMode=logreplay
 .br
-~> sapcontrol ­nr 10 ­function StartSystem HDB
-.\"~> HDB start
+~> sapcontrol -nr 10 -function StartSystem HDB
 .br
 ~> exit
 .br
@@ -199,6 +196,7 @@ The two procedures must not be mixed. If the procedure for pacemaker-1.0 has bee
 used, left-over maintenance attribute have to be removed from the CIB before
 proceeding with the new procedure for pacemaker-2.0.
 .PP
+.\" TODO \fB*\fR Overview on maintenance procedure for Linux, HANA remains running, on pacemaker-2.0.
 .\"
 .SH FILES
 .br
@@ -206,9 +204,7 @@ proceeding with the new procedure for pacemaker-2.0.
 .\"
 .SH REQUIREMENTS
 .br
-\fB*\fR For the current version of the resource agents that come with the software packages
-SAPHanaSR and SAPHanaSR-ScaleOut,
-the support is limited to the scenarios and parameters described in the respective manual pages SAPHanaSR(7) and SAPHanaSR-ScaleOut(7).
+\fB*\fR For the current version of the resource agents that come with the software packages SAPHanaSR and SAPHanaSR-ScaleOut, the support is limited to the scenarios and parameters described in the respective manual pages SAPHanaSR(7) and SAPHanaSR-ScaleOut(7).
 .PP
 \fB*\fR Be patient. For detecting the overall HANA status, the Linux cluster
 needs a certain amount of time, depending on the HANA and the configured
