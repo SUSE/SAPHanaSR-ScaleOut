@@ -1,7 +1,17 @@
 -------------------------------------------------------------------
-Thu Jul 16 16:53:01 UTC 2020 - abriel@suse.com
+Thu Jul 30 15:04:35 UTC 2020 - abriel@suse.com
 
-- change version to 0.170.3 - Testversion
+- change version to 0.170.4 - Testversion
+- change promotion scoring during maintenance procedure to prevent
+  that both sides have an equal promotion scoring after refresh
+  which might result in a critical promotion of the secondary.
+  (bsc#1174610)
+- If the cluster is down during a SR change event, these events
+  need special care. They need to pick-up separately to not get
+  lost.
+- integrate man pages back to the base package SAPHanaSR-ScaleOut
+  obsolete the doc package SAPHanaSR-ScaleOut-doc
+  (eco#xxxx will follow)
 - extent the SAP HANA ressource agents from single replication
   automation to multi replication automation, which means
   adding multi-target support (srHook - SAPHanaSrMultiTarget.py)

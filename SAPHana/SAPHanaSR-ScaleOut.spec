@@ -21,7 +21,7 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.170.3
+Version:        0.170.4
 Release:        0
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 Source0:        SAPHanaSR-ScaleOut-%{version}.tar.bz2
@@ -32,11 +32,9 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Requires:       pacemaker > 1.1.1
 Requires:       resource-agents
 Conflicts:      SAPHanaSR
-
-%package doc
-Summary:        Setup-Guide for SAPHanaSR
-Group:          Productivity/Clustering/HA
 Conflicts:      SAPHanaSR-doc
+Provides:       SAPHanaSR-ScaleOut-doc
+Obsoletes:      SAPHanaSR-ScaleOut-doc
 
 %description
 The resource agents SAPHana and SAPHanaTopology are responsible for controlling a SAP HANA Database which is
@@ -54,9 +52,6 @@ http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-
 Authors:
 --------
     Fabian Herschel
-
-%description doc
-This sub package includes the Setup-Guide for getting SAP HANA system replication under cluster control.
 
 %prep
 tar xf %{S:0}
@@ -127,20 +122,8 @@ install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 %dir %{_docdir}/%{name}
 %doc %{_docdir}/%{name}/README
 %doc %{_docdir}/%{name}/LICENSE
-
-%files doc
-%defattr(-,root,root)
 %doc %{_docdir}/%{name}/SAPHanaSR-Setup-Guide.pdf
-%doc /usr/share/man/man7/ocf_suse_SAPHanaController.7.gz
-%doc /usr/share/man/man7/ocf_suse_SAPHanaTopology.7.gz
-%doc /usr/share/man/man7/SAPHanaSR_maintenance_examples.7.gz
-%doc /usr/share/man/man7/SAPHanaSR.py.7.gz
-%doc /usr/share/man/man7/SAPHanaSR-ScaleOut.7.gz
-%doc /usr/share/man/man7/SAPHanaSR-ScaleOut_basic_cluster.7.gz
-%doc /usr/share/man/man8/SAPHanaSR-filter.8.gz
-%doc /usr/share/man/man8/SAPHanaSR-monitor.8.gz
-%doc /usr/share/man/man8/SAPHanaSR-replay-archive.8.gz
-%doc /usr/share/man/man8/SAPHanaSR-showAttr.8.gz
-
+%doc %{_mandir}/man7/*
+%doc %{_mandir}/man8/*
 
 %changelog
