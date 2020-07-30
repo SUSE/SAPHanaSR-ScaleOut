@@ -2389,7 +2389,6 @@ function saphana_monitor_primary()
             my_hana_role="${my_lss}:${my_srr}:${my_role}"
             if ocf_is_probe; then
                 rc=$OCF_SUCCESS
-                my_role=$(get_hana_attribute ${NODENAME} ${ATTR_NAME_HANA_ROLES[@]})
                 super_ocf_log info "SCORE: saphana_monitor_primary: (1) scoring_crm_master($my_hana_role,$my_sync)"
                 scoring_crm_master "$my_hana_role" "$my_sync"
             else
@@ -2634,7 +2633,7 @@ function saphana_monitor_secondary()
                     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                     my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
                     #
-                    # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
+                    # for scoring using the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
                     #
                     my_hana_role="${my_lss}:${my_srr}:${my_role}"
                     super_ocf_log info "DEC: scoring $my_hana_role : $sync_attr"
