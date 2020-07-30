@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.3.0713.1635"
+SAPHanaControllerVersion="0.170.4.0730.1454"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -134,6 +134,7 @@ function saphana_usage() {
     The 'notify'       operation always returns SUCCESS
     The 'validate-all' operation reports whether the parameters are valid
     The 'methods'      operation reports on the methods $0 supports
+    The 'reload'       operation allows to adapt resource parameters
 
 EOF
     return $rc
@@ -142,8 +143,8 @@ EOF
 function backup_global_and_nameserver() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
-    cp /hana/shared/LNX/global/hdb/custom/config/global.ini /hana/shared/LNX/global/hdb/custom/config/global.ini.$(date +"%s")
-    cp /hana/shared/LNX/global/hdb/custom/config/nameserver.ini /hana/shared/LNX/global/hdb/custom/config/nameserver.ini.$(date +"%s")
+    cp /hana/shared/${SID}/global/hdb/custom/config/global.ini /hana/shared/${SID}/global/hdb/custom/config/global.ini.$(date +"%s")
+    cp /hana/shared/${SID}/global/hdb/custom/config/nameserver.ini /hana/shared/${SID}/global/hdb/custom/config/nameserver.ini.$(date +"%s")
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
 }
@@ -221,10 +222,10 @@ The resource agent uses the following four interfaces provided by SAP:
         <longdesc lang="en">Should cluster/RA prefer to switchover to slave instance instead of restarting master locally? Default="yes"
         no: Do prefer restart locally
         yes: Do prefer takever to remote site
-        never: Do never run a sr_takeover (promote) at the secondary side
+        never: Do never run a sr_takeover (promote) at the secondary side. THIS VALUE IS CURRENTLY NOT SUPPORTED.
         </longdesc>
         <shortdesc lang="en">Local or site recover preferred?</shortdesc>
-        <content type="string" default="yes" />
+        <content type="string" default="false" />
     </parameter>
     <parameter name="AUTOMATED_REGISTER"  unique="0" required="0">
         <shortdesc lang="en">Define, if a former primary should automatically be registered.</shortdesc>
@@ -296,7 +297,7 @@ return $rc
 function saphana_methods() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0 m
-    for m in start stop status monitor promote demote notify validate-all methods meta-data usage; do
+    for m in start stop status monitor promote demote notify validate-all methods meta-data usage reload; do
         echo "$m"
     done
     return $rc
@@ -404,11 +405,15 @@ function get_hana_attribute()
     dstr=$(date)
     case "$attr_store" in
         reboot | forever )
-            echo "$dstr: SAPHanaController: crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> $log_attr_file
+            if ocf_is_true "$log_attributes"; then
+                echo "$dstr: SAPHanaController: crm_attribute -N ${attr_node} -G -n \"$attr_name\" -l $attr_store -q" >> $log_attr_file
+            fi
             crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q -d "$attr_default" 2>>$log_attr_file; rc=$?
             ;;
         props )
-            echo "$dstr: SAPHanaController: crm_attribute -G -n \"$attr_name\" -t crm_config -q" >> $log_attr_file
+            if ocf_is_true "$log_attributes"; then
+                echo "$dstr: SAPHanaController: crm_attribute -G -n \"$attr_name\" -t crm_config -q" >> $log_attr_file
+            fi
             crm_attribute -G -n "$attr_name" -t crm_config -q -d "$attr_default" 2>>$log_attr_file; rc=$?
             ;;
     esac
@@ -437,11 +442,15 @@ function set_hana_attribute()
         dstr=$(date)
         case "$attr_store" in
             reboot | forever )
-                echo "$dstr: SAPHanaController: crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> $log_attr_file
+                if ocf_is_true "$log_attributes"; then
+                    echo "$dstr: SAPHanaController: crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> $log_attr_file
+                fi
                 crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store 2>>$log_attr_file; rc=$?
                 ;;
             props )
-                echo "$dstr: SAPHanaController: crm_attribute -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> $log_attr_file
+                if ocf_is_true "$log_attributes"; then
+                    echo "$dstr: SAPHanaController: crm_attribute -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> $log_attr_file
+                fi
                 crm_attribute -v $attr_value -n "$attr_name" -t crm_config  -s SAPHanaSR 2>>$log_attr_file; rc=$?
                 ;;
         esac
@@ -497,7 +506,9 @@ function set_crm_master()
     oldscore=$(${HA_SBIN_DIR}/crm_master $node -G -q -l reboot)
     if [ "$oldscore" != "$score" ]; then
        dstr=$(date)
-       echo "$dstr: SAPHanaController: crm_master $node -v $score -l reboot " >> $log_attr_file
+       if ocf_is_true "$log_attributes"; then
+           echo "$dstr: SAPHanaController: crm_master $node -v $score -l reboot " >> $log_attr_file
+       fi
        super_ocf_log debug "DBG: SET crm master: $node $score (old: $oldscore)"
        ${HA_SBIN_DIR}/crm_master $node -v $score -l reboot; rc=$?
     else
@@ -509,7 +520,7 @@ function set_crm_master()
 }
 
 #
-# function: scoring_crm_master - score instance due to role ans sync match (table SCORING_TABLE)
+# function: scoring_crm_master - score instance due to role and sync match (table SCORING_TABLE)
 # params:   NODE_ROLES NODE_SYNC_STATUS
 # globals:  SCORING_TABLE[@],
 #
@@ -525,8 +536,10 @@ scoring_crm_master()
             read rolePatt syncPatt score <<< $scan
             if grep "$rolePatt" <<< "$roles"; then
                if grep "$syncPatt" <<< "$sync"; then
+                  super_ocf_log info "SCORE: scoring_crm_master: roles($roles) are matching pattern ($rolePatt)"
+                  super_ocf_log info "SCORE: scoring_crm_master: sync($sync) is  matching syncPattern ($syncPatt)"
+                  super_ocf_log info "SCORE: scoring_crm_master: set score $score"
                   skip=1
-                  super_ocf_log debug "DBG: scoring_crm_master roles ($roles) and sync ($sync) matching rolePatt ($rolePatt) and syncPatt ($syncPatt) - set score $score"
                   myScore=$score
                fi
             fi
@@ -600,7 +613,7 @@ function HANA_CALL()
                   output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
                   ;;
         *       )
-                  output=$(timeout $timeOut $pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
+                  output=$(timeout --foreground -s 9 $timeOut $pre_cmd "$pre_script; timeout -s 9 $timeOut /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
                   #
                   # on timeout ...
                   #
@@ -610,6 +623,7 @@ function HANA_CALL()
                   fi
                  ;;
     esac
+    super_ocf_log debug "DBG: HANA_CALL '$cmd' rc=$rc output=$output"
     echo "$output"
     return $rc;
 }
@@ -687,10 +701,10 @@ function saphana_init() {
     # DONE: PRIO4: SAPVIRHOST might be different to NODENAME
     # DONE: PRIO1: ASK: Is the output format of ListInstances fix? Could we take that as an API? Answer: Yes
     # try to catch:  Inst Info : LNX - 42 - lv9041 - 740, patch 36, changelist 1444691
-    # We rely on the following format: SID is word#4, NR is work#6, vHost is word#8
+    # We rely on the following format: SID is word#4, SYSNR is word#6, vHost is word#8
     if [ -e /usr/sap/hostctrl/exe/saphostctrl ]; then
         vName=$(/usr/sap/hostctrl/exe/saphostctrl -function ListInstances \
-            | awk '$4 == SID && $6=NR { print $8 }' SID=$SID NR=$InstanceNr 2>/dev/null )
+            | awk '$4 == SID && $6 == SYSNR { print $8 }' SID=$SID SYSNR=$InstanceNr 2>/dev/null )
         super_ocf_log debug "DBG: ListInstances: $(/usr/sap/hostctrl/exe/saphostctrl -function ListInstances)"
     else
         super_ocf_log error "ERR: SAPHOSTAGENT is not installed at /usr/sap/hostctrl/exe (saphostctrl missing)"
@@ -1404,6 +1418,7 @@ function saphana_start_primary()
             esac
             my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
             my_role="${my_lss}:${my_srr}:${my_role}"
+            super_ocf_log info "SCORE: saphana_start_primary: scoring_crm_master($my_role,$my_sync)"
             scoring_crm_master "$my_role" "$my_sync"
             ;;
         register ) # process a REGISTER
@@ -1596,7 +1611,7 @@ function saphana_start_secondary()
                super_ocf_log info "ACT: PRIMARY seams to be down now ==> WAITING"
                set_hana_attribute ${NODENAME} "WAITING4PRIM" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                set_crm_master -INFINITY
-               rc=$OCF_SUCCSESS
+               rc=$OCF_SUCCESS
            fi
        else
            super_ocf_log debug "DBG: 006 * lpa_set_lpt 10 $sr_name"
@@ -1606,7 +1621,7 @@ function saphana_start_secondary()
        super_ocf_log info "ACT: wait_for_primary_master ==> WAITING"
        set_hana_attribute ${NODENAME} "WAITING4PRIM" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
        set_crm_master -INFINITY
-       rc=$OCF_SUCCSESS
+       rc=$OCF_SUCCESS
     fi
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
@@ -2355,7 +2370,7 @@ function saphana_monitor_primary()
                 else
                     # INSTANCE IS FAILED PRIMARY IN DEMOTED STATE
                     # TODO: PRIO3: Adjust with set_crm_master?
-                    #       Current decission: Do NOT adjust master score now as other
+                    #       Current decision: Do NOT adjust master score now as other
                     #       steps should already have done that
                     #
                     super_ocf_log info "DEC: PRIMDEFECT (in DEMOTED status)"
@@ -2364,8 +2379,18 @@ function saphana_monitor_primary()
             fi
             ;;
         2 | 3 | 4 ) # WARN, INFO or OK
+            ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
+            my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
+            ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
+            my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
+            my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+            # saphana_monitor_primary - get SR attribute of "the" remote site (TODO: PRIO3: allow multi targets in the
+            my_sync=$(get_SRHOOK "$remSR_name")
+            my_hana_role="${my_lss}:${my_srr}:${my_role}"
             if ocf_is_probe; then
                 rc=$OCF_SUCCESS
+                super_ocf_log info "SCORE: saphana_monitor_primary: (1) scoring_crm_master($my_hana_role,$my_sync)"
+                scoring_crm_master "$my_hana_role" "$my_sync"
             else
                 LPTloc=$(date '+%s')
                 lpa_set_lpt $LPTloc "$sr_name"
@@ -2386,7 +2411,38 @@ function saphana_monitor_primary()
                 ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                 my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                 my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+                #
+                # first check, if we have a pending HA/DR provider attribute in the interface files
+                #
+                srHookAttributeFile="/hana/shared/$SID/$InstanceName/.crm_attribute"
+                if [ -f "$srHookAttributeFile" ]; then
+                    #
+                    # need to read attribute from the file
+                    #
+                    # TODO: PRIO0: also allow a=b instead of a = b
+                    read srATTR EQS srVALUE <"$srHookAttributeFile"
+                    super_ocf_log info "DEC: srHookAttribute file found - recover lost SAP HA/DR event ($srATTR=$srVALUE)"
+                    #
+                    # TODO: PRIO0 - add check for srATTR name here
+                    #
+                    case "$srVALUE" in
+                        SOK )
+                              super_ocf_log info "DEC: calling set_SRHOOK $remSR_name SOK"
+                              set_SRHOOK "$remSR_name" "SOK"
+                              ;;
+                        SFAIL )
+                              super_ocf_log info "DEC: calling set_SRHOOK $remSR_name SFAIL"
+                              set_SRHOOK "$remSR_name" "SFAIL"
+                              ;;
+                        * )
+                              super_ocf_log info "DEC: Unknown value <<$srVALUE>>"
+                              ;;
+                    esac
+                    rm "$srHookAttributeFile"
+                fi
+                #
                 # saphana_monitor_primary - get SR attribute of "the" remote site (TODO: PRIO3: allow multi targets in the
+                #
                 my_sync=$(get_SRHOOK "$remSR_name")
                 my_role="${my_lss}:${my_srr}:${my_role}"
                 case "$my_role" in
@@ -2445,6 +2501,7 @@ function saphana_monitor_primary()
                           ;;
                    esac
                 fi
+                super_ocf_log info "SCORE: saphana_monitor_primary: (2) scoring_crm_master($my_role,$my_sync)"
                 scoring_crm_master "$my_role" "$my_sync"
             fi
             ;;
@@ -2490,12 +2547,12 @@ function saphana_monitor_secondary()
     super_ocf_log debug "DBG: saphana_monitor_clone: $ATTR_NAME_HANA_CLONE_STATE=$promote_attr"
     if [ -z "$promote_attr" ]; then
         init_attribute=1
-        #  DONE: PRIO3: do we need to inizialize also the DEMOTED attribute value?
+        #  DONE: PRIO3: do we need to initialise also the DEMOTED attribute value?
         set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
         promoted=0;
     else
         case "$promote_attr" in
-            PROMOTED ) # However - PROMOTED should never happen for a SECONDARY
+            PROMOTED ) # However - PROMOTED should only happen when coming back from maintenance
                 promoted=1;
                 ;;
             DEMOTED )  # This is the status we expect
@@ -2576,10 +2633,11 @@ function saphana_monitor_secondary()
                     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                     my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
                     #
-                    # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
+                    # for scoring using the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
                     #
                     my_hana_role="${my_lss}:${my_srr}:${my_role}"
                     super_ocf_log info "DEC: scoring $my_hana_role : $sync_attr"
+                    super_ocf_log info "SCORE: saphana_monitor_secondary: scoring_crm_master($my_hana_role,$sync_attr)"
                     scoring_crm_master "$my_hana_role" "$sync_attr"
                     ;;
                 SFAIL ) # This is currently NOT a possible node to promote
@@ -2643,6 +2701,18 @@ function saphana_monitor_clone() {
     # TODO: PRIO2: check where we need to differ probes and regulary monitor calls
     if ocf_is_probe; then
         super_ocf_log debug "DBG: PROBE ONLY"
+        #
+        # check during probe, if this instance is *NOT* running as master
+        # setting clone_state to "DEMOTED" is needed to avoid misleading "PROMOTED"/"PROMOTED"
+        #
+        master_node_name=$(crm_resource -W -r "$OCF_RESOURCE_INSTANCE"  | awk '$7 == "Master" { print $6 }')
+        if [ "$master_node_name" != "$NODENAME" ]; then
+            if [ "$my_lss" -ge 2 ]; then
+                # we are in a probe, hana is running and we need to reset the clone_state
+                # TODO PRIO5: Only reset attribute, if it is currently set to "PROMOTED"?
+                set_hana_attribute "${NODENAME}" "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
+            fi
+        fi
     else
         super_ocf_log debug "DBG: REGULAR MONITOR"
     fi
@@ -2993,6 +3063,9 @@ case "$ACTION" in
     lpa_check)
         lpa_check_lpt_status
         ra_rc=$?
+        ;;
+    reload)
+        ra_rc=$OCF_SUCCESS
         ;;
     *)  # seams to be a unknown request
         saphana_methods
