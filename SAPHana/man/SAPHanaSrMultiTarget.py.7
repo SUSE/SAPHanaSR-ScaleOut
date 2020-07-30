@@ -1,9 +1,10 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR.py 7 "22 Jul 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "22 Jul 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
-SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
+SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
+method srConnectionChanged().
 .PP
 .\"
 .\" .SH SYNOPSYS
@@ -11,30 +12,32 @@ SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
 .\" .PP
 .\"
 .SH DESCRIPTION
-SAPHanaSR.py can be used to provide a script for the SAP HANA srHook method
-srConnectionChanged().
+SAPHanaSrMultitarget.py can be used to provide a script for the SAP HANA srHook method srConnectionChanged().
 
 The SAP HANA nameserver provides a Python-based API ("HA/DR providers"), which 
 is called at important points of the host auto-failover and system replication 
 takeover process. These so called hooks can be used for arbitrary operations
 that need to be executed. The method srConnectionChanged() is called on the
-master nameserver as soon as one of the replicating services loses or
-establishes the system replication connection. This method is called only once.
+master nameserver as soon as one of the replicating services loses or establishes the system replication connection. This method is called only once.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
 The "HA/DR providers" API accepts the following parameters for the 
-ha_dr_provider_SAPHanaSR section:
+ha_dr_provider_saphanasrmultitarget section:
 .TP
-\fBprovider = SAPHanaSR\fP
+[ha_dr_provider_saphanasrmultitarget]
 .TP
-\fBpath = /usr/share/SAPHanaSR-ScaleOut\fP
+\fBprovider = SAPHanaSrMultiTarget\fP
 .TP
-\fBexecution_order = 50\fP
+\fBpath = /usr/share/SAPHanaSR-ScaleOut/\fP
+.TP
+\fBexecution_order = 1\fP
 .PP
 The "HA/DR providers" API accepts the following parameter for the trace section:
 .TP
-\fBha_dr_saphanasr = [ info | debug ]\fP
+[trace]
+.TP
+\fBha_dr_saphanasrmultitarget = [ info | debug ]\fP
 .PP
 The SAPHanaController and SAPHana RA recognize the effecting system replication 
 status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API
@@ -43,7 +46,12 @@ one global attribute:
 .TP
 \fBhana_<sid>_glob_srHook = [ SOK | SFAIL | SWAIT ]\fP
 .TP
-Note: SAPHanaSR Scale-Up comes with a differnt SAPHanaSR.py that provides site-specific attributes. For SAPHanaSR-ScaleOut site-specific attributes see SAPHanaSrMultitarget.py(7).
+Note: SAPHanaSR Scale-Up comes with a differnt SAPHanaSR.py that provides site-specific attributes.
+.PP
+For new SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py provides site-specific
+attributes:
+.TP
+\fBhana_<sid>_site_srHook_<site> = [ SOK | SFAIL | SWAIT | PRIM ]\fP
 .PP
 .\"
 .SH RETURN CODES
@@ -64,8 +72,22 @@ Usage, syntax or execution errors.
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
 .RE
 .PP
-* Example for entry in SAP HANA global configuration
-/hana/shared/$SID/global/hdb/custom/config/global.ini
+* More restricted exmaple for sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
+.PP
+.RS 2
+# SAPHanaSR needs for srHook
+.br
+Cmnd_Alias SOK = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SOK -t crm_config -s SAPHanaSR
+.br
+Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SFAIL -t crm_config -s SAPHanaSR
+.br
+sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
+.\" TODO adapt example for multi-target replication?
+.RE
+.PP
+* Example for entry in SAP HANA 1.0 global configuration
+/hana/shared/$SID/global/hdb/custom/config/global.ini with old-style global
+attribute.
 .br
 This file is needed at both sites. The HANA has to be stopped before the files
 can be edited.
@@ -75,15 +97,37 @@ can be edited.
 .br
 provider = SAPHanaSR
 .br
-path = /usr/share/SAPHanaSR-ScaleOut/
+path = /usr/share/SAPHanaSR-ScaleOut
 .br
-execution_order = 50
+execution_order = 50 
 .br
 [trace]
 .br
 ha_dr_saphanasr = info
 .RE
 .PP
+* Example for entry in SAP HANA 2.0 global configuration
+/hana/shared/$SID/global/hdb/custom/config/global.ini with multi-target aware,
+site-specific attributes.
+.br
+This file is needed at both sites. The HANA has to be stopped before the files
+can be edited.
+.PP
+.RS 2
+[ha_dr_provider_saphanasrmultitarget]
+.br
+provider = SAPHanaSrMultiTarget
+.br
+path = /usr/share/SAPHanaSR-ScaleOut/
+.br
+execution_order = 1
+.br
+[trace]
+.br
+ha_dr_saphanasrmultitarget = info
+.RE
+.PP
+
 * Example for creating the optional SAPHanaSR python object file manually. SID is SLE.
 .PP
 .RS 2
@@ -125,10 +169,13 @@ ha_dr_saphanasr = info
 .SH FILES
 .TP
 /usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
- the hook provider, delivered with the RPM
+ the old-style hook provider, delivered with the RPM
+.TP
+/usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
+ the multi-target aware hook provider, delivered with the RPM
 .TP
 /hana/shared/srhook/SAPHanaSR.pyc
- the hook provider, if pre-compiled for the particular HANA (optional)
+ the old-style hook provider, if pre-compiled for the particular HANA (optional)
 .TP
 /hana/shared/$SID/global/hdb/custom/config/global.ini
  the on-disk representation of HANA global system configuration
@@ -144,8 +191,8 @@ ha_dr_saphanasr = info
 1. SAP HANA starting with version 1.0 SPS 11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
 With the mentioned HANA versions uni-directional chained system replication
-is possible. See SAPHanaSrMultiTarget(7) and SAPHanaSR-ScaleOut(7) for
-supported API versions and scenarios.
+is possible. Beginning with HANA 2.0 SPS 3 multi-target system replication
+is possible as well. See also SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
 .\" TODO check HANA 2.0 SPS
 .PP
 2. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
@@ -166,8 +213,8 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .PP
 .\"
 .SH SEE ALSO
-\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSrMultiTarget\fP(7) ,
-\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7)
+\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR.py\fP(7) ,
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) , 
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
 \fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,
 .br
