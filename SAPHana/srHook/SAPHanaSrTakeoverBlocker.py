@@ -1,40 +1,26 @@
 """
 # SAPHana
-# Author:       Fabian Herschel, 2015
+# Author:       Fabian Herschel, June 2020
 # License:      GNU General Public License (GPL)
-# Copyright:    (c) 2015-2016 SUSE Linux GmbH
-# Copyright:    (c) 2017-2020 SUSE LLC
+# Copyright:    (c) 2020 SUSE LLC
 
-SAPHanaSR needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
+SAPHanaSrTakeoverBlocker needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
 import os, time
 
-fhSRHookVersion = "0.170.3.0706.1711"
+fhSRHookVersion = "0.170.3.0706.1618"
 
 try:
     from hdb_ha_dr.client import HADRBase
 except ImportError as e:
     print("Module HADRBase not found - running outside of SAP HANA? - {0}".format(e))
 
-"""
-Only for SAP HANA >= 2.0 SPS3
-
-To use this HA/DR hook provide please add the following lines (or similar) to your global.ini:
-    [ha_dr_provider_SAPHanaSR]
-    provider = SAPHanaSR
-    path = /usr/share/SAPHanaSR-ScaleOut
-    execution_order = 1
-
-    [trace]
-    ha_dr_saphanasr = info
-"""
-
 try:
-    class SAPHanaSR(HADRBase):
+    class SAPHanaSrTakeoverBlocker(HADRBase):
 
         def __init__(self, *args, **kwargs):
             # delegate construction to base class
-            super(SAPHanaSR, self).__init__(*args, **kwargs)
+            super(SAPHanaSrTakeoverBlocker, self).__init__(*args, **kwargs)
             method="init"
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__,method,fhSRHookVersion))
 
@@ -42,7 +28,7 @@ try:
             method="about"
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__,method,fhSRHookVersion))
             return {"provider_company": "SUSE",
-                    "provider_name": "SAPHanaSR",  # class name
+                    "provider_name": "SAPHanaSrTakeoverBlocker",  # class name
                     "provider_description": "Inform Cluster about SR state",
                     "provider_version": "1.0"}
 
@@ -78,20 +64,56 @@ try:
 
         def preTakeover(self, isForce, **kwargs):
             """Pre takeover hook."""
+            """
+               * TODO PRIO1: add check, if cluster does actively manage the resource
+               * Prerequisites:
+               *    RA does set the same attribute as checked here (key and value)
+               *    Sudoers does allow the query of the attribute (alternatively add <sid>adm user(s) to hacluster group)
+            """
             method="preTakeover"
-            self.tracer.info("{0}.{1}() method called with isForce={2}".format(self.__class__.__name__, method, isForce))
+            self.tracer.info("{0}.{1}() called with isForce={2}".format(self.__class__.__name__, method, isForce))
             if not isForce:
                 # run pre takeover code
                 # run pre-check, return != 0 in case of error => will abort takeover
-                return 0
+                # for test purposes just block all sr_takeover() calls
+                mySID = os.environ.get('SAPSYSTEMNAME')
+                mysid = mySID.lower()
+                myAttribute = "hana_{0}_sra".format( mysid )
+                myCMD = "sudo /usr/sbin/crm_attribute -n {0} -G -t reboot -q".format( myAttribute )
+                self.tracer.info("{0}.{1}() myCMD is: {2}".format(self.__class__.__name__, method, myCMD))
+                mySRA = ""
+                mySRAres = os.popen(myCMD)
+                """
+                Discussion about getting return code of object.popen() calls with either object.poll() or object.wait()
+                   https://stackoverflow.com/questions/36596354/how-to-get-exit-code-from-subprocess-popen
+                   # Wait until process terminates (without using p.wait())
+                   while p.poll() is None:
+                       # Process hasn't exited yet, let's wait some
+                       time.sleep(0.5)
+                   However they are using subprocess (maybe also python3) instead
+                """
+                mySRAlines = list(mySRAres)
+                for line in mySRAlines:
+                    mySRA = mySRA + line
+                mySRA = mySRA.rstrip()
+                if ( mySRA == "T" ):
+                   self.tracer.info("{0}.{1}() permit cluster action sr_takeover() sra={2}".format(self.__class__.__name__, method, mySRA))
+                   rc = 0
+                else:
+                   self.tracer.info("{0}.{1}() reject non-cluster action sr_takeover() sra={2}".format(self.__class__.__name__, method, mySRA))
+                   try:
+                       rc = self.errorCodeClusterConfigured # take the correct rc from HANA settings
+                   except:
+                       rc = 50277  # fallback for self.errorCodeClusterConfigured, if HANA does not already provide the rc codes
+                return rc
             else:
                 # possible force-takeover only code
                 # usually nothing to do here
                 return 0
 
         def postTakeover(self, rc, **kwargs):
-            method="postTakeover"
             """Post takeover hook."""
+            methos="postTakeover"
             self.tracer.info("{0}.{1}() method called with rc={2}".format(self.__class__.__name__, method, rc))
             if rc == 0:
                 # normal takeover succeeded
@@ -104,36 +126,8 @@ try:
                 return 0
 
         def srConnectionChanged(self, ParamDict, **kwargs):
+            """ This hook should just do nothing for this HA/DR method """
             method="srConnectionChanged"
-            """ finally we got the srConnection hook :) """
-            self.tracer.info("{0}.{1}() method called with Dict={2} (version {3})".format(self.__class__.__name__, method, ParamDict,fhSRHookVersion))
-            # myHostname = socket.gethostname()
-            # myDatebase = ParamDict["database"]
-            mySystemStatus = ParamDict["system_status"]
-            mySID = os.environ.get('SAPSYSTEMNAME')
-            mysid = mySID.lower()
-            myInSync = ParamDict["is_in_sync"]
-            myReason = ParamDict["reason"]
-            mySite = ParamDict["siteName"]
-            if (mySystemStatus == 15):
-                mySRS = "SOK"
-            else:
-                if (myInSync):
-                    # ignoring the SFAIL, because we are still in sync
-                    self.tracer.info("{0}.{1}() ignoring bad SR status because of is_in_sync=True (reason={2})".format(self.__class__.__name__, method, myReason))
-                    mySRS = ""
-                else:
-                    mySRS = "SFAIL"
-            if ( mySRS == "" ):
-                myMSG = "### Ignoring bad SR status because of is_in_sync=True ###"
-            elif ( mySite == "" ):
-                myMSG = "### Ignoring bad SR status because of empty site name in call params ###"
-                self.tracer.info("{0}.{1}() was called with empty site name. Ignoring call.".format(self.__class__.__name__, method))
-            else:
-                myCMD = "sudo /usr/sbin/crm_attribute -n hana_{0}_site_srHook_{1} -v {2} -t crm_config -s SAPHanaSR".format(mysid, mySite, mySRS)
-                rc = os.system(myCMD)
-                myMSG = "CALLING CRM: <" + myCMD + "> rc=" + str(rc)
-            self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
             return 0
 except NameError as e:
         print("Could not find base class ({0})".format(e))
