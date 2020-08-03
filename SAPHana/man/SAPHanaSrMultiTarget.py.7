@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "22 Jul 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "03 Aug 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -90,7 +90,7 @@ sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
 attribute.
 .br
 This file is needed at both sites. The HANA has to be stopped before the files
-can be edited.
+can be edited. Do not copy the file between nodes.
 .PP
 .RS 2
 [ha_dr_provider_SAPHanaSR]
@@ -111,7 +111,7 @@ ha_dr_saphanasr = info
 site-specific attributes.
 .br
 This file is needed at both sites. The HANA has to be stopped before the files
-can be edited.
+can be edited. Do not copy the file between nodes.
 .PP
 .RS 2
 [ha_dr_provider_saphanasrmultitarget]
@@ -127,7 +127,6 @@ execution_order = 1
 ha_dr_saphanasrmultitarget = info
 .RE
 .PP
-
 * Example for creating the optional SAPHanaSR python object file manually. SID is SLE.
 .PP
 .RS 2
@@ -145,13 +144,13 @@ ha_dr_saphanasrmultitarget = info
 .\" TODO chmod 755?
 .RE
 .PP
-* Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. 
+* Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. To be executed on respective HANA primary site. 
 .PP
 .RS 2
 # grep "sudo.*crm_attribute.*srHook" /var/log/messages
 .RE
 .PP
-* Example for checking the HANA tracefiles for srConnectionChanged() events.
+* Example for checking the HANA tracefiles for srConnectionChanged() events. To be executed on respective HANA primary site.
 .PP
 .RS 2
 # su - sleadm
@@ -164,6 +163,13 @@ ha_dr_saphanasrmultitarget = info
 .br
 # exit
 .RE
+.PP
+* Example for comparing Linux cluster srHook attribute with current HANA SR state. SID is HA1. To be executed on current HANA primary site.
+.PP
+.RS 2
+# SAPHanaSR-showAttr | grep -A4 srHook
+.br
+# su - ha1adm -c "HDBSettings.sh systemReplicationStatus.py"
 .PP
 .\"
 .SH FILES
@@ -185,6 +191,9 @@ ha_dr_saphanasrmultitarget = info
 .TP
 /usr/sap/$SID/HDB$nr/$host/trace/
  the directory with HANA trace files
+.TP
+/usr/sap/$SID/HDB$nr/.crm_attribute
+ the internal cache for status changes while cluster is down, experimental
 .PP
 .\"
 .SH REQUIREMENTS 
@@ -204,6 +213,10 @@ in memory and on disk (in persistence).
 .PP
 .\"
 .SH BUGS
+HA/DR provider events are written into Linux cluster attributes only while the 
+Linux cluster is up and running. The current HANA SR status might differ from
+CIB srHook attribute after cluster maintenance or alike.  
+.br
 Global and site-specific properties for HANA SR status can not be used at same
 time.
 .br
