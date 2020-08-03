@@ -211,12 +211,10 @@ in memory and on disk (in persistence).
 .PP
 4. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA has to be used.
 .PP
+5. The Linux cluster needs to be up an running to allow HA/DR provider events being written into CIB attributes. The current HANA SR status might differ from CIB srHook attribute after cluster maintenance.
+.PP
 .\"
 .SH BUGS
-HA/DR provider events are written into Linux cluster attributes only while the 
-Linux cluster is up and running. The current HANA SR status might differ from
-CIB srHook attribute after cluster maintenance or alike.  
-.br
 Global and site-specific properties for HANA SR status can not be used at same
 time.
 .br
