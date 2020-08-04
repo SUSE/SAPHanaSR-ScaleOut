@@ -2415,7 +2415,7 @@ function saphana_monitor_primary()
                 #
                 # first check, if we have a pending HA/DR provider attribute in the interface files
                 #
-                srHookAttributeFile="/hana/shared/$SID/$InstanceName/.crm_attribute"
+                srHookAttributeFile="/hana/shared/$SID/$InstanceName/.crm_attribute.$remSR_name"
                 if [ -f "$srHookAttributeFile" ]; then
                     #
                     # need to read attribute from the file
