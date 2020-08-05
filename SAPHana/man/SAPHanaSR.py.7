@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR.py 7 "22 Jul 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "05 Aug 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -154,6 +154,10 @@ supported API versions and scenarios.
 in memory and on disk (in persistence).
 .PP
 4. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA has to be used.
+.PP
+5. The Linux cluster needs to be up an running to allow HA/DR provider events
+being written into CIB attributes. The current HANA SR status might differ from 
+CIB srHook attribute after cluster maintenance.
 .PP
 .\"
 .SH BUGS
