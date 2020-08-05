@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.4.0730.1638"
+SAPHanaControllerVersion="0.170.4.0804.1654"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -2384,6 +2384,7 @@ function saphana_monitor_primary()
             ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
             my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
             my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+            set_SRHOOK "$sr_name" "PRIM"
             # saphana_monitor_primary - get SR attribute of "the" remote site (TODO: PRIO3: allow multi targets in the
             my_sync=$(get_SRHOOK "$remSR_name")
             my_hana_role="${my_lss}:${my_srr}:${my_role}"
@@ -2414,7 +2415,7 @@ function saphana_monitor_primary()
                 #
                 # first check, if we have a pending HA/DR provider attribute in the interface files
                 #
-                srHookAttributeFile="/hana/shared/$SID/$InstanceName/.crm_attribute"
+                srHookAttributeFile="/hana/shared/$SID/$InstanceName/.crm_attribute.$remSR_name"
                 if [ -f "$srHookAttributeFile" ]; then
                     #
                     # need to read attribute from the file

@@ -6,7 +6,7 @@
 # Copyright:    (c) 2017-2020 SUSE LLC
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.24.0709.1005
+# Version: 0.24.0804.1613
 #
 ##################################################################
 
@@ -33,14 +33,14 @@ my $cibFile="";
 #    @EXPORT_OK    = qw(max  mysyslog get_nodes_online);
 
 # The X-Hashes     contain the structure OBJECT -> ATTRIBUTE (KEY) - VALUE
-# The XName-Hashes contain the structure ATTRIBUTE (KEY -> OBJECT - VALUE
+# The XName-Hashes contain the structure ATTRIBUTE (KEY) -> OBJECT - VALUE
 #
-# Depending on the hashes OBJECT could be "global", node-name, site-name, resource-id
+# Depending on the hashes OBJECT could be sid, node-name, site-name, resource-id
 # ATTRIBUTES could be clone_state, srHook
 #
 # There are xxx types of hashes:
 #
-# G and GName: Hashes for global attribues (object is always "global")
+# G and GName: Hashes for global attribues (object is always "<SID>")
 # H and HName: Hashes for the host specific attributes (objects are host-names)
 # R and RName: Hashes for the resource specific attributes (object are resource-names)
 # S and SName: Hashes for the site specific attributes (objects are site-names)
@@ -225,7 +225,7 @@ while (<$CIB>) {
    my ($host, $name, $site, $value);
    if ( $_ =~ /cib-last-written="([^"]*)"/ ) {
       # printf "CIB-time: %s\n", $1;
-      insertAttribute($sid, $refGL, $refGN, "global", "cib-time", $1);
+      insertAttribute($sid, $refGL, $refGN, uc($sid), "cib-time", $1);
    }
 
    # search for is-managed and maintenance attributes
@@ -242,7 +242,7 @@ while (<$CIB>) {
            $value=$1;
        }
       if ( $id eq "cib" ) {
-	      insertAttribute($sid, $refGL, $refGN, "global", "$name", "$value");
+	      insertAttribute($sid, $refGL, $refGN, uc($sid), "$name", "$value");
       } elsif ( $id eq "nodes" ) {
               # to be processed in node section (below)
       } else {
@@ -319,7 +319,7 @@ while (<$CIB>) {
          if ( $_ =~ /value="([^"]+)"/ ) {
              $value=$1;
 #printf "insert $sid GLOB global $name $value\n";
-             insertAttribute($sid, $refGL, $refGN, "global", $name, $value);
+             insertAttribute($sid, $refGL, $refGN, uc($sid), $name, $value);
          }
       }
    } elsif ( $_ =~ /nvpair.*name="master.([a-zA-Z0-9\_\-]+_${SID}_([a-zA-Z0-9\-\_]+))"/ ) {
@@ -359,7 +359,7 @@ sub get_hana_sync_state
     my $sid=shift;
     my $result="";
     if ( $newAttributeModel == 1 ) {
-        $result = $$refGName{sync_state}->{"global"};
+        $result = $$refGName{sync_state}->{$sid};
     } else  {
         foreach my $h ( keys(%{$$refHName{sync_state}}) ) {
             if ( $$refHName{sync_state}->{$h} =~ /(S.*)/ ) {

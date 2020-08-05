@@ -147,10 +147,14 @@ try:
                     # cwd of hana is /hana/shared/<SID>/HDB00/<hananode> we use a relative path to cwd this gives us a <sid>adm permitted directory
                     #     however we go one level up (..) to have the file accessable for all SAP HANA swarm nodes
                     #
-                    fallbackFileObject = open("../.crm_attribute.stage", "w")
+                    fallbackFileObject = open("../.crm_attribute.stage.{0}".format( mySite ), "w")
                     fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format( mysid, mySite, mySRS  ))
                     fallbackFileObject.close()
-                    os.rename( "../.crm_attribute.stage", "../.crm_attribute" )
+                    #
+                    # release the stage file to the original name (move is used to be atomic)
+                    #      .crm_attribute.stage.<site> is renamed to .crm_attribute.<site>
+                    #
+                    os.rename( "../.crm_attribute.stage.{0}".format( mySite ), "../.crm_attribute.{0}".format( mySite ) )
             return 0
 except NameError as e:
         print("Could not find base class ({0})".format(e))
