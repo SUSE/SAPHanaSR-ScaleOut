@@ -9,7 +9,7 @@ SAPHanaSrMultiTarget needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
 import os, time
 
-fhSRHookVersion = "0.170.4.0731.1300"
+fhSRHookVersion = "0.170.4.0804.1654"
 
 try:
     from hdb_ha_dr.client import HADRBase
