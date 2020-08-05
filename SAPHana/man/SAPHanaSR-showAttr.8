@@ -25,9 +25,11 @@ fields:
 .TP
 Global section
 .br
-SAP System ID (\fBSID\fP)
+HANA system identifier (\fBGlobal\fP)
 .br
 date and time of record (\fBcib-time\fP)
+.br
+maintenance status of Linux cluster (\fBmaintenance\fP)
 .br
 filter for resource agent loggingl (\fBfilter\fP)
 .br
@@ -46,7 +48,7 @@ name of Linux cluster resource (\fBResource\fP)
 maintenance status of Linux cluster resource (\fBmaintenance\fP)
 .TP
 Site section
-HANA site name (\fBSit\fP)
+HANA site name (\fBSite\fP)
 .br
 SAPHanaSR last primary timestamp (\fBlpt\fP)
 .br
@@ -62,7 +64,7 @@ Linux hostname (\fBHosts\fP)
 .br
 state of the Linux cluster resource (\fBclone_state\fP)
 .br
-maintenance state of Linux cluster node (\fBnode_state\fP)
+state of Linux cluster node (\fBnode_state\fP)
 .br
 actual and configured roles for HANA on that node (\fBroles\fP)
 .br
@@ -105,9 +107,14 @@ WAITING4PRIM indicates potential risk of a dual primary situation. See section
 DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
 .PP
 .B maintenance
-- maintenance status of Linux cluster resource
+- maintenance status of Linux cluster or cluster resource
 
 Value: [ true | false ]
+
+This is a Linux cluster node attribute. It is set by an admin.
+The attribute is shown after it has been changed from the default.
+The field might appear or disappear, depending on cluster maintenance tasks.
+See also the standby attribute below.
 .PP
 .B filter
 - SAPHanaController or SAPHana filter for logging
@@ -117,10 +124,14 @@ Value: [ \fIfilter\fR ]
 The filter is defined by hana_${sid}_glob_filter .
 See ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7) for details.
 .PP
-.B SID
-- SAP System ID
+.B Global
+- HANA system identifier
 
 Value: [ \fISID\fR ]
+
+The SID is the same for the pair of HANA system replication databases in the
+cluster.
+.\" TODO as well as for the ones outside connected by system replication.
 .PP
 .B Hosts
 - Linux hostname
@@ -275,14 +286,15 @@ Those do not make sense for automating HANA system replication by an Linux clust
 
 Value: [ on | off ]
 
-This is a Linux Cluster node attribute. It is set by an admin.
+This is a Linux cluster node attribute. It is set by an admin.
 The attribute is shown after it has been changed from the default.
 The field might appear or disappear, depending on cluster maintenance tasks.
+See also the maintenance attribute above.
 .PP
 .B sync_state
 - HANA SR status
 
-Value: [ SOK | SFAIL | SWAIT | PRIM ]
+Value: [ SOK | SFAIL | SWAIT | SREG | PRIM ]
 
 .\"TODO cluster property sync_state ?
 The cluster property sync_state is set by the SAPHanaController or SAPHana resource agent.
@@ -311,7 +323,7 @@ R = Registration on new secondary (sr_register) ongoing.
 .\" TODO check srHook
 .B srHook
 
-Value: [ SOK | SFAIL | SWAIT | PRIM ]
+Value: [ SOK | SFAIL | SWAIT | SREG | PRIM ]
 
 The cluster attribute related to srHook represents the HANA SR status from HA/DR
 provider API method srConnectionChanged(). See SAPHanaSR-ScaleOut(7) for supported
