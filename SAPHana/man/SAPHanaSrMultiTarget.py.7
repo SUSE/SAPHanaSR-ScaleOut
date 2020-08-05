@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "03 Aug 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "05 Aug 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -44,14 +44,14 @@ status via attributes in the CIB properties section. The SAP System Indentifier 
 versions and scenarios. For old SAPHanaSR-ScaleOut the SAPHanaSR.py provides
 one global attribute:
 .TP
-\fBhana_<sid>_glob_srHook = [ SOK | SFAIL | SWAIT ]\fP
+\fBhana_<sid>_glob_srHook = [ SOK | SFAIL | SWAIT | SREG ]\fP
 .TP
 Note: SAPHanaSR Scale-Up comes with a differnt SAPHanaSR.py that provides site-specific attributes.
 .PP
 For new SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py provides site-specific
 attributes:
 .TP
-\fBhana_<sid>_site_srHook_<site> = [ SOK | SFAIL | SWAIT | PRIM ]\fP
+\fBhana_<sid>_site_srHook_<site> = [ SOK | SFAIL | SWAIT | SREG | PRIM ]\fP
 .PP
 .\"
 .SH RETURN CODES
@@ -72,7 +72,7 @@ Usage, syntax or execution errors.
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
 .RE
 .PP
-* More restricted exmaple for sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
+* More restricted example for sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
 .PP
 .RS 2
 # SAPHanaSR needs for srHook
@@ -170,6 +170,24 @@ ha_dr_saphanasrmultitarget = info
 # SAPHanaSR-showAttr | grep -A4 srHook
 .br
 # su - ha1adm -c "HDBSettings.sh systemReplicationStatus.py"
+.RE
+.PP
+* Potentially dangerous example for manually changing Linux cluster srHook
+attribute according to current HANA SR state. This might be desired if the
+HANA SR state has changed while the Linux cluster was completely down.
+SID is ICE, site is berg, current HANA SR state is SFAIL.
+.br
+Note: Understand the impact before trying.
+.PP
+.RS 2
+# su - iceadm -c "HDBSettings.sh systemReplicationStatus.py"
+.br
+# cs_clusterstate -i
+.br
+# crm_attribute -n hana_ice_site_srHook_berg -v SFAIL -t crm_config -s SAPHanaSR
+.br
+# SAPHanaSR-showAttr
+.RE
 .PP
 .\"
 .SH FILES
@@ -192,8 +210,8 @@ ha_dr_saphanasrmultitarget = info
 /usr/sap/$SID/HDB$nr/$host/trace/
  the directory with HANA trace files
 .TP
-/usr/sap/$SID/HDB$nr/.crm_attribute
- the internal cache for status changes while cluster is down, experimental
+/usr/sap/$SID/HDB$nr/.crm_attribute.$SITE
+ the internal cache for status changes while cluster is down, file is owned by ${SID}adm and must never be touched
 .PP
 .\"
 .SH REQUIREMENTS 
