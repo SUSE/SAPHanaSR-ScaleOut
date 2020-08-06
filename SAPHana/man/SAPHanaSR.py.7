@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR.py 7 "22 Jul 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "05 Aug 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -39,11 +39,11 @@ The "HA/DR providers" API accepts the following parameter for the trace section:
 The SAPHanaController and SAPHana RA recognize the effecting system replication 
 status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API
 versions and scenarios. For old SAPHanaSR-ScaleOut the SAPHanaSR.py provides
-one global attribute:
+one global attribute among the SAPHanaSR properties:
 .TP
 \fBhana_<sid>_glob_srHook = [ SOK | SFAIL | SWAIT ]\fP
 .TP
-Note: SAPHanaSR Scale-Up comes with a differnt SAPHanaSR.py that provides site-specific attributes. For SAPHanaSR-ScaleOut site-specific attributes see SAPHanaSrMultitarget.py(7).
+Note: SAPHanaSR Scale-Up comes with a differnt SAPHanaSR.py that provides site-specific attributes. For SAPHanaSR-ScaleOut site-specific attributes see SAPHanaSrMultiTarget.py(7).
 .PP
 .\"
 .SH RETURN CODES
@@ -144,9 +144,7 @@ ha_dr_saphanasr = info
 1. SAP HANA starting with version 1.0 SPS 11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
 With the mentioned HANA versions uni-directional chained system replication
-is possible. See SAPHanaSrMultiTarget(7) and SAPHanaSR-ScaleOut(7) for
-supported API versions and scenarios.
-.\" TODO check HANA 2.0 SPS
+is possible. See SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
 .PP
 2. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
 .PP
@@ -154,6 +152,10 @@ supported API versions and scenarios.
 in memory and on disk (in persistence).
 .PP
 4. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA has to be used.
+.PP
+5. The Linux cluster needs to be up an running to allow HA/DR provider events
+being written into CIB attributes. The current HANA SR status might differ from 
+CIB srHook attribute after cluster maintenance.
 .PP
 .\"
 .SH BUGS
@@ -166,7 +168,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .PP
 .\"
 .SH SEE ALSO
-\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSrMultiTarget\fP(7) ,
+\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSrMultiTarget.py\fP(7) ,
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7)
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
 \fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,

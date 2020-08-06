@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "20 Jun 2020" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "27 Jun 2020" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -99,7 +99,7 @@ Optional, well known directories will be searched by default.
 .RS 4
 Define timeout how long a call to HANA to receive information can take. This could be e.g. landscapeHostConfiguration.py. There are some specific calls to HANA which have their own timeout values. For example the sr_takeover command does not timeout (inf). If the timeout is reached, the return code will be 124. If you increase the timeouts for HANA calls you should also adjust the operation timeouts of your Linux cluster resources.
 .br
-Optional. Default value: 120.
+Optional, experimental. Default value: 120.
 .RE
 .PP
 \fBINSTANCE_PROFILE\fR
@@ -137,6 +137,13 @@ Default value: false\&.
 \fBhana_${sid}_glob_filter\fR
 .RS 4
 Global cluster property \fBhana_${sid}_glob_filter\fR . This property should only be set if requested by support engineers. The default is sufficient for normal operation.
+.\" message levels: (dbg)|info|warn|err|error
+.\" message types: act|ra|flow|dbg|lpa|dec|dbg2|score|top|...
+.\" grep super_ocf_log SAPHanaController SAPHanaTopology | tr -s " " | awk '{print $2,$3,$4}' | sort -u
+.br
+Values: act|ra|flow|dbg|lpa|dec|dbg2|score|top
+.br
+Optional, advanced. Default value: ra-act-dec-lpa\&.
 .RE
 .PP
 .\"
@@ -239,7 +246,7 @@ master-node-max="1" master-max="1" clone-node-max="1" interleave="true"
 location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_HAE_HDB00 -inf: vm-majority
 .RE
 .PP
-* The following shows the filter for log messages set to the defaults.
+* The following shows the filter for log messages set to defaults.
 .br
 This property should only be set if requested by support engineers. The default is sufficient for normal operation.
 .RE
