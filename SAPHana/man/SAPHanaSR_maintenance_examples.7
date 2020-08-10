@@ -34,10 +34,14 @@ REQUIREMENTS below.
 # cs_clusterstate -i
 .RE
 .PP
-\fB*\fR Initiate an administrative takeover of the HANA primary from one node to the other by using the Linux cluster. 
+\fB*\fR Initiate an administrative take-over of the HANA primary from one node to the other by using the Linux cluster. 
 .br
 This procedure does not work for scale-out.
-If the cluster should also register the former primary as secondary, AUTOMATED_REGISTER="true" is needed. Before the takeover will be initiated, the status of the Linux cluster and the HANA system replication has to be checked. The takeover should only be initiated as forced migration. After takeover of the primary has been finished, the migration rule has to be deleted. If AUTOMATED_REGISTER="true" is set, finally the former primary will be registered as secondary, once the migration rule has been deleted.
+If the cluster should also register the former primary as secondary, AUTOMATED_REGISTER="true" is needed. Before the take-over will be initiated, the status of the Linux cluster and the HANA system replication has to be checked. The take-over should only be initiated as forced migration of the multi-state SAPHana resource.
+.br
+Not working: Regular migration, migration of IP address, migration of primitive SAPHana resource, setting primary node standby.
+.br
+After take-over of the primary has been finished, the migration rule has to be deleted. If AUTOMATED_REGISTER="true" is set, finally the former primary will be registered as secondary, once the migration rule has been deleted.
 .PP
 .RS 2
 # crm_mon -1r
@@ -63,7 +67,7 @@ If the cluster should also register the former primary as secondary, AUTOMATED_R
 .PP
 Note: Former versions of the Linux cluster used "migrate" instead of "move" and "unmigrate" instead of "clear".
 .PP
-\fB*\fR Perform an SAP HANA takeover by using SAP tools. 
+\fB*\fR Perform an SAP HANA take-over by using SAP tools. 
 .br
 The procedures is described here for scale-out. It works for scale-up as well. 
 The status of HANA databases, system replication and Linux cluster has to be
@@ -151,7 +155,9 @@ If everything looks fine, proceed.
 # crm_mon -1r
 .RE
 .PP
-\fB*\fR Manually start the HANA primary if only one node is available. This might be necessary in case the cluster could not detect the status of both nodes.
+\fB*\fR Manually start the HANA primary if only one node is available.
+.br
+This might be necessary in case the cluster could not detect the status of both nodes.
 .PP
 .RS 2
 1. Start the cluster on both nodes.
@@ -176,27 +182,29 @@ If everything looks fine, proceed.
 .RE
 .PP
 .\"
-\fB*\fR Overview on maintenance procedure for HANA, the Linux cluster remains running, on pacemaker-1.0. See also section REQUIREMENTS below.
+\fB*\fR Overview on maintenance procedure for HANA, the Linux cluster remains running, on pacemaker-1.0.
+.br
+See also section REQUIREMENTS below.
 .PP
 .RS 2
 1. Set the Linux cluster into maintenance mode (crm configure property maintenance-mode=true).
 .br
 2. Perform the HANA maintenance, e.g. update to latest SPS.
 .br
-3. Set the SAPHanaController master/slave resource to unmanaged (crm resource unmanage <m/s-resource>).
+3. Set the SAPHanaController m/s resource to unmanaged (crm resource unmanage <m/s-resource>).
 .br
 4. Set the Linux cluster back into ready mode (crm configure property maintenance-mode=false).
 .br
-5. Cleanup the SAPHanaController master/slave resource (crm resource cleanup <m/s-resource> node <node>).
+5. Cleanup the SAPHanaController m/s resource (crm resource cleanup <m/s-resource> node <node>).
 .br
-6. Set the SAPHanaController master/slave resource back to managed (crm resource manage <m/s-resource>).
+6. Set the SAPHanaController m/s resource back to managed (crm resource manage <m/s-resource>).
 .br
 7. Check if everything looks fine (crm_mon -1r , cs_clusterstate -i ,
 crm configure show | grep cli- , SAPHanaSR-showAttr).
 .PP
 .RE
 Note: The YaST module hana_updater does something similar, combined with an
-administrative takeover.
+administrative take-over.
 .PP
 On pacemaker-2.0 respectively do the following. 
 .PP
@@ -214,41 +222,88 @@ On pacemaker-2.0 respectively do the following.
 .RS 2
 # crm resource maintenance msl_SAPHanaCon_SLE_HDB10 off
 .RE
+5. Remove the meta attribute from CIB, optional.
+.RS 2
+# crm resource meta msl_SAPHanaCon_SLE_HDB10 delete maintenance
+.RE
 .PP
 The two procedures must not be mixed. If the procedure for pacemaker-1.0 has
 been used, left-over maintenance attribute have to be removed from the CIB
 before proceeding with the new procedure for pacemaker-2.0.
 .PP
-\fB*\fR Overview on maintenance procedure for Linux, HANA remains running, on pacemaker-2.0. See also section REQUIREMENTS below.
+\fB*\fR Overview on maintenance procedure for Linux, HANA remains running, on pacemaker-2.0.
+.br
+See also section REQUIREMENTS below.
 .\" TODO details
 .\" TODO formatting
 .PP
 .RS 2
-check status of Linux cluster and HANA
+1. Check status of Linux cluster and HANA.
 .br
-eihter node
-.br
+2. Set the Linux cluster into maintenance mode, on either node.
+.RE
+.RS 4
 # crm maintenance on
-.br
-both nodes
-.br
+.RE
+.RS 2
+3. Stop Linux Cluster on all nodes. Make sure to do that on all nodes.
+.RE
+.RS 3
 # systemctl stop pacemaker
-.br
-do Linux maintenance
-.br
-both nodes
-.br
+.RE
+.RS 2
+4. Perform Linux maintenance.
+5. Start Linux cluster on all nodes. Make sure to do that on all nodes.
+.RE
+.RS 4
 # systemctl start pacemaker
-.br
-either node
-.br
+.RE
+.RS 2
+6. Let Linux cluster detect status of HANA resource, on either node.
+.RE
+.RS 4
 # crm resource refresh msl_...
-.br
-either node
-.br
+.RE
+.RS 2
+7. Set cluster ready for operations, on either node.
+.RE
+.RS 4
 # crm maintenance off
+.\" TODO delete property, optional?
+.RE
+.RS 2
+8. Check status of Linux cluster and HANA.
+.RE
+.PP
+\fB*\fR Remove left-over maintenance attribute from overall Linux cluster.
 .br
-check status of Linux cluster and HANA
+This could be done to avoid confusion caused by different maintenance procedures.
+See above overview on maintenance procedures whith running Linux cluster.
+Before doing the below, make sure to have maintenance-mode="false" set.
+.PP
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm_attribute --query -t crm_config -n maintenance-mode
+.br
+# crm_attribute --delete -t crm_config -n maintenance-mode
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
+\fB*\fR Remove orphaned global srHook attributes.
+.br
+This should be done after upgrading from old-style srHook to avoid confusion
+caused by different HANA HADR provider API versions.
+SID is SLE, nodes is node1. All nodes need to be cleaned.
+.\" TODO what else orphaned attributes to be removed?
+.PP
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm_attribute --delete -t nodes --node node1 --name hana_sle_glob_srHook
+.br
+# SAPHanaSR-showAttr
 .RE
 .PP
 .\"
@@ -271,7 +326,7 @@ landscape status, and the HANA SR status.
 \fB*\fR Maintenance attributes for cluster, nodes and resources must not be mixed.
 .PP
 \fB*\fR The Linux cluster needs to be up an running to allow HA/DR provider events being written into CIB attributes. 
-The current HANA SR status might differ from CIB srHook attribute after cluster maintenance.
+The current HANA SR status might differ from CIB srHook attribute after Linux cluster maintenance.
 .PP
 .\"
 .SH BUGS
