@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "05 Aug 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "11 Aug 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -171,6 +171,23 @@ Note: Understand the impact before trying.
 # SAPHanaSR-showAttr
 .RE
 .PP
+\fB*\fR  Example for removing orphaned global srHook attributes.
+This might be done after upgrading from old-style srHook to avoid confusion
+caused by different HANA HADR provider API versions.
+See also SAPHanaSR.py(7).
+SID is SLE, node is node1. All nodes need to be cleaned.
+.\" TODO what else orphaned attributes to be removed?
+.PP
+.RS 2
+# SAPHanaSR-showAttr
+.br
+# cs_clusterstate -i
+.br
+# crm_attribute --delete -t nodes --node node1 --name hana_sle_glob_srHook
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
 .\"
 .SH FILES
 .TP
@@ -199,9 +216,10 @@ Note: Understand the impact before trying.
 .SH REQUIREMENTS 
 1. SAP HANA starting with version 1.0 SPS 11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
-With the mentioned HANA versions uni-directional chained system replication
-is possible. Beginning with HANA 2.0 SPS 3 multi-target system replication
-is possible as well. See also SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
+With the mentioned HANA versions uni-directional chained system replication is
+possible. Beginning with HANA 2.0 SPS 36 multi-target system replication is
+possible as well. See also SAPHanaSR-ScaleOut(7) for supported API versions and
+scenarios.
 .\" TODO check HANA 2.0 SPS
 .PP
 2. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
