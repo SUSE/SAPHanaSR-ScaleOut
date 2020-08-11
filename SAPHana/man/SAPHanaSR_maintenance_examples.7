@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR_maintenance_examples 7 "03 Aug 2020" "" "SAPHanaSR"
+.TH SAPHanaSR_maintenance_examples 7 "11 Aug 2020" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR_maintenance_examples \- maintenance examples for SAPHana and SAPHanaController.
@@ -37,7 +37,7 @@ REQUIREMENTS below.
 \fB*\fR Initiate an administrative take-over of the HANA primary from one node to the other by using the Linux cluster. 
 .br
 This procedure does not work for scale-out.
-If the cluster should also register the former primary as secondary, AUTOMATED_REGISTER="true" is needed. Before the take-over will be initiated, the status of the Linux cluster and the HANA system replication has to be checked. The take-over should only be initiated as forced migration of the multi-state SAPHana resource.
+If the cluster should also register the former primary as secondary, AUTOMATED_REGISTER="true" is needed. Before the take-over will be initiated, the status of the Linux cluster and the HANA system replication has to be checked. The take-over should be initiated as forced migration of the multi-state SAPHana resource.
 .br
 Not working: Regular migration, migration of IP address, migration of primitive SAPHana resource, setting primary node standby.
 .br
@@ -81,11 +81,11 @@ REQUIREMENTS below.
 .RS 2
 # crm_mon -1r
 .br
-# cs_clusterstate -i
-.br
 # SAPHanaSR-showAttr
 .br
 # crm configure show | grep cli-
+.br
+# cs_clusterstate -i
 .br
 If everything looks fine, proceed.
 .br
@@ -153,6 +153,8 @@ If everything looks fine, proceed.
 # SAPHanaSR-showAttr
 .br
 # crm_mon -1r
+.br
+# cs_clusterstate -i
 .RE
 .PP
 \fB*\fR Manually start the HANA primary if only one node is available.
@@ -187,20 +189,61 @@ This might be necessary in case the cluster could not detect the status of both 
 See also section REQUIREMENTS below.
 .PP
 .RS 2
-1. Set the Linux cluster into maintenance mode (crm configure property maintenance-mode=true).
+1. Check if everything looks fine.
+.RE
+.RS 4
+# crm_mon -1r
 .br
-2. Perform the HANA maintenance, e.g. update to latest SPS.
+# crm configure show | grep cli-
 .br
-3. Set the SAPHanaController m/s resource to unmanaged (crm resource unmanage <m/s-resource>).
+# SAPHanaSR-showAttr
 .br
-4. Set the Linux cluster back into ready mode (crm configure property maintenance-mode=false).
+# cs_clusterstate -i
+.RE
+.RS 2
+2. Set the Linux cluster into maintenance mode.
+.RE
+.RS 4
+# crm configure property maintenance-mode=true
+.RE
+.RS 2
+3. Perform the HANA maintenance, e.g. update to latest SPS.
 .br
-5. Cleanup the SAPHanaController m/s resource (crm resource cleanup <m/s-resource> node <node>).
+4. Set the SAPHanaController m/s resource to unmanaged.
+.RE
+.RS 4
+# crm resource unmanage <m/s-resource>
+.RE
+.RS 2
+5. Set the Linux cluster back into ready mode.
+.RE
+.RS 4
+# crm configure property maintenance-mode=false
+.RE
+.RS 2
+6. Cleanup the SAPHanaController m/s resource.
+.RE
+.RS 4
+# crm resource cleanup <m/s-resource> node <node>
+.RE
+.RS 2
+7. Set the SAPHanaController m/s resource back to managed.
+.RE
+.RS 4
+# crm resource manage <m/s-resource>
+.RE
+.RS 2
+8. Check if everything looks fine.
+.RE
+.RS 4
+# crm_mon -1r
 .br
-6. Set the SAPHanaController m/s resource back to managed (crm resource manage <m/s-resource>).
+# crm configure show | grep cli-
 .br
-7. Check if everything looks fine (crm_mon -1r , cs_clusterstate -i ,
-crm configure show | grep cli- , SAPHanaSR-showAttr).
+# SAPHanaSR-showAttr
+.br
+# cs_clusterstate -i
+.RE
 .PP
 .RE
 Note: The YaST module hana_updater does something similar, combined with an
@@ -208,23 +251,36 @@ administrative take-over.
 .PP
 On pacemaker-2.0 respectively do the following. 
 .PP
-1. Set the SAPHanaController master/slave resource into maintenance mode.
 .RS 2
+1. Check if everything looks fine, see above.
+.br
+2. Set the SAPHanaController multi-state resource into maintenance mode.
+.RE
+.RS 4
 # crm resource maintenance msl_SAPHanaCon_SLE_HDB10 on
 .RE
-2. Perform the HANA maintenance, e.g. update to latest SPS.
-.br
-3. Tell the cluster to forget about HANA states and to reprobe the resources.
 .RS 2
+3. Perform the HANA maintenance, e.g. update to latest SPS.
+.br
+4. Tell the cluster to forget about HANA status and to reprobe the resources.
+.RE
+.RS 4
 # crm resource refresh msl_SAPHanaCon_SLE_HDB10
 .RE
-4. Set the SAPHanaController master/slave resource back to managed.
 .RS 2
+5. Set the SAPHanaController multi-state resource back to managed.
+.RE
+.RS 4
 # crm resource maintenance msl_SAPHanaCon_SLE_HDB10 off
 .RE
-5. Remove the meta attribute from CIB, optional.
 .RS 2
+6. Remove the meta attribute from CIB, optional.
+.RE
+.RS 4
 # crm resource meta msl_SAPHanaCon_SLE_HDB10 delete maintenance
+.RE
+.RS 2
+7. Check if everything looks fine, see above.
 .RE
 .PP
 The two procedures must not be mixed. If the procedure for pacemaker-1.0 has
@@ -253,6 +309,7 @@ See also section REQUIREMENTS below.
 .RE
 .RS 2
 4. Perform Linux maintenance.
+.br
 5. Start Linux cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 4
@@ -279,7 +336,7 @@ See also section REQUIREMENTS below.
 .br
 This could be done to avoid confusion caused by different maintenance procedures.
 See above overview on maintenance procedures whith running Linux cluster.
-Before doing the below, make sure to have maintenance-mode="false" set.
+Before doing so, check for maintenance-mode="false".
 .PP
 .RS 4
 # SAPHanaSR-showAttr
@@ -287,21 +344,6 @@ Before doing the below, make sure to have maintenance-mode="false" set.
 # crm_attribute --query -t crm_config -n maintenance-mode
 .br
 # crm_attribute --delete -t crm_config -n maintenance-mode
-.br
-# SAPHanaSR-showAttr
-.RE
-.PP
-\fB*\fR Remove orphaned global srHook attributes.
-.br
-This should be done after upgrading from old-style srHook to avoid confusion
-caused by different HANA HADR provider API versions.
-SID is SLE, nodes is node1. All nodes need to be cleaned.
-.\" TODO what else orphaned attributes to be removed?
-.PP
-.RS 4
-# SAPHanaSR-showAttr
-.br
-# crm_attribute --delete -t nodes --node node1 --name hana_sle_glob_srHook
 .br
 # SAPHanaSR-showAttr
 .RE
