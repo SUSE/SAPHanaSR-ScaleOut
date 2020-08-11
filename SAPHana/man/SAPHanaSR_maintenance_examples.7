@@ -327,7 +327,7 @@ See also section REQUIREMENTS below.
 .br
 This could be done to avoid confusion caused by different maintenance procedures.
 See above overview on maintenance procedures whith running Linux cluster.
-Before doing so, check for maintenance-mode="false".
+Before doing so, check for cluster attribute maintenance-mode="false".
 .PP
 .RS 4
 # SAPHanaSR-showAttr
@@ -335,6 +335,22 @@ Before doing so, check for maintenance-mode="false".
 # crm_attribute --query -t crm_config -n maintenance-mode
 .br
 # crm_attribute --delete -t crm_config -n maintenance-mode
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
+\fB*\fR Remove left-over standby attribute from Linux cluster nodes.
+.br
+This could be done to avoid confusion caused by different maintenance procedures.
+See above overview on maintenance procedures whith running Linux cluster.
+Before doing so, check for node attribute standby="off" on all nodes.
+.PP
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm_attribute --query -t node -n standby
+.br
+# crm_attribute --delete -t node -n standby
 .br
 # SAPHanaSR-showAttr
 .RE
