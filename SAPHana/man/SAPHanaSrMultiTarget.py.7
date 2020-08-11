@@ -22,7 +22,7 @@ master nameserver as soon as one of the replicating services loses or establishe
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
-The "HA/DR providers" API accepts the following parameters for the 
+\fB*\fP The "HA/DR providers" API accepts the following parameters for the 
 ha_dr_provider_saphanasrmultitarget section:
 .TP
 [ha_dr_provider_saphanasrmultitarget]
@@ -39,9 +39,8 @@ The "HA/DR providers" API accepts the following parameter for the trace section:
 .TP
 \fBha_dr_saphanasrmultitarget = [ info | debug ]\fP
 .PP
-The SAPHanaController and SAPHana RA recognize the effecting system replication 
-status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API
-versions and scenarios. 
+\fB*\fP The SAPHanaController and SAPHana RA recognize the effecting system
+replication status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API versions and scenarios. 
 For new SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py provides site-specific
 attributes among the SAPHanaSR properties:
 .TP
@@ -126,13 +125,13 @@ ha_dr_saphanasrmultitarget = info
 # ls -l SAPHanaSrMultiTarget.pyc
 .RE
 .PP
-* Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. To be executed on respective HANA primary site. 
+* Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. To be executed on respective HANA primary site's master nameserver.
 .PP
 .RS 2
 # grep "sudo.*crm_attribute.*srHook" /var/log/messages
 .RE
 .PP
-* Example for checking the HANA tracefiles for srConnectionChanged() events. To be executed on respective HANA primary site.
+* Example for checking the HANA tracefiles for srConnectionChanged() events. To be executed on respective HANA primary site's master nameserver.
 .PP
 .RS 2
 # su - sleadm
@@ -171,19 +170,25 @@ Note: Understand the impact before trying.
 # SAPHanaSR-showAttr
 .RE
 .PP
-\fB*\fR  Example for removing orphaned global srHook attributes.
-This might be done after upgrading from old-style srHook to avoid confusion
+\fB*\fR Example for removing orphaned global srHook attribute.
+This might be done after upgrading from old-style srHook, to avoid confusion
 caused by different HANA HADR provider API versions.
-See also SAPHanaSR.py(7).
-SID is SLE, node is node1. All nodes need to be cleaned.
-.\" TODO what else orphaned attributes to be removed?
+See also SAPHanaSR.py(7) from SAPHanaSR-ScaleOut.
+SID is HA1.
+.\" TODO scale-up: SID is HA1, node is node1. All nodes need to be cleaned.
+.\" TODO double check orphaned attributes to be removed
 .PP
 .RS 2
 # SAPHanaSR-showAttr
 .br
 # cs_clusterstate -i
 .br
-# crm_attribute --delete -t nodes --node node1 --name hana_sle_glob_srHook
+# crm_attribute --delete -t crm_config --name hana_ha1_glob_srHook
+.br
+.\" # crm_attribute --delete -t crm_config --name hana_ha1_glob_sync_state
+.\" # crm_attribute --delete -t crm_config --name hana_ha1_glob_sec
+.\" # crm_attribute --delete -t crm_config --name hana_ha1_glob_prim
+.\" # TODO scale-up: crm_attribute --delete -t nodes --node node1 --name hana_ha1_glob_srHook
 .br
 # SAPHanaSR-showAttr
 .RE
