@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "10 Aug 2020" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "11 Aug 2020" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -246,17 +246,29 @@ master-node-max="1" master-max="1" clone-node-max="1" interleave="true"
 location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_HAE_HDB00 -inf: vm-majority
 .RE
 .PP
-* The following shows the filter for log messages set to defaults.
+* The following shows the filter for log messages set to defaults, pacemaker-1.0.
 .br
-This property should only be set if requested by support engineers. The default is sufficient for normal operation.
+This property should only be set if requested by support engineers. The default is sufficient for normal operation. SID is HA1.
 .RE
 .PP
 .RS 4
 property $id="SAPHanaSR" \\
 .br
-hana_SLE_glob_filter="ra-act-dec-lpa"
+hana_ha1_glob_filter="ra-act-dec-lpa"
 .RE
-.TP
+.PP
+* Remove log messages filter attribute from CIB, pacemaker-2.0. 
+.br
+Could be done once a specific filter is not needed anymore.
+
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm_attribute --delete -t crm_config --name hana_ha1_glob_filter
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
 * Search for log entries of the resource agent, show errors only:
 .PP
 .RS 4
