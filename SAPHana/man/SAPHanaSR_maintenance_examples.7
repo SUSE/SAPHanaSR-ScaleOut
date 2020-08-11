@@ -343,14 +343,14 @@ Before doing so, check for cluster attribute maintenance-mode="false".
 .br
 This could be done to avoid confusion caused by different maintenance procedures.
 See above overview on maintenance procedures whith running Linux cluster.
-Before doing so, check for node attribute standby="off" on all nodes.
+Before doing so for all nodes, check for node attribute standby="off" on all nodes.
 .PP
 .RS 4
 # SAPHanaSR-showAttr
 .br
-# crm_attribute --query -t node -n standby
+# crm_attribute --query -t node -N node1 -n standby
 .br
-# crm_attribute --delete -t node -n standby
+# crm_attribute --delete -t node -N node1 -n standby
 .br
 # SAPHanaSR-showAttr
 .RE
