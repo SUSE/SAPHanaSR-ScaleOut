@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "11 Aug 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "12 Aug 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -176,6 +176,7 @@ caused by different HANA HADR provider API versions.
 See also SAPHanaSR.py(7) from SAPHanaSR-ScaleOut.
 SID is HA1.
 .\" TODO scale-up: SID is HA1, node is node1. All nodes need to be cleaned.
+.\" TODO scale-up: # crm_attribute --delete -t nodes --node node1 --name hana_ha1_glob_srHook
 .\" TODO double check orphaned attributes to be removed
 .PP
 .RS 2
@@ -185,10 +186,7 @@ SID is HA1.
 .br
 # crm_attribute --delete -t crm_config --name hana_ha1_glob_srHook
 .br
-.\" # crm_attribute --delete -t crm_config --name hana_ha1_glob_sync_state
-.\" # crm_attribute --delete -t crm_config --name hana_ha1_glob_sec
-.\" # crm_attribute --delete -t crm_config --name hana_ha1_glob_prim
-.\" # TODO scale-up: crm_attribute --delete -t nodes --node node1 --name hana_ha1_glob_srHook
+# crm_attribute --delete -t crm_config --name hana_ha1_glob_srmode
 .br
 # SAPHanaSR-showAttr
 .RE
