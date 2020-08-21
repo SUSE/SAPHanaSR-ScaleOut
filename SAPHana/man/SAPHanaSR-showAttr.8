@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-showAttr 8 "03 Aug 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "12 Aug 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -121,7 +121,7 @@ See also the standby attribute below.
 
 Value: [ \fIfilter\fR ]
 
-The filter is defined by hana_${sid}_glob_filter .
+The filter is defined by hana_<sid>_glob_filter .
 See ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7) for details.
 .PP
 .B Global
@@ -148,12 +148,21 @@ See also the  fields remoteHost and vhost.
 
 Value: [ \fIUNIX_EPOCH\fR | 30 | 10 | 0 ]
 
-The node attribute lpa_<sid>_lpt is set by the SAPHanaController or SAPHana resource agent.
+The node attribute lpa_<sid>_lpt or cluster attribute hana_<sid>_site_lpt_<site> is set by the SAPHanaController or SAPHana resource agent.
 When the RA detects a running HANA SR primary on the node, it records the Unix Epoch time.
 See section DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
 .br
 Auxiliary values are set for an HANA SR secondary. 30 means the instance is
 evictable for primary. 10 means: not yet ready.
+.PP
+.B mns
+- master name server
+
+Value: [ \fIHANA_MASTERNAMESERVER\fR ]
+
+The cluster attribute hana_<sid>_site_mns_<site> shows the current HANA master nameserver for the given site.
+.\" The attribute is set by the SAPHanaTopology resource agent.
+It is empty for sites outside the Linux cluster.
 .PP
 .B node_state
 - state of the Linux cluster node
@@ -185,7 +194,7 @@ See also the fields Hosts and vhost.
 
 Value:  [ \fIRESOURCENAME\fR ]
 
-Name multi-state resource controlled by SAPHanaController or SAPHana.
+Name of the multi-state resource controlled by SAPHanaController or SAPHana.
 .PP
 .B roles
 - actual and configured roles for HANA on that node
@@ -276,7 +285,7 @@ A dash (-) indicates the RA did not run or did not recognize the site.
 
 Value: [ sync | syncmem ]
 
-The node attribute hana_<sid>_srmode is set by SAPHanaTopology, according to the running HANA.
+The node attribute hana_<sid>_srmode or cluster attribute hana_<sid>_glob_srmode is set by SAPHanaTopology, according to the running HANA.
 The attribute is used by the SAPHanaController or SAPHana resource agent for setting up system
 replication. SAP HANA knows also async and fullsync (see URLs below).
 Those do not make sense for automating HANA system replication by an Linux cluster.
@@ -297,7 +306,7 @@ See also the maintenance attribute above.
 Value: [ SOK | SFAIL | SWAIT | SREG | PRIM ]
 
 .\"TODO cluster property sync_state ?
-The cluster property sync_state is set by the SAPHanaController or SAPHana resource agent.
+The cluster property hana_<sid>_glob_sync_state is set by the SAPHanaController or SAPHana resource agent.
 The first three values are representing an HANA system replication status,
 recognized at latest RA run, see ocf_suse_SAPHana(7), ocf_suse_SAPHanaController(7) and
 systemReplicationStatus.py .
@@ -325,13 +334,10 @@ R = Registration on new secondary (sr_register) ongoing.
 
 Value: [ SOK | SFAIL | SWAIT | SREG | PRIM ]
 
-The cluster attribute related to srHook represents the HANA SR status from HA/DR
-provider API method srConnectionChanged(). See SAPHanaSR-ScaleOut(7) for supported
-API versions and scenarios. The attribute is not updated if the cluster is not
-running. Thus if the cluster is shut down while HANA remains running, the content
-of srHook might be outdated on cluster start until the next srConnectionChanged()
-event.   
-.\" see SAPHanaSR(7)
+The cluster attributes related to srHook are hana_<sid>_site_srHook_<site> for the multi-tier enabled hook and hana_<sid>_glob_srHook for the old-style hook.
+It represents the HANA SR status from HA/DR provider API method srConnectionChanged(). See SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
+The attribute is not updated if the cluster is not running. Thus if the cluster is shut down while HANA remains running, the content of srHook might be outdated on cluster start until the next srConnectionChanged() event.
+See SAPHanaSR.py(7) and SAPHanaSrMultiTarget.py(7) for details. 
 .br
 The cluster property \fBhana_<sid>_glob_srHook\fR shows one HANA SR status.
 It does not work for multi-tier and multi-target system replication.

@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "27 Jun 2020" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "11 Aug 2020" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -13,7 +13,7 @@ SAPHanaController \- Manages take-over between two SAP HANA databases with syste
 .SH DESCRIPTION
 
 \fBSAPHanaController\fP is a resource agent for SAP HANA databases in scale-out setups.
-It manages take-over for a SAP HANA database with system replication in an OCF master/slave configuration.
+It manages take-over for a SAP HANA database with system replication in an OCF multi-state configuration.
 .PP
 System replication will help to replicate the database data from one site to another site in order to compensate for database failures.
 With this mode of operation, internal SAP HANA high-availability (HA) mechanisms and the Linux cluster have to work together.
@@ -28,7 +28,7 @@ SAPHanaController is also able to restart former failed worker nodes as standby.
 .PP
 On initial cluster start, the cluster needs to detect a valid HANA system replication setup, including system replication status (SOK) and last primary timestamp (LPT). This is neccessary to ensure data integrity.
 .PP
-The SAPHanaController resource agent (RA) performs the actual check of the SAP HANA database instances and is configured as a master/slave resource.
+The SAPHanaController resource agent (RA) performs the actual check of the SAP HANA database instances and is configured as a multi-state resource.
 The Linux cluster resource's master status will follow the HANA's active master name server role. Resources (e.g. IP address) that need to run on the same node with that HANA role should be co-located with the master target.
 .PP
 Managing the two SAP HANA instances in scale-out setup means that the resource agent controls the start/stop of the instances. 
@@ -111,7 +111,7 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to take-over to the slave database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of take-over could be combined with HANA's persistent memory features. Example: "PREFER_SITE_TAKEOVER=true".
+Defines whether RA should prefer to take-over to the secondary database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of take-over could be combined with HANA's persistent memory features. Example: "PREFER_SITE_TAKEOVER=true".
 .br
 Optional. Default value: false\&.
 .RE
@@ -126,7 +126,7 @@ Optional. Default value: 7200\&.
 .PP
 \fBAUTOMATED_REGISTER\fR
 .RS 4
-Defines whether a former primary database should be registered automatically by the resource agent during cluster/resource start, if the DUPLICATE_PRIMARY_TIMEOUT condition is met. Example: "AUTOMATED_REGISTER=true".
+Defines whether a former primary database should be registered as secondary automatically by the resource agent during cluster/resource start, if the DUPLICATE_PRIMARY_TIMEOUT condition is met. Registering a database as secondary will initiate a data synchronisation from primary and might overwrite local data. Example: "AUTOMATED_REGISTER=true".
 .br
 Default value: false\&.
 .RE
@@ -162,7 +162,7 @@ Stops the HANA instance. Suggested minimum timeout: 3600\&.
 .PP
 \fBpromote\fR
 .RS 4
-Either runs a take-nover for a secondary or a just-nothing for a primary. The correct value depends on factors like system replication operation mode and current load on the database. Suggested minimum timeout: 900\&.
+Either runs a take-over for a secondary or a just-nothing for a primary. The correct value depends on factors like system replication operation mode and current load on the database. Suggested minimum timeout: 900\&.
 .RE
 .PP
 \fBdemote\fR
@@ -182,12 +182,12 @@ Reports whether the HANA instance is running. Suggested minimum timeout: 60\&.
 .PP
 \fBmonitor (Master role)\fR
 .RS 4
-Reports whether the HANA database seems to be working in master/slave. It also needs to check the system replication status. Suggested minimum timeout: 700\&. Suggested interval: 60\&.
+Reports whether the HANA database seems to be working in multi-state mode. It also needs to check the system replication status. Suggested minimum timeout: 700\&. Suggested interval: 60\&.
 .RE
 .PP
 \fBmonitor (Slave role)\fR
 .RS 4
-Reports whether the HANA database seems to be working in master/slave. It also needs to check the system replication status. The slave role's monitor interval has to be different from the master role. Suggested minimum timeout: 700\&. Suggested interval: 61\&.
+Reports whether the HANA database seems to be working in multi-state mode. It also needs to check the system replication status. The secondary role's monitor interval has to be different from the primary (master) role. Suggested minimum timeout: 700\&. Suggested interval: 61\&.
 .RE
 .PP
 \fBvalidate\-all\fR
@@ -213,7 +213,7 @@ In addition, log entries are written, which can be scanned by using a pattern li
 .PP
 .\"
 .SH EXAMPLES
-* Below is an example configuration for a SAPHanaController master/slave resource in an HANA scale-out performance-optimised scenario.
+* Below is an example configuration for a SAPHanaController multi-state resource in an HANA scale-out performance-optimised scenario.
 .br
 The HANA consists of two sites with five nodes each. An additional cluster node is used as majority maker for split-brain situations. In addition, a SAPHanaTopology clone resource is needed to make this work.
 .RE
@@ -246,17 +246,29 @@ master-node-max="1" master-max="1" clone-node-max="1" interleave="true"
 location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_HAE_HDB00 -inf: vm-majority
 .RE
 .PP
-* The following shows the filter for log messages set to defaults.
+* The following shows the filter for log messages set to defaults, pacemaker-1.0.
 .br
-This property should only be set if requested by support engineers. The default is sufficient for normal operation.
+This property should only be set if requested by support engineers. The default is sufficient for normal operation. SID is HA1.
 .RE
 .PP
 .RS 4
 property $id="SAPHanaSR" \\
 .br
-hana_SLE_glob_filter="ra-act-dec-lpa"
+hana_ha1_glob_filter="ra-act-dec-lpa"
 .RE
-.TP
+.PP
+* Remove log messages filter attribute from CIB, pacemaker-2.0. 
+.br
+Could be done once a specific filter is not needed anymore.
+
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm_attribute --delete -t crm_config --name hana_ha1_glob_filter
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
 * Search for log entries of the resource agent, show errors only:
 .PP
 .RS 4
@@ -373,6 +385,14 @@ nodeA: 30
 nodeB: 1479202132
 .RE
 .PP
+* Set parameter AUTOMATED_REGISTER="true". See SUPPORTED PARAMETERS section above for details.
+
+.RS 4
+# crm_resource -r rsc_SAPHana_HA1_HDB00 -p AUTOMATED_REGISTER -v true
+.br
+# crm_resource -r rsc_SAPHana_HA1_HDB00 -g AUTOMATED_REGISTER
+.RE
+.PP
 .\"
 .SH FILES
 .TP
@@ -396,7 +416,7 @@ For the current version of the SAPHanaController resource agent that comes with 
 .PP
 .\"
 .SH SEE ALSO
-\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_heartbeat_IPaddr2\fP(8) , \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR_maintenance_examples\fP(7) ,  \fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBcrm\fP(8) 
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_heartbeat_IPaddr2\fP(8) , \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR_maintenance_examples\fP(7) ,  \fBntp.conf\fP(5) , \fBchrony.conf\fP(5) , \fBstonith\fP(8) , \fBcrm\fP(8) 
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
