@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "27 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "04 Sep 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut_basic_cluster \- SAP HANA System Replication scale-out basic cluster configuration.
@@ -51,7 +51,7 @@ the number of nodes. See also \fBpcmk_action_limit\fR below.
 
 \fBfailure-timeout = 86400s\fR
 
-The crm basic parameter migration-threshold defines how long failed actions will
+The crm basic parameter failure-timeout defines how long failed actions will
 be kept in the CIB. After that time the failure record will be deleted. 
 See also \fBmigration-threshold\fR below.
 
