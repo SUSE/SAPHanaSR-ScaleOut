@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "13 Aug 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "08 Sep 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -156,7 +156,7 @@ ha_dr_saphanasrmultitarget = info
 * Potentially dangerous example for manually changing Linux cluster srHook
 attribute according to current HANA SR state. This might be desired if the
 HANA SR state has changed while the Linux cluster was completely down.
-SID is ICE, site is berg, current HANA SR state is SFAIL.
+SID is ICE, site is BERG, current HANA SR state is SFAIL.
 .br
 Note: Understand the impact before trying.
 .PP
@@ -165,7 +165,7 @@ Note: Understand the impact before trying.
 .br
 # cs_clusterstate -i
 .br
-# crm_attribute -n hana_ice_site_srHook_berg -v SFAIL -t crm_config -s SAPHanaSR
+# crm_attribute -n hana_ice_site_srHook_BERG -v SFAIL -t crm_config -s SAPHanaSR
 .br
 # SAPHanaSR-showAttr
 .RE
