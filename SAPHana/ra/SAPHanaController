@@ -1271,7 +1271,6 @@ function saphana_stopSystem() {
       super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
       rc=$OCF_ERR_GENERIC
   fi
-  return $rc
 }
 
 #
@@ -1283,11 +1282,10 @@ function saphana_stopSystem() {
 function saphana_stop() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local output=""
-    local rc=0
     if is_the_master_nameserver; then
-        rc=saphana_stopSystem
+        saphana_stopSystem
     elif is_active_nameserver_slave && [ -z "$the_master" ]; then
-        rc=saphana_stopSystem
+        saphana_stopSystem
     else
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
@@ -1360,7 +1358,7 @@ function saphana_start_primary()
     my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
-    my_sync=get_SRHOOK
+    my_sync=$(get_SRHOOK)
     case "$lpa_dec" in
         0) lpa_advice="start" ;;
         1) lpa_advice="register" ;;
@@ -2300,7 +2298,7 @@ function saphana_monitor_primary()
                         # TODO: PRIO4: Decide if penality (-9000) or weak (5) is better here to cover situations where other clone is gone
                         #
                         # TODO PRIO1: REMOVE remoteNode dependency - get_sync_status
-                        remoteSync=get_SRHOOK
+                        remoteSync=$(get_SRHOOK)
                         super_ocf_log info "DEC: PRIMDEFECT: remoteNode=$remoteNode SyncStatus=$remoteSync"
                         case "$remoteSync" in
                             SOK | PRIM )
@@ -2330,7 +2328,7 @@ function saphana_monitor_primary()
                         ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                         my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                         my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-                        my_sync=get_SRHOOK
+                        my_sync=$(get_SRHOOK)
                         my_role="${my_lss}:${my_srr}:${my_role}"
                         scoring_crm_master "$my_role" "$my_sync"
                         rc=$OCF_FAILED_MASTER
@@ -2353,7 +2351,7 @@ function saphana_monitor_primary()
             ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
             my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
             my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-            my_sync=get_SRHOOK
+            my_sync=$(get_SRHOOK)
             my_hana_role="${my_lss}:${my_srr}:${my_role}"
             if ocf_is_probe; then
                 rc=$OCF_SUCCESS
@@ -2379,7 +2377,7 @@ function saphana_monitor_primary()
                 ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                 my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
                 my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-                my_sync=get_SRHOOK
+                my_sync=$(get_SRHOOK)
                 my_role="${my_lss}:${my_srr}:${my_role}"
                 case "$my_role" in
                     [12]:P:*:*:*  ) # primary is down or may not anser hdbsql query so drop analyze_hana_sync_status{SRS|SQL}
@@ -2545,7 +2543,7 @@ function saphana_monitor_secondary()
             ;;
         2 | 3 | 4 ) # WARN INFO OK
             rc=$OCF_SUCCESS
-            sync_attr=get_SRHOOK
+            sync_attr=$(get_SRHOOK)
             local hanaOM=""
             local hanaOut1=""
             # TODO: PRIO 3: check, if using getParameter.py is the best option to analyze the set operationMode
@@ -2767,7 +2765,7 @@ function saphana_monitor_clone() {
               ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
               my_srr=$(get_hana_attribute "X" "${ATTR[@]}")
               my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-              my_sync=get_SRHOOK
+              my_sync=$(get_SRHOOK)
               #
               # for scoring usinf the scoring table we need a combined value of <land-scape-status>:<sytem-replication-role>:<land-scape-host-role>
               #
@@ -2827,7 +2825,7 @@ function saphana_promote_clone() {
                 rc=$OCF_ERR_GENERIC
                 ;;
             * )
-                hana_sync=get_SRHOOK
+                hana_sync=$(get_SRHOOK)
                 case "$hana_sync" in
                      SOK )
                         if is_the_master_nameserver; then
