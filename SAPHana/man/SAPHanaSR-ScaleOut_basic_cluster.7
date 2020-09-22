@@ -214,6 +214,7 @@ Let the Linux cluster manage an additional IP address and move that address
 along with the HANA secondary master nameserver.
 .br
 Note: This example works for two-node HANA scale-out.
+.\" TODO multi-node see below
 .PP
 .RS 2
 .br
@@ -232,6 +233,7 @@ location loc_ip_ro_not_master_SLE_HDB00 \\
  rsc_ip_ro_SLE_HDB00 \\
 .br
  rule -inf: hana_sle_roles ne master1:master:worker:master
+.\" TODO works this for multi-node:  rule 8000: score eq 100 
 .RE
 .PP
 
