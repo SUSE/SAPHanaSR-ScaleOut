@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "04 Sep 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "22 Sep 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut_basic_cluster \- SAP HANA System Replication scale-out basic cluster configuration.
@@ -311,6 +311,17 @@ Linux cluster should be in the same range.
 # crm_simulate -Ls | grep promotion
 .RE
 .PP
+
+\fB* cleanup SDB stonith resource after write failure\fR
+
+In rare cases the SBD stonith resource failes writing to the block device.
+After the root cause has been found and fixed, the failure message can be cleaned.
+.PP
+.RS 2
+.br
+# stonith_admin --cleanup --history=<originator_node> 
+.RE
+.PP
 .\"
 .SH BUGS
 In case of any problem, please use your favourite SAP support process to open
@@ -321,9 +332,10 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .SH SEE ALSO
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBocf_heartbeat_IPAddr2\fP(7) , \fBocf_heartbeat_Filesystem\fP(7) ,
-\fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBcrm_no_quorum_policy\fP(7) ,
-\fBcrm\fP(8) , \fBcrm_simulate\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
-\fBSAPHanaSR-showAttr\fP(7) , \fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
+\fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBstonith_admin\fP(8) , 
+\fBcrm_no_quorum_policy\fP(7) , \fBcrm\fP(8) , \fBcrm_simulate\fP(8) ,
+\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-showAttr\fP(7) ,
+\fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
 \fBnfs\fP(5) , \fBmount\fP(8) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
