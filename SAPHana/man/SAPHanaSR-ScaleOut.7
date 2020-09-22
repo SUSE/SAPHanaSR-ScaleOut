@@ -47,10 +47,9 @@ E.g. 2 nodes with 20TB RAM each per site. Specific HANA HA/DR providers can hand
 failing processes.
 .\" TODO active/active read-enabled with scale-out?
 .PP
-In a nutshell: In OLAP systems the cluster has many nodes.
-In OLTP systems the cluster has a few large nodes.
-HANA can handle site-internal fail-over. Linux cluster handles split-brain
-detection, node fencing on general errors, take-over from primary to secondary
+In a nutshell: OLAP systems have many nodes. OLTP systems have few large nodes.
+HANA can handle site-internal fail-over. The Linux cluster handles split-brain
+detection, node fencing on general failures, take-over from primary to secondary
 site including IP address.
 .PP
 Note: To automate SAP HANA SR in scale-up setups, please use the package
