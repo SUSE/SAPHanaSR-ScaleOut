@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR_maintenance_examples 7 "11 Aug 2020" "" "SAPHanaSR"
+.TH SAPHanaSR_maintenance_examples 7 "22 Sep 2020" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR_maintenance_examples \- maintenance examples for SAPHana and SAPHanaController.
@@ -167,12 +167,15 @@ If everything looks fine, proceed.
 # cs_clusterstate -i
 .RE
 .PP
-\fB*\fR Manually start the HANA primary if only one node is available.
+\fB*\fR Manually start the HANA primary if only one site is available.
 .br
-This might be necessary in case the cluster could not detect the status of both nodes.
+This might be necessary in case the cluster can not detect the status of both sites.
+This is an advanced task.
+.PP
+\fBBefore doing this on one site, make sure HANA is not primary on other site!\fR
 .PP
 .RS 2
-1. Start the cluster on both nodes.
+1. Start the cluster on remaining nodes.
 .br
 2. Wait and check for cluster is running, and in status idle.
 .br
@@ -355,6 +358,29 @@ Before doing so for all nodes, check for node attribute standby="off" on all nod
 # SAPHanaSR-showAttr
 .RE
 .PP
+\fB*\fR Manually update global site attributes.
+.br
+In rare cases the global site attributes hana_${sid}_glob_prim and/or
+hana_${sid}_glob_sec are not updated automatically after successful take-over,
+while all other attributes are updated correctly. The global site attribute
+stays outdated even after the cluster has been idle for a while.
+In this case, the global site attributes could be updated manually.
+Make sure everything is fine and just the global site attribute has not been
+updated. This is an advanced task.
+.br
+Example for updating hana_${sid}_glob_sec for SID HA1 with site name VOLKACH
+and hana_${sid}_glob_prim with site name WIPFELD:
+.PP
+.RS 4
+# crm configure show SAPHanaSR
+.br
+# crm_attribute --update=VOLKACH -t crm_config --name hana_ha1_glob_sec
+.br
+# crm_attribute --update=WIPFELD -t crm_config --name hana_ha1_glob_prim
+.br
+# crm configure show SAPHanaSR
+.RE
+.PP
 .\"
 .SH FILES
 .br
@@ -376,6 +402,10 @@ landscape status, and the HANA SR status.
 .PP
 \fB*\fR The Linux cluster needs to be up an running to allow HA/DR provider events being written into CIB attributes. 
 The current HANA SR status might differ from CIB srHook attribute after Linux cluster maintenance.
+.PP
+\fB*\fR Manually activating an HANA primary, like start of HANA primary or take-over outside
+the cluster creates risk of a duplicate-primary situation. The user is responsible for data
+integrity, particularly when manually activating an HANA primary.
 .PP
 .\"
 .SH BUGS
