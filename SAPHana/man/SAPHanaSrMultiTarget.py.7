@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "08 Sep 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "22 Sep 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -185,8 +185,6 @@ SID is HA1.
 # cs_clusterstate -i
 .br
 # crm_attribute --delete -t crm_config --name hana_ha1_glob_srHook
-.br
-# crm_attribute --delete -t crm_config --name hana_ha1_glob_srmode
 .br
 # SAPHanaSR-showAttr
 .RE
