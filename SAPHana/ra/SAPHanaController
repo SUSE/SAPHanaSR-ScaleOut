@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.4.0805.2111"
+SAPHanaControllerVersion="0.170.5.1001.1647"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -628,23 +628,39 @@ function HANA_CALL()
     return $rc;
 }
 
-# function get_SRHOOK - fetches the site specific Hook SR status or (as fallback) the polling-attribute
+# function get_SRHOOK
+# fetches the global Hook SR status (for compatibility reason till RA update of all cluster nodes are done)
+# or site specific Hook SR status or (as fallback) the polling-attribute
 # params: site-name
-# globals: ATTR_NAME_HANA_SRHOOK[@](r), ATTR_NAME_HANA_SYNC_STATUS[@](r)
-# locals:  ATTR[@], my_sync, get_sr_name
+# globals: ATTR_NAME_HANA_GLOB_SRHOOK[@](r), ATTR_NAME_HANA_SRHOOK[@](r), ATTR_NAME_HANA_SYNC_STATUS[@](r)
+# locals:  ATTR[@], my_sync, old_sync, get_sr_name
 #
 function get_SRHOOK()
 {
-    local -a ATTR my_sync
+    # ANGI TODO - ask Fabian if ATTR_NAME_HANA_SEC_STATUS[@] is a typo or should be a new attrinute
+    local -a ATTR my_sync old_sync
     local get_sr_name="$1"
-    ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
-    my_sync=$(get_hana_attribute "X" "${ATTR[@]}")
-    super_ocf_log info "RA: SRHOOK1=$my_sync"
+    # first check, if the old, global hook attribute still exists.
+    # if yes, use this as 'my_sync', because not all cluster nodes are
+    # updated to the new RA right now.
+    old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
+    super_ocf_log info "RA: SRHOOK0=$old_sync"
+    if [ -z "$old_sync" ]; then
+        # no old, global hook attribute found, go ahead with the fancy new one
+        ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
+        my_sync=$(get_hana_attribute "X" "${ATTR[@]}")
+        super_ocf_log info "RA: SRHOOK1=$my_sync"
+    else
+        my_sync=$old_sync
+    fi
+    # no old, global hook attribute found, but also no new, site specific
+    # hook attribute found, so use global sync state attribute as fallback
     if [ -z "$my_sync" -o "$my_sync" = "SWAIT" ]; then
-        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SYNC_STATUS[@]}")
+        my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
         super_ocf_log info "RA: SRHOOK2=$my_sync"
     fi
-    if [ -z "$my_sync" ]; then   # be pessimistic, if we could not determine the SR attribute
+    # still unable to determine any SR attribute, so be pessimistic
+    if [ -z "$my_sync" ]; then
         my_sync="SFAIL"
     fi
     super_ocf_log info "RA: SRHOOK3=$my_sync"
@@ -659,9 +675,21 @@ function get_SRHOOK()
 #
 function set_SRHOOK()
 {
-    local -a ATTR my_sync
+    local -a ATTR my_sync old_sync
     local get_sr_name="$1"
     local value="$2"
+    old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
+    super_ocf_log info "RA: set SRHOOK - old attribute still exists"
+    if [ -n "$old_sync" ]; then
+        # ANGI TODO - may be check the 'value' and only write the old, global
+        # attribute, if it contains valid values for the old behaviour ??
+        # so skip 'PRIM' or rewrite 'PRIM' with something else?
+        # 'PRIM' and 'SWAIT' may result in the same scoring, as both are not
+        # listed in the scoring tables. Side-effects ??? Fabian
+        #
+        # old, global attribute still exists, write both attributes
+        set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
+    fi
     ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
     set_hana_attribute "X" "$value" "${ATTR[@]}"
     return 0
@@ -726,6 +754,16 @@ function saphana_init() {
     ocf_env=$(env | grep 'OCF_RESKEY_CRM')
     super_ocf_log debug "DBG: OCF: $ocf_env"
     #
+    # attributes used to control the update from single-target replication
+    # to mutli-target replication. Not <sid> related
+    # node specific, set, if the NewResourceAgent is running on the system
+    ATTR_NAME_HANA_NRA=("hana_nra" "forever")
+    # new "central" attribute, containing the number of updated cluster nodes
+    # and nodes still on the old RA version
+    # "done:<nr> open:<nr>" - should be "done:all open:none"
+    ATTR_NAME_HANA_UPD_STATE=("hana_upd_state" "props")
+
+    #
     ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
     #ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
@@ -744,7 +782,8 @@ function saphana_init() {
     ATTR_NAME_HANA_SRMODE2=("hana_${sid}_glob_srmode" "props" "sync")            # sync syncmem async
     #
     # For MULTI-TARGET we need a site-specific attribute not a global one
-    # ATTR_NAME_HANA_SRHOOK=("hana_${sid}_glob_srHook" "props")                    # external triggered SOK, SFAIL
+    # but for compatibility we need to recognize the old global attribute too
+    ATTR_NAME_HANA_GLOB_SRHOOK=("hana_${sid}_glob_srHook" "props")                    # external triggered SOK, SFAIL
     ATTR_NAME_HANA_FILTER=("hana_${sid}_glob_filter" "props" "ra-act-dec-lpa")
     ATTR_NAME_HANA_OPERATION_MODE=("hana_${sid}_glob_op_mode" "props" "logreplay")
     #
@@ -858,6 +897,41 @@ function saphana_init() {
     sr_mode=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_SRMODE2[@]}")
     if [ -z "$sr_mode" ]; then
         sr_mode="sync"
+    fi
+    #
+    # handle RA update state
+    node_updated=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_NRA[@]}")
+    if [ -z "$node_updated" ]; then
+        set_hana_attribute ${NODENAME} "1" "${ATTR_NAME_HANA_NRA[@]}"
+        node_updated="1"
+    fi
+    nrOfNodes=1
+    updNodes=1
+    for onode in "${otherNodes[@]}"; do
+        nrOfNodes+=1
+	onode_updated=$(get_hana_attribute $onode "${ATTR_NAME_HANA_NRA[@]}")
+        if [ -n "$onode_updated" ]; then
+            updNodes+=1
+        fi
+    done
+    if [ "$nrOfNodes" -eq "$updNodes" ]; then
+        updState="done:all open:none"
+    else
+        oldNodes=$(("$nrOfNodes" - "$updNodes"))
+        updState="done:$updNodes open:$oldNodes"
+    fi
+    cluster_update_state=$(get_hana_attribute "X" "${ATTR_NAME_HANA_UPD_STATE[@]}")
+    # if cluster_update_state is empty or the stored value does not match the
+    # current running state 'updState' update the attribute and the variable
+    if [ "$cluster_update_state" != "$updState" ]; then
+        set_hana_attribute "X" "$updState" "${ATTR_NAME_HANA_UPD_STATE[@]}"
+        cluster_update_state="$updState"
+    fi
+    if [ "$cluster_update_state" == "done:all open:none" ]; then
+        # remove globale SRHokk attribute as it's no longer needed as all
+        # cluster nodes are now updated to the new RA using site specific
+        # SRHook attribute
+        crm_attribute -D -n "hana_${sid}_glob_srHook" -t crm_config -q 2>>$log_attr_file; rc=$?
     fi
     #
     # get remote site name
