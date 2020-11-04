@@ -36,6 +36,7 @@ Conflicts:      SAPHanaSR
 %package doc
 Summary:        Setup-Guide for SAPHanaSR
 Group:          Productivity/Clustering/HA
+Conflicts:      SAPHanaSR-doc
 
 %description
 The resource agents SAPHana and SAPHanaTopology are responsible for controlling a SAP HANA Database which is
