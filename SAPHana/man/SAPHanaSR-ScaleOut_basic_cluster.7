@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "22 Sep 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "11 Nov 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut_basic_cluster \- SAP HANA System Replication scale-out basic cluster configuration.
@@ -250,7 +250,7 @@ primitive rsc_ip_SLE_HDB00 IPAddr2 \\
 .br
  op monitor interval=10s timeout=20s \\
 .br
- params ip=192.168.178.188
+ params ip=192.168.178.188 cidr_netmask=32
 .br
 primitive rsc_lb_SLE_HDB00 azure-lb \\
 .br
