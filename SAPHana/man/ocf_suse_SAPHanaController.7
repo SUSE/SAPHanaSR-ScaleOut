@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "11 Aug 2020" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "02 Dec 2020" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -56,7 +56,7 @@ A second task of the interface is the posibility to run a system replication tak
 .PP
 4. \fBsystemReplicationStatus\fP
 .br
-The interface systemReplicationStatus is a special query to check the HANA system replication status via a python library. This interface exists since SAP HANA 1.0 SPS9.
+The interface systemReplicationStatus is a special query to check the HANA system replication status via a python library. This interface exists since SAP HANA 1.0 SPS09.
 .PP
 5. \fBsaphostctrl\fP
 .br
@@ -305,7 +305,7 @@ Respectively on chronyd-based systems:
 .PP
 * Use of DUPLICATE_PRIMARY_TIMEOUT and Last Primary Timestamp (LPT) in case the primary node has been crashed completely.
 
-Typically on each side where the RA detects a running primary a time stamp is written to the node's attributes (last primary seen at time: lpt). If the timestamps ("last primary seen at") differ less than the DUPLICATE_PRIMARY_TIMEOUT than the RA could not automatically decide which of the two primaries is the better one.
+Typically on each side where the RA detects a running primary a time stamp is written to the node's attributes (last primary seen at time: lpt). If the timestamps ("last primary seen at") differ less than the DUPLICATE_PRIMARY_TIMEOUT then the RA could not automatically decide which of the two primaries is the better one.
 
 .RS 2
 1. nodeA is primary and has a current time stamp, nodeB is secondary and has a secondary marker set:
@@ -351,7 +351,7 @@ nodeB: 1479209100
 .PP
 * Use of DUPLICATE_PRIMARY_TIMEOUT and Last Primary Timestamp (LPT) in case the the database on primary node has been crashed, but the node is still alive.
 
-Typically on each side where the RA detects a running primary a time stamp is written to the node's attributes (last primary seen at time: lpt). If the timestamps ("last primary seen at") differ less than the DUPLICATE_PRIMARY_TIMEOUT than the RA could not automatically decide which of the two primaries is the better one.
+Typically on each side where the RA detects a running primary a time stamp is written to the node's attributes (last primary seen at time: lpt). If the timestamps ("last primary seen at") differ less than the DUPLICATE_PRIMARY_TIMEOUT then the RA could not automatically decide which of the two primaries is the better one.
 
 .RS 2
 1. nodeA is primary and has a current time stamp, nodeB is secondary and has a secondary marker set:
