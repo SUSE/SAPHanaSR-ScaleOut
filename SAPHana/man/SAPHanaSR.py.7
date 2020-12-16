@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR.py 7 "05 Aug 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "22 Sep 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -30,7 +30,7 @@ ha_dr_provider_SAPHanaSR section:
 .TP
 \fBpath = /usr/share/SAPHanaSR-ScaleOut\fP
 .TP
-\fBexecution_order = 50\fP
+\fBexecution_order = [ INTEGER ]\fP
 .PP
 The "HA/DR providers" API accepts the following parameter for the trace section:
 .TP
@@ -77,7 +77,7 @@ provider = SAPHanaSR
 .br
 path = /usr/share/SAPHanaSR-ScaleOut/
 .br
-execution_order = 50
+execution_order = 1
 .br
 [trace]
 .br
@@ -146,7 +146,7 @@ Older versions do not provide the srHook method srConnectionChanged().
 With the mentioned HANA versions uni-directional chained system replication
 is possible. See SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
 .PP
-2. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
+2. The user <sid>adm needs execution permission as user root for the command crm_attribute.
 .PP
 3. The hook provider needs to be added to the HANA global configuration,
 in memory and on disk (in persistence).

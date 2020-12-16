@@ -1,6 +1,6 @@
 .\" Version: 0.170.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "03 Aug 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "22 Sep 2020" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -32,9 +32,25 @@ SAPHanaController is also able to restart former failed worker nodes as standby.
 In addition to the SAPHanaTopology RA, the SAPHanaSR-ScaleOut solution uses a
 "HA/DR providers" API provided by HANA to get informed about the current state
 of the system replication.
+.PP
+Different workloads on HANA scale-out systems are possible:
+.TP
+* Online Analytical Processing (OLAP, aka SAP BW)
+This systems have an high number of nodes, including standby nodes.
+E.g. 10 nodes with 2TB RAM each per site. HANA host-autofailover can handle
+failing nodes.
+.TP
+* Online Transaction Processing (OLTP, aka SAP ERP)
+This systems have a small number of large nodes. The systems are mission critical.
+Often another system replication site is connected to increase data redundancy.
+E.g. 2 nodes with 20TB RAM each per site. Specific HANA HA/DR providers can handle
+failing processes.
 .\" TODO active/active read-enabled with scale-out?
 .PP
-In a nutshell: HANA can handle site-internal fail-over. Linux cluster handles split-brain detection, node fencing on general errors, take-over from primary to secondary site including IP address.
+In a nutshell: OLAP systems have many nodes. OLTP systems have few large nodes.
+HANA can handle site-internal fail-over. The Linux cluster handles split-brain
+detection, node fencing on general failures, take-over from primary to secondary
+site including IP address.
 .PP
 Note: To automate SAP HANA SR in scale-up setups, please use the package
 SAPHanaSR.
@@ -197,6 +213,9 @@ intervalls and timeouts.
 left-over migration constraints, and resource failures as well as the HANA
 landscape status, and the HANA SR status.
 .PP
+\fB*\fR Manually activating an HANA primary creates risk of a dual-primary
+situation. The user is responsible for data integrity.
+.PP
 .\"
 .SH REQUIREMENTS
 .PP
@@ -205,24 +224,24 @@ limited to the following scenarios and parameters:
 .PP
 1. HANA scale-out cluster with system replication.
 The HANA system replication secondary runs memory preload (aka performance-optimised scenario).
-The two HANA database
-systems (primary and secondary site) are managed by the same single Linux
-cluster. The maximum number of nodes in that single Linux cluster is given by
-the Linux cluster limit. An odd number of nodes is needed to handle split-brain
-situations automatically.
-A dedicated cluster node is used as majority maker. An odd number of nodes leads
-to a Linux cluster in either one site or across three sites.
+The two HANA database systems (primary and secondary site) are managed by the
+same single Linux cluster. The maximum number of nodes in that single Linux
+cluster is given by the Linux cluster limit. An odd number of nodes is needed
+to handle split-brain situations automatically.
+A dedicated cluster node is used as majority maker. An odd number of nodes
+leads to a Linux cluster in either one site or across three sites.
 .PP
-2. Technical users and groups such as sidadm are defined locally in the
-Linux system.
+2. Technical users and groups such as sidadm should be defined locally in
+the Linux system. If users resolved by remote service, local caching is
+neccessary.
 .PP
 3. Strict time synchronization between the cluster nodes, e.g. NTP.
 .PP
-4. For scale-out there is no other SAP HANA system (like QA) on the
-replicating node which needs to be stopped during take-over. Both HANA
-database systems are running memory-preload.
+4. For scale-out there is no other SAP HANA system (like QA) on the nodes
+which needs to be stopped during take-over. Both HANA database systems are
+running memory-preload.
 .PP
-5. Only one system replication between the two SAP HANA database system in
+5. Only one system replication between the two SAP HANA database systems in
 the Linux cluster. Maximum one system replication to an HANA database outside
 the Linux cluster. See also item 9 below.
 .PP
@@ -230,7 +249,7 @@ the Linux cluster. See also item 9 below.
 and Instance Number.
 .PP
 7. Besides SAP HANA you need SAP hostagent to be installed and started 
-on your system.
+on your systems.
 .PP
 8. Automated start of SAP HANA database systems during system boot
 must be switched off.
@@ -255,6 +274,9 @@ cluster nodes, even the majority maker.
 11. The Linux cluster needs to be up and running to allow HA/DR provider events
 being written into CIB attributes. The current HANA SR status might differ
 from CIB srHook attribute after cluster maintenance.
+.PP
+12. In two-node HANA scale-out systems only one master nameserver candidate is
+configured.
 .\"
 .SH BUGS
 .\" TODO
@@ -266,8 +288,9 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .SH SEE ALSO
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBocf_heartbeat_IPaddr2\fP(7) , \fBSAPHanaSR-ScaleOut_basic_cluster\fP(7) ,
-\fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR.py\fP(7) , 
-\fBntp.conf\fP(5) , \fBstonith\fP(8) , \fBsbd\fP(8) , \fBstonith_sbd\fP(7) ,
+\fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR.py\fP(7) ,
+\fBSAPHanaSrMultiTarget.py\fP(7) , \fBntp.conf\fP(5) , \fBchrony.conf\fP(5) ,
+\fBstonith\fP(8) , \fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBstonith_admin\fP(8) ,
 \fBcrm\fP(8) , \fBcorosync.conf\fP(5) , \fBcrm_no_quorum_policy\fP(7) ,
 \fBsaptune\fP(8) , \fBcs_show_hana_info\fP(8) , 
 .br
