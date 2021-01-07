@@ -12,7 +12,7 @@
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2013,2014 SUSE Linux Products GmbH
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
-# Copyright:    (c) 2017-2020 SUSE LLC
+# Copyright:    (c) 2017-2021 SUSE LLC
 #
 # An example usage:
 #      See usage() function below for more details...
@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.170.5.1001.1647"
+SAPHanaControllerVersion="0.180.0.0912.1734"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -655,7 +655,7 @@ function get_SRHOOK()
     fi
     # no old, global hook attribute found, but also no new, site specific
     # hook attribute found, so use global sync state attribute as fallback
-    if [ -z "$my_sync" -o "$my_sync" = "SWAIT" ]; then
+    if [ -z "$my_sync" ] || [ "$my_sync" = "SWAIT" ]; then
         my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
         super_ocf_log info "RA: SRHOOK2=$my_sync"
     fi
@@ -668,7 +668,7 @@ function get_SRHOOK()
     return 0
 }
 
-# function set_SRHOOK - sets the site specific Hook SR status
+# function set_SRHOOK - sets the global or site specific Hook SR status
 # params: site-name, value
 # globals: ATTR_NAME_HANA_SRHOOK[@](r), ATTR_NAME_HANA_SYNC_STATUS[@](r)
 # locals:  ATTR[@], my_sync, get_sr_name
@@ -678,20 +678,19 @@ function set_SRHOOK()
     local -a ATTR my_sync old_sync
     local get_sr_name="$1"
     local value="$2"
+    multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
     old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
-    super_ocf_log info "RA: set SRHOOK - old attribute still exists"
-    if [ -n "$old_sync" ]; then
-        # ANGI TODO - may be check the 'value' and only write the old, global
-        # attribute, if it contains valid values for the old behaviour ??
-        # so skip 'PRIM' or rewrite 'PRIM' with something else?
-        # 'PRIM' and 'SWAIT' may result in the same scoring, as both are not
-        # listed in the scoring tables. Side-effects ??? Fabian
-        #
-        # old, global attribute still exists, write both attributes
+    if [ "$multiTargetSupport" == "true" ]; then
+        if [ -n "$old_sync" ]; then
+            super_ocf_log info "RA: set SRHOOK - old attribute still exists"
+            # old, global attribute still exists, write both attributes
+            set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
+        fi
+        ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
+        set_hana_attribute "X" "$value" "${ATTR[@]}"
+    else
         set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
     fi
-    ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
-    set_hana_attribute "X" "$value" "${ATTR[@]}"
     return 0
 }
 
@@ -762,6 +761,12 @@ function saphana_init() {
     # and nodes still on the old RA version
     # "done:<nr> open:<nr>" - should be "done:all open:none"
     ATTR_NAME_HANA_UPD_STATE=("hana_upd_state" "props")
+
+    # attribut showing, if migration from global to site specific hook should
+    # be done - customer choice
+    ATTR_NAME_HANA_multiTargetSupport=("hana_multiTargetSupport" "props")
+    # attribute containing the current running srHook version
+    ATTR_NAME_HANA_SRHOOK_VERS=("hana_${sid}_node_srHook_version" "reboot")
 
     #
     ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
@@ -900,16 +905,16 @@ function saphana_init() {
     fi
     #
     # handle RA update state
-    node_updated=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_NRA[@]}")
+    node_updated=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_NRA[@]}")
     if [ -z "$node_updated" ]; then
-        set_hana_attribute ${NODENAME} "1" "${ATTR_NAME_HANA_NRA[@]}"
         node_updated="1"
+        set_hana_attribute "${NODENAME}" "${node_updated}" "${ATTR_NAME_HANA_NRA[@]}"
     fi
     nrOfNodes=1
     updNodes=1
     for onode in "${otherNodes[@]}"; do
         nrOfNodes+=1
-	onode_updated=$(get_hana_attribute $onode "${ATTR_NAME_HANA_NRA[@]}")
+	onode_updated=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_NRA[@]}")
         if [ -n "$onode_updated" ]; then
             updNodes+=1
         fi
@@ -928,10 +933,71 @@ function saphana_init() {
         cluster_update_state="$updState"
     fi
     if [ "$cluster_update_state" == "done:all open:none" ]; then
-        # remove globale SRHokk attribute as it's no longer needed as all
-        # cluster nodes are now updated to the new RA using site specific
-        # SRHook attribute
-        crm_attribute -D -n "hana_${sid}_glob_srHook" -t crm_config -q 2>>$log_attr_file; rc=$?
+        # all cluster nodes are now updated to the new RA, now check, if
+        # we can/need/should migrate the SRHook attribute
+        # check which Hook version is used on all cluster nodes
+        srHook_version=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_SRHOOK_VERS[@]}")
+        if [ -z "$srHook_version" ]; then
+            # we are on the new RA package, but the new srHook code is currently
+            # not active, no reload or restart of srHook on HANA side
+            #
+            # assuming the old '1.0' Hook is still running
+            srHook_version="1.0"
+
+            # ANGI TODO - ask Fabian/Lars regarding our POC cutomers as they
+            # are running the new, '2.0' Hook by default.
+            # as I can not detect such situations - how will we handle that?
+            # setting Hook version attribute manually in this POC case?
+        fi
+        for onode in "${otherNodes[@]}"; do
+            onode_srHook_version=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SRHOOK_VERS[@]}")
+            if [ -z "$onode_srHook_version" ]; then
+                # we are on the new RA package, but the new srHook code is
+                # currently not active, no reload or restart of srHook on HANA
+                # side
+                #
+                # assuming the old '1.0' Hook is still running
+                onode_srHook_version="1.0"
+
+                # ANGI TODO - ask Fabian/Lars regarding our POC cutomers as they
+                # are running the new, '2.0' Hook by default.
+                # as I can not detect such situations - how will we handle that?
+                # setting Hook version attribute manually in this POC case?
+            fi
+            if [ "$srHook_version" != "$onode_srHook_version" ]; then
+                # the cluster node are running different Hook versions
+                super_ocf_log error "ERR: RA saphana_init - the cluster nodes '$NODENAME' and '$onode' are running different Hook versions ('$srHook_version' - '$onode_srHook_version')."
+                # ANGI TODO - Fabian/Lars how to react? exit? return?
+                exit "$OCF_ERR_GENERIC"
+            fi
+        done
+        # all nodes running the same Hook version
+        multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
+        if [ -z "$multiTargetSupport" ]; then
+            # cluster attribute 'hana_multiTargetSupport', which should trigger
+            # the migration, not set yet / no customer choice for now
+            # set the attribute according the hook version, customer can change
+            # later
+            if [ "$srHook_version" == "1.0" ]; then
+                multiTargetSupport=false
+            else
+                multiTargetSupport=true
+            fi
+            set_hana_attribute "X" "$multiTargetSupport" "${ATTR_NAME_HANA_multiTargetSupport[@]}"
+        fi
+        if [ "$multiTargetSupport" == "true" ]; then
+            if [ "$srHook_version" == "1.0" ]; then
+                # Hook version and multiTargetSupport selection does not
+                # match. May be wrong customer set of cluster attribute
+                # 'hana_multiTargetSupport', which should trigger the migration
+                super_ocf_log error "ERR: RA saphana_init - the Hook version '$srHook_version' and the customer selection for the attribute 'hana_multiTargetSupport' ('$multiTargetSupport') does not match. The current active Hook version does not support multiTarget configurations."
+                # ANGI TODO - Fabian/Lars how to react? exit? return?
+                exit "$OCF_ERR_GENERIC"
+            else
+                # remove globale SRHook attribute as it's no longer needed
+                crm_attribute -D -n "hana_${sid}_glob_srHook" -t crm_config -q 2>>$log_attr_file; rc=$?
+            fi
+        fi
     fi
     #
     # get remote site name

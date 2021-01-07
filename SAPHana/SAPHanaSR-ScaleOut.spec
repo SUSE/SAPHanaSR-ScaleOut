@@ -2,7 +2,7 @@
 # spec file for package SAPHanaSR-ScaleOut
 #
 # Copyright (c) 2016      SUSE LINUX GmbH, Nuernberg, Germany.
-# Copyright (c) 2017-2020 SUSE LLC
+# Copyright (c) 2017-2021 SUSE LLC
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
@@ -21,7 +21,7 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.170.4
+Version:        0.180.0
 Release:        0
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 Source0:        SAPHanaSR-ScaleOut-%{version}.tar.bz2
@@ -31,6 +31,8 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 Requires:       pacemaker > 1.1.1
 Requires:       resource-agents
+Requires:       perl
+Requires:       python3
 Conflicts:      SAPHanaSR
 Conflicts:      SAPHanaSR-doc
 Provides:       SAPHanaSR-ScaleOut-doc
