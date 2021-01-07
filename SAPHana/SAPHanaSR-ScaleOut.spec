@@ -97,7 +97,6 @@ install -Dm 0444 wizard/workflows/90-SAPHanaSR-ScaleOut.xml  %{buildroot}/srv/ww
 # HANA hooks
 install -m 0644 srHook/SAPHanaSR.py %{buildroot}/usr/share/%{name}/
 install -m 0644 srHook/SAPHanaSrMultiTarget.py %{buildroot}/usr/share/%{name}/
-install -m 0644 srHook/SAPHanaSrTakeoverBlocker.py %{buildroot}/usr/share/%{name}/
 install -m 0444 srHook/global.ini %{buildroot}/usr/share/%{name}/samples
 install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 

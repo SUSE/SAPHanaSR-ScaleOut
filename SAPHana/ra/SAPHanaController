@@ -2707,7 +2707,7 @@ function saphana_monitor_secondary()
         lpa_push_lpt 10
     fi
     promote_attr=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_CLONE_STATE[@]}")
-    super_ocf_log debug "DBG: saphana_monitor_clone: $ATTR_NAME_HANA_CLONE_STATE=$promote_attr"
+    super_ocf_log debug "DBG: saphana_monitor_secondary: $ATTR_NAME_HANA_CLONE_STATE=$promote_attr"
     if [ -z "$promote_attr" ]; then
         init_attribute=1
         #  DONE: PRIO3: do we need to initialise also the DEMOTED attribute value?
@@ -2938,7 +2938,7 @@ function saphana_monitor_clone() {
                 case "$nState" in
                     DEMOTED )
                                 super_ocf_log info "DEC: DEMOTED => OCF_SUCCESS"
-                                rc=$OCF_SUCCESS;;          # landscape is up but local instance is down -> report OK
+                                rc=$OCF_SUCCESS;;          # landscape is down and local instance is down -> report SUCCESS
                     PROMOTED )
                                 super_ocf_log info "DEC: PROMOTED => OCF_FAILED_MASTER"
                                 rc=$OCF_FAILED_MASTER;;   # same, but for MASTER -> report FAILED_MASTER
