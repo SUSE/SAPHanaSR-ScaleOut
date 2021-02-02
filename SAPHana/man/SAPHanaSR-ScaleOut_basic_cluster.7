@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "27 Jul 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "11 Nov 2020" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut_basic_cluster \- SAP HANA System Replication scale-out basic cluster configuration.
@@ -51,7 +51,7 @@ the number of nodes. See also \fBpcmk_action_limit\fR below.
 
 \fBfailure-timeout = 86400s\fR
 
-The crm basic parameter migration-threshold defines how long failed actions will
+The crm basic parameter failure-timeout defines how long failed actions will
 be kept in the CIB. After that time the failure record will be deleted. 
 See also \fBmigration-threshold\fR below.
 
@@ -214,6 +214,7 @@ Let the Linux cluster manage an additional IP address and move that address
 along with the HANA secondary master nameserver.
 .br
 Note: This example works for two-node HANA scale-out.
+.\" TODO multi-node see below
 .PP
 .RS 2
 .br
@@ -232,6 +233,7 @@ location loc_ip_ro_not_master_SLE_HDB00 \\
  rsc_ip_ro_SLE_HDB00 \\
 .br
  rule -inf: hana_sle_roles ne master1:master:worker:master
+.\" TODO works this for multi-node:  rule 8000: score eq 100
 .RE
 .PP
 
@@ -248,7 +250,7 @@ primitive rsc_ip_SLE_HDB00 IPAddr2 \\
 .br
  op monitor interval=10s timeout=20s \\
 .br
- params ip=192.168.178.188
+ params ip=192.168.178.188 cidr_netmask=32
 .br
 primitive rsc_lb_SLE_HDB00 azure-lb \\
 .br
@@ -311,6 +313,17 @@ Linux cluster should be in the same range.
 # crm_simulate -Ls | grep promotion
 .RE
 .PP
+
+\fB* cleanup SDB stonith resource after write failure\fR
+
+In rare cases the SBD stonith resource failes writing to the block device.
+After the root cause has been found and fixed, the failure message can be cleaned.
+.PP
+.RS 2
+.br
+# stonith_admin --cleanup --history=<originator_node> 
+.RE
+.PP
 .\"
 .SH BUGS
 In case of any problem, please use your favourite SAP support process to open
@@ -321,10 +334,11 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .SH SEE ALSO
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBocf_heartbeat_IPAddr2\fP(7) , \fBocf_heartbeat_Filesystem\fP(7) ,
-\fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBcrm_no_quorum_policy\fP(7) ,
-\fBcrm\fP(8) , \fBcrm_simulate\fP(8) , \fBSAPHanaSR-ScaleOut\fP(7) ,
-\fBSAPHanaSR-showAttr\fP(7) , \fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
-\fBnfs\fP(5) , \fBmount\fP(8) ,
+\fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBstonith_admin\fP(8) , 
+\fBcrm_no_quorum_policy\fP(7) , \fBcrm\fP(8) , \fBcrm_simulate\fP(8) ,
+\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-showAttr\fP(7) ,
+\fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
+\fBnfs\fP(5) , \fBmount\fP(8) , \fBha_related_suse_tids\fP(7) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
