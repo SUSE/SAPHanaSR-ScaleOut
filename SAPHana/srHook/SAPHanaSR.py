@@ -5,8 +5,8 @@
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
 # Copyright:    (c) 2017-2021 SUSE LLC
 """
+import os
 from hdb_ha_dr.client import HADRBase
-import subprocess, os
 
 """
 Sample for a HA/DR hook provider.
@@ -22,7 +22,7 @@ similar) to your global.ini:
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.180.0.0812.1853"
+fhSRHookVersion = "0.180.0.0302.1924"
 srHookGen = "1.0"
 
 
@@ -35,12 +35,11 @@ class SAPHanaSR(HADRBase):
         self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
         mySID = os.environ.get('SAPSYSTEMNAME')
         mysid = mySID.lower()
-        myNode = subprocess.check_output(['sudo', '/usr/sbin/crm_node', '-n'])
-        myCMD = "sudo /usr/sbin/crm_attribute -N {0} -v {1} -n hana_{2}_node_srHook_version -l reboot".format(myNode, srHookGen, mysid)
+        myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_vers -l reboot".format(srHookGen, mysid)
         rc = os.system(myCMD)
         myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
         self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
-        self.tracer.info("{0}.{1}() Running old srHookGeneration {2}, see attribute hana_{3}_node_srHook_version too\n".format(self.__class__.__name__, method, srHookGen, mysid)
+        self.tracer.info("{0}.{1}() Running old srHookGeneration {2}, see attribute hana_{3}_srHook_vers too\n".format(self.__class__.__name__, method, srHookGen, mysid))
 
     def about(self):
         return {"provider_company": "SUSE",
@@ -101,6 +100,7 @@ class SAPHanaSR(HADRBase):
 
     def srConnectionChanged(self, ParamDict, **kwargs):
         """ finally we got the srConnection hook :) """
+        method = "srConnectionChanged"
         self.tracer.info("SAPHanaSR (%s) %s.srConnectionChanged method called with Dict=%s" % (fhSRHookVersion, self.__class__.__name__, ParamDict))
         # myHostname = socket.gethostname()
         # myDatebase = ParamDict["database"]
@@ -109,22 +109,21 @@ class SAPHanaSR(HADRBase):
         mysid = mySID.lower()
         myInSync = ParamDict["is_in_sync"]
         myReason = ParamDict["reason"]
-        myNode = subprocess.check_output(['sudo', '/usr/sbin/crm_node', '-n'])
-        myCMD = "sudo /usr/sbin/crm_attribute -N {0} -v {1} -n hana_{2}_node_srHook_version -l reboot".format(myNode, srHookGen, mysid)
+        myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_vers -l reboot".format(srHookGen, mysid)
         rc = os.system(myCMD)
         myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
         self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
-        self.tracer.info("{0}.{1}() Running old srHookGeneration {2}, see attribute hana_{3}_node_srHook_version too\n".format(self.__class__.__name__, method, srHookGen, mysid)
-        if (mySystemStatus == 15):
+        self.tracer.info("{0}.{1}() Running old srHookGeneration {2}, see attribute hana_{3}_srHook_vers too\n".format(self.__class__.__name__, method, srHookGen, mysid))
+        if mySystemStatus == 15:
             mySRS = "SOK"
         else:
-            if (myInSync):
+            if myInSync:
                 # ignoring the SFAIL, because we are still in sync
                 self.tracer.info("SAPHanaSR (%s) %s.srConnectionChanged ignoring bad SR status because of is_in_sync=True (reason=%s)" % (fhSRHookVersion, self.__class__.__name__, myReason))
                 mySRS = ""
             else:
                 mySRS = "SFAIL"
-        if (mySRS == ""):
+        if mySRS == "":
             self.tracer.info("SAPHanaSR (%s) 001" % (self.__class__.__name__))
             myMSG = "### Ignoring bad SR status because of is_in_sync=True ###"
             self.tracer.info("SAPHanaSR (%s) 002" % (self.__class__.__name__))

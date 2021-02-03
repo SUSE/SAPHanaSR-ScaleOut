@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.180.0.0912.1734"
+SAPHanaControllerVersion="0.180.0.0302.1934"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -443,15 +443,15 @@ function set_hana_attribute()
         case "$attr_store" in
             reboot | forever )
                 if ocf_is_true "$log_attributes"; then
-                    echo "$dstr: SAPHanaController: crm_attribute -N $attr_node -v $attr_value -n \"$attr_name\" -l $attr_store" >> $log_attr_file
+                    echo "$dstr: SAPHanaController: crm_attribute -N $attr_node -v \"$attr_value\" -n \"$attr_name\" -l $attr_store" >> $log_attr_file
                 fi
-                crm_attribute -N $attr_node -v $attr_value -n "$attr_name" -l $attr_store 2>>$log_attr_file; rc=$?
+                crm_attribute -N $attr_node -v "$attr_value" -n "$attr_name" -l $attr_store 2>>$log_attr_file; rc=$?
                 ;;
             props )
                 if ocf_is_true "$log_attributes"; then
-                    echo "$dstr: SAPHanaController: crm_attribute -v $attr_value -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> $log_attr_file
+                    echo "$dstr: SAPHanaController: crm_attribute -v \"$attr_value\" -n \"$attr_name\" -t crm_config -s SAPHanaSR" >> $log_attr_file
                 fi
-                crm_attribute -v $attr_value -n "$attr_name" -t crm_config  -s SAPHanaSR 2>>$log_attr_file; rc=$?
+                crm_attribute -v "$attr_value" -n "$attr_name" -t crm_config  -s SAPHanaSR 2>>$log_attr_file; rc=$?
                 ;;
         esac
     else
@@ -637,7 +637,6 @@ function HANA_CALL()
 #
 function get_SRHOOK()
 {
-    # ANGI TODO - ask Fabian if ATTR_NAME_HANA_SEC_STATUS[@] is a typo or should be a new attrinute
     local -a ATTR my_sync old_sync
     local get_sr_name="$1"
     # first check, if the old, global hook attribute still exists.
@@ -756,17 +755,17 @@ function saphana_init() {
     # attributes used to control the update from single-target replication
     # to mutli-target replication. Not <sid> related
     # node specific, set, if the NewResourceAgent is running on the system
-    ATTR_NAME_HANA_NRA=("hana_nra" "forever")
+    ATTR_NAME_HANA_NRA=("hana_nd_nra" "forever")
     # new "central" attribute, containing the number of updated cluster nodes
     # and nodes still on the old RA version
-    # "done:<nr> open:<nr>" - should be "done:all open:none"
-    ATTR_NAME_HANA_UPD_STATE=("hana_upd_state" "props")
+    # "done:<nr>:open:<nr>" - should be "done:all:open:none"
+    ATTR_NAME_HANA_UPD_STATE=("hana_cl_upd_state" "props")
 
     # attribut showing, if migration from global to site specific hook should
     # be done - customer choice
-    ATTR_NAME_HANA_multiTargetSupport=("hana_multiTargetSupport" "props")
+    ATTR_NAME_HANA_multiTargetSupport=("hana_cl_multiTargetSupport" "props")
     # attribute containing the current running srHook version
-    ATTR_NAME_HANA_SRHOOK_VERS=("hana_${sid}_node_srHook_version" "reboot")
+    ATTR_NAME_HANA_SRHOOK_VERS=("hana_${sid}_srHook_vers" "reboot")
 
     #
     ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
@@ -907,32 +906,43 @@ function saphana_init() {
     # handle RA update state
     node_updated=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_NRA[@]}")
     if [ -z "$node_updated" ]; then
+        # as this code section is running the RA has been updated, so set the
+        # attribute
         node_updated="1"
         set_hana_attribute "${NODENAME}" "${node_updated}" "${ATTR_NAME_HANA_NRA[@]}"
     fi
-    nrOfNodes=1
-    updNodes=1
-    for onode in "${otherNodes[@]}"; do
-        nrOfNodes+=1
-	onode_updated=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_NRA[@]}")
-        if [ -n "$onode_updated" ]; then
-            updNodes+=1
-        fi
-    done
-    if [ "$nrOfNodes" -eq "$updNodes" ]; then
-        updState="done:all open:none"
-    else
-        oldNodes=$(("$nrOfNodes" - "$updNodes"))
-        updState="done:$updNodes open:$oldNodes"
-    fi
     cluster_update_state=$(get_hana_attribute "X" "${ATTR_NAME_HANA_UPD_STATE[@]}")
-    # if cluster_update_state is empty or the stored value does not match the
-    # current running state 'updState' update the attribute and the variable
-    if [ "$cluster_update_state" != "$updState" ]; then
-        set_hana_attribute "X" "$updState" "${ATTR_NAME_HANA_UPD_STATE[@]}"
-        cluster_update_state="$updState"
+    # evaluate and update/set the update state of the cluster only on a master
+    # nameserver to prevent race conditions
+    if is_master_nameserver; then
+        nrOfNodes=1
+        updNodes=1
+        for onode in "${otherNodes[@]}"; do
+            onode_site=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
+            if [ -n "$onode_site" ]; then
+                (( nrOfNodes++ ))
+            fi
+            onode_updated=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_NRA[@]}")
+            if [ -n "$onode_updated" ]; then
+                (( updNodes++ ))
+            fi
+        done
+        if [ "$nrOfNodes" -eq "$updNodes" ]; then
+            updState="done:all:open:none"
+        else
+            oldNodes=$(("$nrOfNodes" - "$updNodes"))
+            updState="done:$updNodes:open:$oldNodes"
+        fi
+        # if cluster_update_state is empty or the stored value does not match the
+        # current running state 'updState' update the attribute and the variable
+        if [ "$cluster_update_state" != "$updState" ]; then
+            set_hana_attribute "X" "$updState" "${ATTR_NAME_HANA_UPD_STATE[@]}"
+            cluster_update_state="$updState"
+        fi
     fi
-    if [ "$cluster_update_state" == "done:all open:none" ]; then
+    # if NOT all cluster nodes are updated to the new RA, we still working
+    # with the old, global Hook attribute
+    if [ "$cluster_update_state" == "done:all:open:none" ]; then
         # all cluster nodes are now updated to the new RA, now check, if
         # we can/need/should migrate the SRHook attribute
         # check which Hook version is used on all cluster nodes
@@ -944,12 +954,17 @@ function saphana_init() {
             # assuming the old '1.0' Hook is still running
             srHook_version="1.0"
 
-            # ANGI TODO - ask Fabian/Lars regarding our POC cutomers as they
+            # ANGI TODO - ask Fabian/Lars regarding our POC customers as they
             # are running the new, '2.0' Hook by default.
             # as I can not detect such situations - how will we handle that?
             # setting Hook version attribute manually in this POC case?
         fi
         for onode in "${otherNodes[@]}"; do
+            onode_site=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
+            if [ -z "$onode_site" ]; then
+                # not a HANA node, may be the decision maker / tiebreaker
+                continue
+            fi
             onode_srHook_version=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SRHOOK_VERS[@]}")
             if [ -z "$onode_srHook_version" ]; then
                 # we are on the new RA package, but the new srHook code is
@@ -959,13 +974,13 @@ function saphana_init() {
                 # assuming the old '1.0' Hook is still running
                 onode_srHook_version="1.0"
 
-                # ANGI TODO - ask Fabian/Lars regarding our POC cutomers as they
+                # ANGI TODO - ask Fabian/Lars regarding our POC customers as they
                 # are running the new, '2.0' Hook by default.
                 # as I can not detect such situations - how will we handle that?
                 # setting Hook version attribute manually in this POC case?
             fi
             if [ "$srHook_version" != "$onode_srHook_version" ]; then
-                # the cluster node are running different Hook versions
+                # the cluster nodes are running different Hook versions
                 super_ocf_log error "ERR: RA saphana_init - the cluster nodes '$NODENAME' and '$onode' are running different Hook versions ('$srHook_version' - '$onode_srHook_version')."
                 # ANGI TODO - Fabian/Lars how to react? exit? return?
                 exit "$OCF_ERR_GENERIC"
@@ -978,11 +993,14 @@ function saphana_init() {
             # the migration, not set yet / no customer choice for now
             # set the attribute according the hook version, customer can change
             # later
-            if [ "$srHook_version" == "1.0" ]; then
-                multiTargetSupport=false
-            else
+            case "$srHook_version" in
+            "2.0")
                 multiTargetSupport=true
-            fi
+                ;;
+            *)
+                multiTargetSupport=false
+                ;;
+            esac
             set_hana_attribute "X" "$multiTargetSupport" "${ATTR_NAME_HANA_multiTargetSupport[@]}"
         fi
         if [ "$multiTargetSupport" == "true" ]; then

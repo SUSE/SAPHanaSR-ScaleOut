@@ -34,9 +34,11 @@ Requires:       resource-agents
 Requires:       perl
 Requires:       python3
 Conflicts:      SAPHanaSR
+
+%package doc
+Summary:        Setup-Guide for SAPHanaSR
+Group:          Productivity/Clustering/HA
 Conflicts:      SAPHanaSR-doc
-Provides:       SAPHanaSR-ScaleOut-doc
-Obsoletes:      SAPHanaSR-ScaleOut-doc
 
 %description
 The resource agents SAPHana and SAPHanaTopology are responsible for controlling a SAP HANA Database which is
@@ -54,6 +56,9 @@ http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-
 Authors:
 --------
     Fabian Herschel
+
+%description doc
+This sub package includes the Setup-Guide for getting SAP HANA system replication under cluster control.
 
 %prep
 tar xf %{S:0}
@@ -123,8 +128,11 @@ install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 %dir %{_docdir}/%{name}
 %doc %{_docdir}/%{name}/README
 %doc %{_docdir}/%{name}/LICENSE
-%doc %{_docdir}/%{name}/SAPHanaSR-Setup-Guide.pdf
 %doc %{_mandir}/man7/*
 %doc %{_mandir}/man8/*
+
+%files doc
+%defattr(-,root,root)
+%doc %{_docdir}/%{name}/SAPHanaSR-Setup-Guide.pdf
 
 %changelog

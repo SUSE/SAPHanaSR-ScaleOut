@@ -7,7 +7,7 @@
 
 SAPHanaSrMultiTarget needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
-import subprocess, os, time
+import os
 
 try:
     from hdb_ha_dr.client import HADRBase
@@ -26,7 +26,7 @@ To use this HA/DR hook provide please add the following lines (or similar) to yo
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.180.0.0812.1853"
+fhSRHookVersion = "0.180.0.0302.1920"
 srHookGen = "2.0"
 
 try:
@@ -39,12 +39,11 @@ try:
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
             mySID = os.environ.get('SAPSYSTEMNAME')
             mysid = mySID.lower()
-            myNode = subprocess.check_output(['sudo', '/usr/sbin/crm_node', '-n'])
-            myCMD = "sudo /usr/sbin/crm_attribute -N {0} -v {1} -n hana_{2}_node_srHook_version -l reboot".format(myNode, srHookGen, mysid)
+            myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_vers -l reboot".format(srHookGen, mysid)
             rc = os.system(myCMD)
             myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
             self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
-            self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_node_srHook_version too\n".format(self.__class__.__name__, method, srHookGen, mysid)
+            self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_srHook_vers too\n".format(self.__class__.__name__, method, srHookGen, mysid))
 
         def about(self):
             method = "about"
@@ -123,12 +122,11 @@ try:
             myInSync = ParamDict["is_in_sync"]
             myReason = ParamDict["reason"]
             mySite = ParamDict["siteName"]
-            myNode = subprocess.check_output(['sudo', '/usr/sbin/crm_node', '-n'])
-            myCMD = "sudo /usr/sbin/crm_attribute -N {0} -v {1} -n hana_{2}_node_srHook_version -l reboot".format(myNode, srHookGen, mysid)
+            myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_vers -l reboot".format(srHookGen, mysid)
             rc = os.system(myCMD)
             myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
             self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
-            self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_node_srHook_version too\n".format(self.__class__.__name__, method, srHookGen, mysid)
+            self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_srHook_vers too\n".format(self.__class__.__name__, method, srHookGen, mysid))
             if mySystemStatus == 15:
                 mySRS = "SOK"
             else:
@@ -140,35 +138,35 @@ try:
                     mySRS = "SFAIL"
             if mySRS == "":
                 myMSG = "### Ignoring bad SR status because of is_in_sync=True ###"
-                self.tracer.info("{0}.{1}() {2}\n".format( self.__class__.__name__, method, myMSG ))
+                self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
             elif mySite == "":
                 myMSG = "### Ignoring bad SR status because of empty site name in call params ###"
                 self.tracer.info("{0}.{1}() was called with empty site name. Ignoring call.".format(self.__class__.__name__, method))
             else:
                 myCMD = "sudo /usr/sbin/crm_attribute -n hana_{0}_site_srHook_{1} -v {2} -t crm_config -s SAPHanaSR".format(mysid, mySite, mySRS)
                 rc = os.system(myCMD)
-                myMSG = "CALLING CRM: <{0}> rc={1}".format( myCMD, rc )
+                myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
                 self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
                 #
-                if ( rc != 0 ):
+                if rc != 0:
                     #
                     # FALLBACK
                     # sending attribute to the cluster failed - using failback method and write status to a file - RA to pick-up the value during next SAPHanaController monitor operation
                     #
                     myMSG = "sending attribute to the cluster failed - using local file as fallback"
-                    self.tracer.info("{0}.{1}() {2}\n".format( self.__class__.__name__, method, myMSG ))
+                    self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
                     #
                     # cwd of hana is /hana/shared/<SID>/HDB00/<hananode> we use a relative path to cwd this gives us a <sid>adm permitted directory
                     #     however we go one level up (..) to have the file accessable for all SAP HANA swarm nodes
                     #
-                    fallbackFileObject = open("../.crm_attribute.stage.{0}".format( mySite ), "w")
-                    fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format( mysid, mySite, mySRS  ))
+                    fallbackFileObject = open("../.crm_attribute.stage.{0}".format(mySite), "w")
+                    fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format(mysid, mySite, mySRS))
                     fallbackFileObject.close()
                     #
                     # release the stage file to the original name (move is used to be atomic)
                     #      .crm_attribute.stage.<site> is renamed to .crm_attribute.<site>
                     #
-                    os.rename( "../.crm_attribute.stage.{0}".format( mySite ), "../.crm_attribute.{0}".format( mySite ) )
+                    os.rename("../.crm_attribute.stage.{0}".format(mySite), "../.crm_attribute.{0}".format(mySite))
             return 0
 except NameError as e:
-        print("Could not find base class ({0})".format(e))
+    print("Could not find base class ({0})".format(e))
