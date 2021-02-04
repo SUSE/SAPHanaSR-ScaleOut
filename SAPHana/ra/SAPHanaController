@@ -939,6 +939,7 @@ function saphana_init() {
             set_hana_attribute "X" "$updState" "${ATTR_NAME_HANA_UPD_STATE[@]}"
             cluster_update_state="$updState"
         fi
+        super_ocf_log info "UPD: cluster update state is '$cluster_update_state'"
     fi
     # if NOT all cluster nodes are updated to the new RA, we still working
     # with the old, global Hook attribute
@@ -981,39 +982,40 @@ function saphana_init() {
             fi
             if [ "$srHook_version" != "$onode_srHook_version" ]; then
                 # the cluster nodes are running different Hook versions
-                super_ocf_log error "ERR: RA saphana_init - the cluster nodes '$NODENAME' and '$onode' are running different Hook versions ('$srHook_version' - '$onode_srHook_version')."
-                # ANGI TODO - Fabian/Lars how to react? exit? return?
-                exit "$OCF_ERR_GENERIC"
+                super_ocf_log info "HOOK: RA saphana_init - the cluster nodes '$NODENAME' and '$onode' are running different Hook versions ('$srHook_version' - '$onode_srHook_version')."
             fi
         done
-        # all nodes running the same Hook version
+        # be in mind: it may be that not all nodes running the same Hook version
         multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
         if [ -z "$multiTargetSupport" ]; then
-            # cluster attribute 'hana_multiTargetSupport', which should trigger
+            # cluster attribute 'hana_cl_multiTargetSupport', which should trigger
             # the migration, not set yet / no customer choice for now
+            super_ocf_log info "MTS: RA saphana_init - attribute 'hana_cl_multiTargetSupport' not set yet. For migration to need to set the attribute manually to 'true'"
+
+            # ANGI TODO - may be for future use, for now only manual migration
+            # supported
             # set the attribute according the hook version, customer can change
             # later
-            case "$srHook_version" in
-            "2.0")
-                multiTargetSupport=true
-                ;;
-            *)
-                multiTargetSupport=false
-                ;;
-            esac
-            set_hana_attribute "X" "$multiTargetSupport" "${ATTR_NAME_HANA_multiTargetSupport[@]}"
+            #case "$srHook_version" in
+            #"2.0")
+            #    multiTargetSupport=true
+            #    ;;
+            #*)
+            #    multiTargetSupport=false
+            #    ;;
+            #esac
+            #set_hana_attribute "X" "$multiTargetSupport" "${ATTR_NAME_HANA_multiTargetSupport[@]}"
         fi
         if [ "$multiTargetSupport" == "true" ]; then
             if [ "$srHook_version" == "1.0" ]; then
                 # Hook version and multiTargetSupport selection does not
                 # match. May be wrong customer set of cluster attribute
                 # 'hana_multiTargetSupport', which should trigger the migration
-                super_ocf_log error "ERR: RA saphana_init - the Hook version '$srHook_version' and the customer selection for the attribute 'hana_multiTargetSupport' ('$multiTargetSupport') does not match. The current active Hook version does not support multiTarget configurations."
-                # ANGI TODO - Fabian/Lars how to react? exit? return?
-                exit "$OCF_ERR_GENERIC"
+                super_ocf_log error "ERR: RA saphana_init - the Hook version '$srHook_version' and the customer selection for the attribute 'hana_multiTargetSupport' ('$multiTargetSupport') does not match. The current active Hook version does not support multiTarget configurations. So the global Hook attribute will be still available and in use."
             else
                 # remove globale SRHook attribute as it's no longer needed
                 crm_attribute -D -n "hana_${sid}_glob_srHook" -t crm_config -q 2>>$log_attr_file; rc=$?
+                super_ocf_log debug "DBG: cmd 'crm_attribute' to delete the global Hook attribute returned rc=$rc"
             fi
         fi
     fi
