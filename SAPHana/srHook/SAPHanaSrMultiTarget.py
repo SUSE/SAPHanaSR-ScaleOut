@@ -26,7 +26,7 @@ To use this HA/DR hook provide please add the following lines (or similar) to yo
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.180.0.0302.1920"
+fhSRHookVersion = "0.180.0.1102.1905"
 srHookGen = "2.0"
 
 try:
@@ -39,11 +39,11 @@ try:
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
             mySID = os.environ.get('SAPSYSTEMNAME')
             mysid = mySID.lower()
-            myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_vers -l reboot".format(srHookGen, mysid)
+            myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_gen -l reboot".format(srHookGen, mysid)
             rc = os.system(myCMD)
             myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
             self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
-            self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_srHook_vers too\n".format(self.__class__.__name__, method, srHookGen, mysid))
+            self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_srHook_gen too\n".format(self.__class__.__name__, method, srHookGen, mysid))
 
         def about(self):
             method = "about"
@@ -122,11 +122,11 @@ try:
             myInSync = ParamDict["is_in_sync"]
             myReason = ParamDict["reason"]
             mySite = ParamDict["siteName"]
-            myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_vers -l reboot".format(srHookGen, mysid)
+            myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_gen -l reboot".format(srHookGen, mysid)
             rc = os.system(myCMD)
             myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
             self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
-            self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_srHook_vers too\n".format(self.__class__.__name__, method, srHookGen, mysid))
+            self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_srHook_gen too\n".format(self.__class__.__name__, method, srHookGen, mysid))
             if mySystemStatus == 15:
                 mySRS = "SOK"
             else:
@@ -143,6 +143,16 @@ try:
                 myMSG = "### Ignoring bad SR status because of empty site name in call params ###"
                 self.tracer.info("{0}.{1}() was called with empty site name. Ignoring call.".format(self.__class__.__name__, method))
             else:
+                # check if global Hook attribute exists
+                myCMD = "sudo /usr/sbin/crm_attribute -G -n hana_%s_glob_srHook" % (mysid)
+                rc = os.system(myCMD)
+                if rc == 0:
+                    # found global Hook attribute, write both (old and new) attributes
+                    # for compatibility reasons
+                    myCMD = "sudo /usr/sbin/crm_attribute -n hana_{0}_glob_srHook -v {1} -t crm_config -s SAPHanaSR".format(mysid, mySRS)
+                    rc = os.system(myCMD)
+                    myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
+                    self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
                 myCMD = "sudo /usr/sbin/crm_attribute -n hana_{0}_site_srHook_{1} -v {2} -t crm_config -s SAPHanaSR".format(mysid, mySite, mySRS)
                 rc = os.system(myCMD)
                 myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
