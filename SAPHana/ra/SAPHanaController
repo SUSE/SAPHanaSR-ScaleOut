@@ -758,18 +758,9 @@ function saphana_init() {
     # to mutli-target replication.
     # node specific, set, if the NewResourceAgent is running on the system
     ATTR_NAME_HANA_NRA=("hana_${sid}_nra" "forever")
-    # new "central" attribute, containing the number of updated cluster nodes
-    # and nodes still on the old RA version
-    # "<nr>:<nr>" - should be "all:none" (for done:all:open:none)
-    ATTR_NAME_HANA_UPD_STATE=("hana_${sid}_upd" "props")
-
-    # attribut showing, if migration from global to site specific hook should
-    # be done - customer choice
-    ATTR_NAME_HANA_multiTargetSupport=("hana_${sid}_mts" "props")
     # attribute containing the current running srHook generation
+    # node specific
     ATTR_NAME_HANA_SRHOOK_GEN=("hana_${sid}_srHook_gen" "reboot")
-
-    #
     ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
     #ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
@@ -780,6 +771,15 @@ function saphana_init() {
     ATTR_NAME_HANA_SRACTION=("hana_${sid}_sra" "reboot")   # Marks, if cluster in a phase requesting  a takeover (T?) or registration (R?)
     #
     # new "central" attributes
+    #
+    # new "central" attribute, containing the summarized status, if all
+    # cluster nodes are already updated to the new RA or if there are still
+    # nodes left running the old RA version
+    # expected value "ok" - "nok", if there still old RAs running in the cluster
+    ATTR_NAME_HANA_UPD_STATE=("hana_${sid}_glob_upd" "props")
+    # attribut showing, if migration from global to site specific hook should
+    # be done - customer choice
+    ATTR_NAME_HANA_multiTargetSupport=("hana_${sid}_glob_mts" "props")
     #
     ATTR_NAME_HANA_PRIM=("hana_${sid}_glob_prim" "props")                        # SITE
     ATTR_NAME_HANA_SEC=("hana_${sid}_glob_sec" "props")                          # SITE
@@ -930,10 +930,10 @@ function saphana_init() {
             fi
         done
         if [ "$nrOfNodes" -eq "$updNodes" ]; then
-            updState="all:none"
+            updState="ok"
         else
             oldNodes=$(("$nrOfNodes" - "$updNodes"))
-            updState="$updNodes:$oldNodes"
+            updState="nok"
         fi
         # if cluster_update_state is empty or the stored value does not match the
         # current running state 'updState' update the attribute and the variable
@@ -945,7 +945,7 @@ function saphana_init() {
     super_ocf_log info "UPD: cluster update state is '$cluster_update_state'"
     # if NOT all cluster nodes are updated to the new RA, we still working
     # with the old, global Hook attribute
-    if [ "$cluster_update_state" == "all:none" ]; then
+    if [ "$cluster_update_state" == "ok" ]; then
         # all cluster nodes are now updated to the new RA, now check, if
         # we can/need/should migrate the SRHook attribute
         # check which Hook generation is used on all cluster nodes
@@ -1433,6 +1433,7 @@ function saphana_stopSystem() {
       super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
       rc=$OCF_ERR_GENERIC
   fi
+  return $rc
 }
 
 #
@@ -1443,9 +1444,10 @@ function saphana_stopSystem() {
 #
 function saphana_stop() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
+    local rc=0
     local output=""
     if is_the_master_nameserver; then
-        saphana_stopSystem
+        saphana_stopSystem; rc=$?
     elif is_active_nameserver_slave && [ -z "$the_master" ]; then
         saphana_stopSystem
     else

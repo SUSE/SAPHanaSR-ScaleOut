@@ -39,7 +39,7 @@ try:
             self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
             mySID = os.environ.get('SAPSYSTEMNAME')
             mysid = mySID.lower()
-            myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_gen -l reboot".format(srHookGen, mysid)
+            myCMD = "sudo /usr/sbin/crm_attribute -n hana_{1}_srHook_gen -v {0}  -l reboot".format(srHookGen, mysid)
             rc = os.system(myCMD)
             myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
             self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
@@ -122,7 +122,7 @@ try:
             myInSync = ParamDict["is_in_sync"]
             myReason = ParamDict["reason"]
             mySite = ParamDict["siteName"]
-            myCMD = "sudo /usr/sbin/crm_attribute -v {0} -n hana_{1}_srHook_gen -l reboot".format(srHookGen, mysid)
+            myCMD = "sudo /usr/sbin/crm_attribute -n hana_{1}_srHook_gen -v {0} -l reboot".format(srHookGen, mysid)
             rc = os.system(myCMD)
             myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
             self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
@@ -144,7 +144,7 @@ try:
                 self.tracer.info("{0}.{1}() was called with empty site name. Ignoring call.".format(self.__class__.__name__, method))
             else:
                 # check if global Hook attribute exists
-                myCMD = "sudo /usr/sbin/crm_attribute -G -n hana_%s_glob_srHook" % (mysid)
+                myCMD = "sudo /usr/sbin/crm_attribute -n hana_%s_glob_srHook -G" % (mysid)
                 rc = os.system(myCMD)
                 if rc == 0:
                     # found global Hook attribute, write both (old and new) attributes
