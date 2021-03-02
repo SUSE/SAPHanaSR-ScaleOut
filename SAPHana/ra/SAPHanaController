@@ -64,6 +64,8 @@ HANA_STATE_SECONDARY=1
 HANA_STATE_STANDALONE=2
 HANA_STATE_DEFECT=3
 HANA_CALL_TIMEOUT=120
+HANA_STD_START_TIMEOUT=3600
+HANA_STD_STOP_TIMEOUT=3600
 
 debug_attributes=0
 
@@ -351,6 +353,49 @@ function version() {
     fi
 }
 
+# function: get_start_stop_timeout
+# params:  action
+# globals: sid
+# output:  action timeout
+#
+# timeOut = max(3600, 95%(actionTimeOut))
+# timeOut = max(stdTimeOut, 95%(actionTimeOut))
+#
+function get_start_stop_timeout() {
+    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    local cibOut=""
+    local action=$1
+    local actionTimeOut=""
+    local stdTimeOut=""
+    local actTimeOutPercent=95
+
+    cibOut=$(crm configure show 2>/dev/null | grep -E ".* id=\"rsc_SAPHanaCon_${sid}_.*-(start|stop).*-.*\"/>.*")
+    case "$action" in
+    start)
+        actionTimeOut=$(echo "$cibOut" | sed -n '/name="start"/s/.*timeout="\([0-9][0-9]*\)" .*/\1/p')
+        if [ -z "$actionTimeOut" ]; then
+            actionTimeOut="$HANA_STD_START_TIMEOUT"
+        fi
+        stdTimeOut="$HANA_STD_START_TIMEOUT"
+        ;;
+    stop)
+        actionTimeOut=$(echo "$cibOut" | sed -n '/name="stop"/s/.*timeout="\([0-9][0-9]*\)" .*/\1/p')
+        if [ -z "$actionTimeOut" ]; then
+            actionTimeOut="$HANA_STD_STOP_TIMEOUT"
+        fi
+        stdTimeOut="$HANA_STD_STOP_TIMEOUT"
+        ;;
+    esac
+    # 95%(actionTimeOut)
+    timeout=$(echo "$actionTimeOut*$actTimeOutPercent/100"| bc | tr -d '\n')
+    # max(3600, 95%(actionTimeOut))
+    if [ "$timeout" -lt "$stdTimeOut" ]; then
+        timeout=$stdTimeOut
+    fi
+    super_ocf_log info "actionTimeout: action timeout for action '$action' was '$actionTimeOut', now changed to '$timeout'"
+    super_ocf_log info "FLOW $FUNCNAME"
+    echo $timeout
+}
 
 #
 # function: is_clone - report, if resource is configured as a clone (also master/slave)
@@ -721,6 +766,8 @@ function saphana_init() {
     InstanceName="HDB${InstanceNr}"
     export SAPSYSTEMNAME=$SID
     HANA_CALL_TIMEOUT="${OCF_RESKEY_HANA_CALL_TIMEOUT:-120}"
+    HANA_ACTION_START_TIMEOUT=$(get_start_stop_timeout start)
+    HANA_ACTION_STOP_TIMEOUT=$(get_start_stop_timeout stop)
     super_ocf_log debug "DBG: Used new method to get SID ($SID) and InstanceNr ($InstanceNr)"
     sid=$(echo "$SID" | tr [:upper:] [:lower:])
     sidadm="${sid}adm"
@@ -1373,8 +1420,8 @@ function saphana_start() {
         fi
         if [ $rc -eq 0 ]
         then
-            # TODO: PRIO9: something more dynamic than 3600 seconds in WaitforStarted
-            output=$($SAPCONTROL -nr $InstanceNr -function WaitforStarted 3600 1)
+            # DONE: PRIO9: something more dynamic than 3600 seconds in WaitforStarted
+            output=$($SAPCONTROL -nr $InstanceNr -function WaitforStarted $HANA_ACTION_START_TIMEOUT 1)
             if [ $? -eq 0 ]
             then
                 super_ocf_log info "ACT: SAPHANA: System $SID-$InstanceName started: $output"
@@ -1421,16 +1468,16 @@ function saphana_stopSystem() {
      super_ocf_log info "ACT: SAPHANA STOP: Stopping System $SID-$InstanceName: $output"
   fi
   if [ $rc -eq 0 ]; then
-      output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped 3600 1)
+      output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped $HANA_ACTION_STOP_TIMEOUT 1)
       if [ $? -eq 0 ]; then
           super_ocf_log info "ACT: SAPHANA: System $SID-$InstanceName stopped: $output"
           rc=$OCF_SUCCESS
       else
-          super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
+          super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
           rc=$OCF_ERR_GENERIC
       fi
   else
-      super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
+      super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
       rc=$OCF_ERR_GENERIC
   fi
   return $rc
@@ -1449,7 +1496,7 @@ function saphana_stop() {
     if is_the_master_nameserver; then
         saphana_stopSystem; rc=$?
     elif is_active_nameserver_slave && [ -z "$the_master" ]; then
-        saphana_stopSystem
+        saphana_stopSystem; rc=$?
     else
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
