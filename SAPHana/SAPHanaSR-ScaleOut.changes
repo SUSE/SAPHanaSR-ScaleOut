@@ -1,7 +1,19 @@
 -------------------------------------------------------------------
-Wed Feb  3 18:44:41 UTC 2021 - abriel@suse.com
+Tue Mar  2 16:36:52 UTC 2021 - abriel@suse.com
 
 - change version to 0.180.0 - Testversion
+- The resource start and stop timeout is now configurable by
+  increasing the timeout for the action 'start' and/or 'stop' in
+  the cluster. We will use 95% of this action timeouts to calculate
+  the new resource start and stop timeout for the 'WaitforStarted'
+  and 'WaitforStopped' functions. If the new, calculated timeout
+  value is less than '3600', it will be set to '3600', so that we
+  do not decrease this timeout by accident in currently running
+  clusters
+  (bsc#1182545)
+- improve handling of return codes in saphana_stopSystem and
+  saphana_stop function.
+  (bsc#1182115)
 - If the cluster is down during a SR change event, these events
   need special care. They need to pick-up separately to not get
   lost.
