@@ -12,7 +12,7 @@
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2013,2014 SUSE Linux Products GmbH
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
-# Copyright:    (c) 2017-2020 SUSE LLC
+# Copyright:    (c) 2017-2021 SUSE LLC
 #
 # An example usage:
 #      See usage() function below for more details...
@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.164.1"
+SAPHanaControllerVersion="0.164.2"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -1264,13 +1264,14 @@ function saphana_stopSystem() {
           super_ocf_log info "ACT: SAPHANA: System $SID-$InstanceName stopped: $output"
           rc=$OCF_SUCCESS
       else
-          super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
+          super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
           rc=$OCF_ERR_GENERIC
       fi
   else
-      super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output"
+      super_ocf_log err "ACT: SAPHANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
       rc=$OCF_ERR_GENERIC
   fi
+  return $rc
 }
 
 #
@@ -1281,11 +1282,12 @@ function saphana_stopSystem() {
 #
 function saphana_stop() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
+    local rc=0
     local output=""
     if is_the_master_nameserver; then
-        saphana_stopSystem
+        saphana_stopSystem; rc=$?
     elif is_active_nameserver_slave && [ -z "$the_master" ]; then
-        saphana_stopSystem
+        saphana_stopSystem; rc=$?
     else
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
