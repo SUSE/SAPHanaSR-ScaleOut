@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Thu Mar  4 13:35:53 UTC 2021 - abriel@suse.com
+
+- change version to 0.164.2
+- add return codes for saphana_stop and saphana_StopSystem
+  (bsc#1182115)
+
+-------------------------------------------------------------------
 Wed Nov  4 10:10:06 UTC 2020 - abriel@suse.com
 
 - change version to 0.164.1
