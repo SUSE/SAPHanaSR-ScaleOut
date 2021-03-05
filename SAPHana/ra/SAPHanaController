@@ -313,7 +313,7 @@ function dequote()
     local rc=0; tr -d '"'; return $rc
 }
 
-# function: version: cpmpare two HANA version strings
+# function: version: compare two HANA version strings
 function ver_lt() {
     ocf_version_cmp $1 $2
     test $? -eq 0 && return 0 || return 1
@@ -334,7 +334,7 @@ function ver_ge() {
     test $? -eq 2 -o $? -eq 1 && return 0 || return 1
 }
 #
-# function: version: cpmpare two HANA version strings
+# function: version: compare two HANA version strings
 #
 function version() {
     if [ $# -eq 3 ]; then
@@ -360,14 +360,18 @@ function version() {
 function get_action_timeout() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     # $OCF_RESKEY_CRM_meta_timeout is the timeout of the current running action in ms
-    local actionTimeOut="${OCF_RESKEY_CRM_meta_timeout:-$HANA_STD_ACTION_TIMEOUT}"
+    local actionTimeOut="$OCF_RESKEY_CRM_meta_timeout"
     local stdTimeOut="$HANA_STD_ACTION_TIMEOUT"
     local actTimeOutPercent=95 # 95% to left 5% for the rest of the resource agent action
+    if [ -z "$actionTimeOut" ]; then
+        actionTimeOut="$stdTimeOut"
+    else
+        # actionTimeOut in seconds
+        ((actionTimeOut = actionTimeOut/1000))
+    fi
 
     # 95%(actionTimeOut)
-    # fallback, if we will get problems with bash inline arithmetic
-    #timeout=$(echo "$actionTimeOut*$actTimeOutPercent/1000"| bc | tr -d '\n')
-    ((timeout = actionTimeOut * actTimeOutPercent/1000))
+    ((timeout = actionTimeOut * actTimeOutPercent/100))
     # max(3600, 95%(actionTimeOut))
     if [ -z "$timeout" ] || [ "$timeout" -lt "$stdTimeOut" ]; then
         timeout=$stdTimeOut
