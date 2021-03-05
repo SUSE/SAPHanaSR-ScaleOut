@@ -129,7 +129,7 @@ function saphana_usage() {
     The 'start'        operation starts the HANA instance or bring the "clone instance" to a WAITING status
     The 'stop'         operation stops the HANA instance
     The 'status'       operation reports whether the HANA instance is running
-    The 'monitor'      operation reports whether the HANA instance seems to be working in master/slave it also needs to check the system replication status
+    The 'monitor'      operation reports whether the HANA instance seems to be working in multi-state it also needs to check the system replication status
     The 'promote'      operation either runs a takeover for a secondary or a just-nothing for a primary
     The 'demote'       operation neary does nothing and just mark the instance as demoted
     The 'notify'       operation always returns SUCCESS
@@ -382,10 +382,10 @@ function get_action_timeout() {
 }
 
 #
-# function: is_clone - report, if resource is configured as a clone (also master/slave)
+# function: is_clone - report, if resource is configured as a clone (also multi-state)
 # params:   -
 # globals:  OCF_*(r)
-# descript: is_clone : find out if we are configured to run in a Master/Slave configuration
+# descript: is_clone : find out if we are configured to run in a multi-state configuration
 # rc: 0: it is a clone, 1: it is not a clone
 #
 # DONE: PRIO2: For the first shipment (scale-out) we need to limit the clones to 2
@@ -1533,7 +1533,7 @@ function saphana_start_primary()
     local lpa_dec=4
     local lpa_advice=""
     #
-    # we will be a master (PRIMARY) so checking, if the is an OTHER master
+    # we will be a PRIMARY so checking, if the is an OTHER master
     #
     super_ocf_log debug "DBG: saphana_primary - check_for_primary reports HANA_STATE_PRIMARY"
     #
@@ -1759,7 +1759,7 @@ function saphana_start_secondary()
     ####### LPA - end
     #
     #
-    # we would be slave (secondary)
+    # we would be secondary
     # we first need to check, if there are Master Nodes, because the Scecondary only starts
     # successfuly, if the Primary is available. Thatfore we mark the Secondary as "WAITING"
     # DONE: PRIO3: wait_for_primary_master 10 is just a test value: 10 loops x10 seconds than go to WAITING
@@ -3056,7 +3056,7 @@ function saphana_monitor_clone() {
 # params:   -
 # globals:  OCF_*(r), NODENAME(r), HANA_STATE_*, SID(r), InstanceName(r),
 # saphana_promote_clone:
-#    In a Master/Slave configuration get Master being the primary OR by running hana takeover
+#    In a multi-state configuration get Master being the primary OR by running hana takeover
 #
 function saphana_promote_clone() {
   super_ocf_log info "FLOW $FUNCNAME ($*)"
@@ -3078,7 +3078,7 @@ function saphana_promote_clone() {
   else
      if [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
         #
-        # we are SECONDARY/SLAVE and need to takeover ...  promote on the replica (secondary) side...
+        # we are SECONDARY and need to takeover ...  promote on the replica (secondary) side...
         #
         case "$PreferSiteTakeover" in
             never | Never | NEVER )
@@ -3148,7 +3148,7 @@ function saphana_promote_clone() {
 # params:   -
 # globals:  OCF_*(r), NODENAME(r),
 # saphana_demote_clone
-#   the HANA System Replication (SR) runs in a Master/Slave
+#   the HANA System Replication (SR) runs in a multi-state configuration
 #   While we could not change a HANA instance to be really demoted, we only mark the status for
 #   correct monitor return codes
 #
@@ -3233,7 +3233,7 @@ then
 else
     if [ "$ACTION" = "promote" -o "$ACTION" = "demote" ]
     then
-        super_ocf_log err "ACT: $ACTION called in a non master/slave environment"
+        super_ocf_log err "ACT: $ACTION called in a non multi-state environment"
         exit $OCF_ERR_ARGS
     fi
 fi
