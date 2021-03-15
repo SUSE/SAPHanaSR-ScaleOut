@@ -13,7 +13,7 @@ SAPHanaController \- Manages take-over between two SAP HANA databases with syste
 .SH DESCRIPTION
 
 \fBSAPHanaController\fP is a resource agent for SAP HANA databases in scale-out setups.
-It manages take-over for a SAP HANA database with system replication in an OCF master/slave configuration.
+It manages take-over for a SAP HANA database with system replication in an OCF multi-state configuration.
 .PP
 System replication will help to replicate the database data from one site to another site in order to compensate for database failures.
 With this mode of operation, internal SAP HANA high-availability (HA) mechanisms and the Linux cluster have to work together.
@@ -28,7 +28,7 @@ SAPHanaController is also able to restart former failed worker nodes as standby.
 .PP
 On initial cluster start, the cluster needs to detect a valid HANA system replication setup, including system replication status (SOK) and last primary timestamp (LPT). This is neccessary to ensure data integrity.
 .PP
-The SAPHanaController resource agent (RA) performs the actual check of the SAP HANA database instances and is configured as a master/slave resource.
+The SAPHanaController resource agent (RA) performs the actual check of the SAP HANA database instances and is configured as a multi-state resource.
 The Linux cluster resource's master status will follow the HANA's active master name server role. Resources (f.e. IP address) that need to run on the same node with that HANA role should be co-located with the master target.
 .\" TODO sketch to show relation between roles
 .\" Linux Cluster (res) Linux Cluster (m/s)   HANA      
@@ -112,7 +112,7 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to take-over to the slave database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". Example: "PREFER_SITE_TAKEOVER=true".
+Defines whether RA should prefer to take-over to the secondary database instead of restarting master locally. However a take-over will only be triggered, if the SAP HANA landscape status is on "ERROR". Example: "PREFER_SITE_TAKEOVER=true".
 .br
 Optional. Default value: false\&.
 .RE
@@ -176,12 +176,12 @@ Reports whether the HANA instance is running. Suggested minimum timeout: 60\&.
 .PP
 \fBmonitor (Master role)\fR
 .RS 4
-Reports whether the HANA database seems to be working in master/slave. It also needs to check the system replication status. Suggested minimum timeout: 700\&. Suggested interval: 60\&.
+Reports whether the HANA database seems to be working in multi-state. It also needs to check the system replication status. Suggested minimum timeout: 700\&. Suggested interval: 60\&.
 .RE
 .PP
 \fBmonitor (Slave role)\fR
 .RS 4
-Reports whether the HANA database seems to be working in master/slave. It also needs to check the system replication status. The slave role's monitor interval has to be different from the master role. Suggested minimum timeout: 700\&. Suggested interval: 61\&.
+Reports whether the HANA database seems to be working in multi-state. It also needs to check the system replication status. The secondary role's monitor interval has to be different from the master role. Suggested minimum timeout: 700\&. Suggested interval: 61\&.
 .RE
 .PP
 \fBvalidate\-all\fR
@@ -207,7 +207,7 @@ In addition, log entries are written, which can be scanned by using a pattern li
 .PP
 .\"
 .SH EXAMPLES
-* Below is an example configuration for a SAPHanaController master/slave resource in a HANA scale-out scenario.
+* Below is an example configuration for a SAPHanaController multi-state resource in a HANA scale-out scenario.
 .RS 2
 The HANA consists of two sites with five nodes each. An additional cluster node is used as majority maker for split-brain situations. In addition, a SAPHanaTopology clone resource is needed to make this work.
 .RE
@@ -353,13 +353,13 @@ nodeB: 1479202132
 .br
 2. perform the HANA maintenance, e.g. update to latest SPS
 .br
-3. set the SAPHanaController master/slave resource to unmanaged (crm resource unmanage ...)
+3. set the SAPHanaController multi-state resource to unmanaged (crm resource unmanage ...)
 .br
 4. set the Linux cluster back into ready mode (crm configure property maintenance-mode=false)
 .br
-5. cleanup the SAPHanaController master/slave resource (crm resource cleanup ...)
+5. cleanup the SAPHanaController multi-state resource (crm resource cleanup ...)
 .br
-6. set the SAPHanaController master/slave resource back to managed (crm resource manage ...)
+6. set the SAPHanaController multi-state resource back to managed (crm resource manage ...)
 .RE
 .PP
 .\"
