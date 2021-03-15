@@ -114,17 +114,17 @@ DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(
 
 Value: [ \fIgeneration\fR ]
 
-The generation identifies which generation of the resource agent is running.
+The generation attribute identifies which generation of the RA is running.
 It helps determing RA's capabilities and performing cluster-wide upgrades of
 the RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out
-multi-target system replication.
+multi-target system replication, which needs replacing old SAPHanaSR.py by new
+SAPHanaSrMultiTarget.py.
 The field is set from SAPHanaSR-ScaleOut package version 0.180 onwards.
 See also gsa below and SAPHanaSR-migrate(8).
-
 .PP
 .B gsa - generation of srHook
 
-The generation identifies which generation of the srHook is running.
+The generation attribute identifies which generation of the srHook is running.
 It helps determing RA's capabilities and performing cluster-wide upgrades of
 the RA and srHook. The generation should be same for both on all nodes of the
 Linux  cluster after succesful upgrade.
