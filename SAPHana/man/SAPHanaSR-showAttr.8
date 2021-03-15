@@ -1,6 +1,6 @@
-.\" Version: 0.170.0
+.\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-showAttr 8 "12 Aug 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "12 Mar 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -70,6 +70,10 @@ actual and configured roles for HANA on that node (\fBroles\fP)
 .br
 actual master score on that node (\fBscore\fP)
 .br
+generation of resource agent (\fBgra\fP)
+.br
+generation of srHook (\fBgsa\fP)
+.br
 HANA site where the host sits (\fBsite\fP)
 .br
 HANA system replication mode (\fBsrmode\fP)
@@ -105,6 +109,27 @@ The DEMOTED state can be transient, on the way to promoting.
 .br
 WAITING4PRIM indicates potential risk of a dual primary situation. See section
 DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
+.PP
+.B gra - generation of reseource agent
+
+Value: [ \fIgeneration\fR ]
+
+The generation identifies which generation of the resource agent is running.
+It helps determing RA's capabilities and performing cluster-wide upgrades of
+the RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out
+multi-target system replication.
+The field is set from SAPHanaSR-ScaleOut package version 0.180 onwards.
+See also gsa below and SAPHanaSR-migrate(8).
+
+.PP
+.B gsa - generation of srHook
+
+The generation identifies which generation of the srHook is running.
+It helps determing RA's capabilities and performing cluster-wide upgrades of
+the RA and srHook. The generation should be same for both on all nodes of the
+Linux  cluster after succesful upgrade.
+The field is set from SAPHanaSR-ScaleOut package version 0.180 onwards.
+See also gra above and SAPHanaSR-migrate(8).
 .PP
 .B maintenance
 - maintenance status of Linux cluster or cluster resource
@@ -435,6 +460,7 @@ Feedback is welcome, please mail to feedback@suse.com.
 \fBocf_suse_SAPHanaController\fP(7) , \fBocf_suse_SAPHanaTopology\fP(7) ,
 \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-replay-archive\fP(8) , \fBSAPHanaSR-filter\fP(8) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR_maintenance_examples\fP(7) ,
+\fBSAPHanaSR-migrate\fP(8) ,
 \fBcrm_simulate\fP(8) , \fBcibadmin\fP(8) , \fBcrm_mon\fP(8) ,
 \fBcs_convert_time\fP(8) , \fBcs_clusterstate\fP(8) , \fBcs_show_hana_info\fP(8) , \fBcs_show_scores\fP(8) ,
 .br
@@ -444,8 +470,9 @@ https://documentation.suse.com/sles-sap/ ,
 .br
 https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
-https://www.susecon.com/doc/2016/sessions/TUT90846.pdf
-.\" TODO SUSECON 2020
+https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
+.br
+https://www.susecon.com/archive-2020.html
 .\"
 .SH AUTHORS
 F.Herschel, L.Pinne.
@@ -455,7 +482,7 @@ F.Herschel, L.Pinne.
 .br
 (c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2018-2020 SUSE LLC
+(c) 2018-2021 SUSE LLC
 .br
 SAPHanaSR-showAttr comes with ABSOLUTELY NO WARRANTY.
 .br

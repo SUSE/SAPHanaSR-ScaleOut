@@ -1,6 +1,6 @@
-.\" Version: 0.170.0
+.\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "22 Sep 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "12 Mar 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -19,6 +19,10 @@ is called at important points of the host auto-failover and system replication
 takeover process. These so called hooks can be used for arbitrary operations
 that need to be executed. The method srConnectionChanged() is called on the
 master nameserver as soon as one of the replicating services loses or establishes the system replication connection. This method is called only once.
+
+SAPHanaSR srHook script and resource agent need to use same cluster attributes.
+Therefor beginning with package SAPHanaSR-ScaleOut version 0.180 a generation
+attribute is used. 
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
@@ -40,8 +44,7 @@ The "HA/DR providers" API accepts the following parameter for the trace section:
 \fBha_dr_saphanasrmultitarget = [ info | debug ]\fP
 .PP
 \fB*\fP The SAPHanaController and SAPHana RA recognize the effecting system
-replication status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API versions and scenarios. 
-For new SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py provides site-specific
+replication status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API versions and scenarios. For new SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py provides site-specific
 attributes among the SAPHanaSR properties:
 .TP
 \fBhana_<sid>_site_srHook_<site> = [ SOK | SFAIL | SWAIT | SREG | SCOPY | PRIM ]\fP
@@ -173,7 +176,7 @@ Note: Understand the impact before trying.
 \fB*\fR Example for removing orphaned global srHook attribute.
 This might be done after upgrading from old-style srHook, to avoid confusion
 caused by different HANA HADR provider API versions.
-See also SAPHanaSR.py(7) from SAPHanaSR-ScaleOut.
+See also SAPHanaSR.py(7) and SAPHanaSR-migrate(8) from SAPHanaSR-ScaleOut.
 SID is HA1.
 .\" TODO scale-up: SID is HA1, node is node1. All nodes need to be cleaned.
 .\" TODO scale-up: # crm_attribute --delete -t nodes --node node1 --name hana_ha1_glob_srHook
@@ -232,6 +235,8 @@ in memory and on disk (in persistence).
 .PP
 5. The Linux cluster needs to be up and running to allow HA/DR provider events being written into CIB attributes. The current HANA SR status might differ from CIB srHook attribute after cluster maintenance.
 .PP
+6. Running srHook script and RA need to be of same or compatible generation. This is indicated by node attributes.
+.PP
 .\"
 .SH BUGS
 Global and site-specific properties for HANA SR status can not be used at same
@@ -246,6 +251,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR.py\fP(7) ,
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) , 
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
+\fBSAPHanaSR-migrate\fP(8) ,
 \fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
@@ -255,7 +261,8 @@ https://documentation.suse.com/sles-sap/ ,
 https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
 https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
-.\" TODO SUSECON 2020 sessions
+.br
+https://www.susecon.com/archive-2020.html
 .br
 http://help.sap.com/saphelp_hanaplatform/helpdata/en/13/67c8fdefaa4808a7485b09815ae0f3/content.htm ,
 .br
@@ -273,7 +280,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
-(c) 2017-2020 SUSE LLC
+(c) 2017-2021 SUSE LLC
 .br
 SAPHanaSR.py comes with ABSOLUTELY NO WARRANTY.
 .br
