@@ -110,26 +110,28 @@ The DEMOTED state can be transient, on the way to promoting.
 WAITING4PRIM indicates potential risk of a dual primary situation. See section
 DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
 .PP
-.B gra - generation of reseource agent
+.B gra
+- generation of reseource agent
 
 Value: [ \fIgeneration\fR ]
 
 The generation attribute identifies which generation of the RA is running.
 It helps determing RA's capabilities and performing cluster-wide upgrades of
-the RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out
-multi-target system replication, which needs replacing old SAPHanaSR.py by new
-SAPHanaSrMultiTarget.py.
+RA and srHook. The generation should be same for both on all nodes of the
+Linux cluster after successful upgrade.
 The field is set from SAPHanaSR-ScaleOut package version 0.180 onwards.
 See also gsa below and SAPHanaSR-migrate(8).
 .PP
-.B gsa - generation of srHook
+.B gsa
+- generation of srHook
 
 Value: [ \fIgeneration\fR ]
 
 The generation attribute identifies which generation of the srHook is running.
-It helps determing RA's capabilities and performing cluster-wide upgrades of
-the RA and srHook. The generation should be same for both on all nodes of the
-Linux  cluster after succesful upgrade.
+It helps determing srHook's capabilities and performing cluster-wide upgrades of
+RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out
+multi-target system replication, which needs replacing old SAPHanaSR.py by new
+SAPHanaSrMultiTarget.py.
 The field is set from SAPHanaSR-ScaleOut package version 0.180 onwards.
 See also gra above and SAPHanaSR-migrate(8).
 .PP
