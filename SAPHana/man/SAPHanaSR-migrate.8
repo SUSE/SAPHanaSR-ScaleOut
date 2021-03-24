@@ -13,7 +13,28 @@ SAPHanaSR-migrate \- Helps with migrating Linux cluster attributes for SAP HANA 
 .SH DESCRIPTION
 SAPHanaSR-migrate \- Helps with migrating Linux cluster attributes for SAP HANA system replication.
 
-TODO
+TODO node attributes, see SAPHanaSR-shoAttr
+.br
+hana_ha1_gsh=2.0 
+.br
+hana_ha1_gra=2.0
+
+TODO cluster attributes
+.br
+property SAPHanaSR:
+.br
+   hana_upd_state="done:1111" \
+.br
+   hana_cl_upd_state="done:all:open:none" \
+.br
+   hana_cl_multiTargetSupport=true \
+.br
+   hana_ha1_upd="all:none" \
+.br
+   hana_ha1_glob_mts=true \
+.br
+   hana_ha1_glob_upd=ok
+
 .\"
 .SH RETURN CODES
 .B 0
