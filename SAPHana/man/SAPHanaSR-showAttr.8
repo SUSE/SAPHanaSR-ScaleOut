@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-showAttr 8 "12 Mar 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "21 Mar 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -119,7 +119,6 @@ The generation attribute identifies which generation of the RA is running.
 It helps determing RA's capabilities and performing cluster-wide upgrades of
 RA and srHook. The generation should be same for both on all nodes of the
 Linux cluster after successful upgrade.
-The field is set from SAPHanaSR-ScaleOut package version 0.180 onwards.
 See also gsa below and SAPHanaSR-migrate(8).
 .PP
 .B gsa
@@ -132,7 +131,6 @@ It helps determing srHook's capabilities and performing cluster-wide upgrades of
 RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out
 multi-target system replication, which needs replacing old SAPHanaSR.py by new
 SAPHanaSrMultiTarget.py.
-The field is set from SAPHanaSR-ScaleOut package version 0.180 onwards.
 See also gra above and SAPHanaSR-migrate(8).
 .PP
 .B maintenance
@@ -170,7 +168,7 @@ Value: [ \fIHOSTNAME\fR ]
 The hostname has to follow UNIX RFC 1178. Additional rules specific to SAP
 apply. E.g. length of hostname is limited to 13 characters.
 .\" TODO SAP note.
-See also the  fields remoteHost and vhost.
+See also the fields remoteHost and vhost.
 .PP
 .B lpt
 - last primary timestamp
@@ -394,7 +392,7 @@ The virtual hostname is used by the HANA instance instead of Linux hostname.
 The node attribute hana_<sid>_vhost is set by SAPHanaTopology, according to
 the running HANA. The attribute is used by the SAPHanaController or SAPHana
 resource agent for setting up system replication.
-See also the  fields Hosts and remoteHost. SAPHanaToplogy needs the SAPHOSTAGENT
+See also the fields Hosts and remoteHost. SAPHanaToplogy needs the SAPHOSTAGENT
 to map from the local hostname to the HANA virtual hostname.
 .\" TODO details, see HANA global.ini
 .\"
@@ -458,7 +456,10 @@ Formatting and content of this script's output will change, since this script
 is under development. This script is not intended to be called from monitoring
 tools.
 For monitoring please use SAPHanaSR-monitor instead.
-Feedback is welcome, please mail to feedback@suse.com.
+.br
+In case of any problem, please use your favourite SAP support process to open
+a request for the component BC-OP-LNX-SUSE.
+Please report any other feedback and suggestions to feedback@suse.com.
 .\"
 .SH SEE ALSO
 \fBocf_suse_SAPHanaController\fP(7) , \fBocf_suse_SAPHanaTopology\fP(7) ,

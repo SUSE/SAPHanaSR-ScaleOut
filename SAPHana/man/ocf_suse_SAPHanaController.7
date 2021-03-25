@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "05 Jan 2021" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "21 Mar 2021" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -126,9 +126,10 @@ Optional. Default value: 7200\&.
 .PP
 \fBAUTOMATED_REGISTER\fR
 .RS 4
-Defines whether a former primary database should be registered as secondary automatically by the resource agent during cluster/resource start, if the DUPLICATE_PRIMARY_TIMEOUT condition is met. Registering a database as secondary will initiate a data synchronisation from primary and might overwrite local data. Example: "AUTOMATED_REGISTER=true".
+Defines whether a former primary database should be registered as secondary automatically by the resource agent during cluster/resource start, if the DUPLICATE_PRIMARY_TIMEOUT condition is met. Registering a database as secondary will initiate a data synchronisation from primary and might overwrite local data. For multi-tier please consider whether the used HANA supports star topology replication. This is important, because an sr_takeover followed by an sr_register of the former primary will convert the multi-tier chain topology into a multi-target star topology. See also REQUIREMENTS section of SAPHanaSR-ScaleOut(7).
+Example: "AUTOMATED_REGISTER=true".
 .br
-Default value: false\&.
+Optional. Default value: false\&.
 .RE
 .PP
 .\"
@@ -138,7 +139,6 @@ Default value: false\&.
 .RS 4
 Global cluster property \fBhana_${sid}_glob_filter\fR . This property should only be set if requested by support engineers. The default is sufficient for normal operation.
 .\" message levels: (dbg)|info|warn|err|error
-.\" message types: act|ra|flow|dbg|lpa|dec|dbg2|score|top|...
 .\" grep super_ocf_log SAPHanaController SAPHanaTopology | tr -s " " | awk '{print $2,$3,$4}' | sort -u
 .br
 Values: act|ra|flow|dbg|lpa|dec|dbg2|score|top
@@ -413,6 +413,13 @@ nodeB: 1479202132
 .\"
 .SH REQUIREMENTS
 For the current version of the SAPHanaController resource agent that comes with the software package SAPHanaSR-ScaleOut, the support is limited to the scenarios and parameters described in the respective manual page SAPHanaSR-ScaleOut(7).
+.PP
+.\"
+.SH BUGS
+.\" TODO
+In case of any problem, please use your favourite SAP support process to open
+a request for the component BC-OP-LNX-SUSE.
+Please report any other feedback and suggestions to feedback@suse.com.
 .PP
 .\"
 .SH SEE ALSO

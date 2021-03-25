@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "18 Mar 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "21 Mar 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -232,8 +232,9 @@ A dedicated cluster node is used as majority maker. An odd number of nodes
 leads to a Linux cluster in either one site or across three sites.
 .PP
 2. Technical users and groups such as sidadm should be defined locally in
-the Linux system. If users resolved by remote service, local caching is
-neccessary.
+the Linux system. If users are resolved by remote service, local caching is
+neccessary. Substitute user (su) to sidadm needs to work reliable and without
+customized actions or messages.
 .PP
 3. Strict time synchronization between the cluster nodes, e.g. NTP.
 .PP
@@ -271,12 +272,15 @@ that one does not interfere with the Linux cluster. All three clusters
 11. The RAs SAPHanaController and SAPHanaToplogy need to be installed on all
 cluster nodes, even the majority maker.
 .PP
-11. The Linux cluster needs to be up and running to allow HA/DR provider events
+12. The Linux cluster needs to be up and running to allow HA/DR provider events
 being written into CIB attributes. The current HANA SR status might differ
 from CIB srHook attribute after cluster maintenance.
 .PP
-12. In two-node HANA scale-out systems only one master nameserver candidate is
+13. In two-node HANA scale-out systems only one master nameserver candidate is
 configured.
+.PP
+14. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
+Linux cluster.
 .\"
 .SH BUGS
 .\" TODO
