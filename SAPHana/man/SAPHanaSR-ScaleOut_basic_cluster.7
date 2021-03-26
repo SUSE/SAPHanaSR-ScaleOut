@@ -278,8 +278,8 @@ Note: Understand the impact before implementing.
 .RS 2
 primitive rsc_fs_check_SLE_HDB00 Filesystem \\
 .br
-  params device="/hana/shared/SLE/check/" \\
-  directory="/hana/shared/check/" fstype=nfs4 \\
+ params device="/hana/shared/SLE/check/" \\
+ directory="/hana/shared/check/" fstype=nfs4 \\
 .br
 options="bind,defaults,rw,hard,proto=tcp,intr,noatime,vers=4,lock" \\
 .br
@@ -293,7 +293,7 @@ options="bind,defaults,rw,hard,proto=tcp,intr,noatime,vers=4,lock" \\
 .br
 clone cln_fs_check_SLE_HDB00 rsc_fs_check_SLE_HDB00 \\
 .br
-  meta clone-node-max=1 interleave=true
+ meta clone-node-max=1 interleave=true
 .br
 location fs_check_not_on_majority_maker \\
  cln_fs_check_SLE_HDB00 -inf: vm-majority
