@@ -226,10 +226,13 @@ Name of the multi-state resource controlled by SAPHanaController or SAPHana.
 .B roles
 - actual and configured roles for HANA on that node
 
-The roles field in the Hosts section has up to six sub-fields.
+The roles field in the Hosts section has six sub-fields for scale-up (A:B:C:D:E:F). It has four sub-fields for scale-out (C:D:E:F). 
+The sub-fields C:D:E:F are primarily useful for HANA scale-out.
+For scale-up that four fields C:D:E:F should be master1:master:worker:master.
+.\" TODO or ":shtdown:shtdown:shtdown"
 .br
 
-Field 1: return code
+Field A: return code
 .br
 Value: [ 4 | 3 | 2 | 1 | 0 ]
 .br
@@ -250,36 +253,33 @@ The meaning is different from common Linux return codes.
 see landscapeHostConfiguration.py
 .br
 
-Field 2: HANA SR role
+Field B: HANA SR role
 .br
 Value: [ "P"rimary | "S"econdary ]
 .br
 
-Field 3: NameServer Config Role
+Field C: NameServer Config Role
 .br
 Value: [ master1 | master2 | master3 | worker | slave | standby | shtdown ]
 .br
 
-Field 4: NameServer Actual Role
+Field D: NameServer Actual Role
 .br
 Value: [ master | slave | standby | shtdown ]
 .br
 
-Field 5: IndexServer Config Role
+Field E: IndexServer Config Role
 .br
 Value: [ master1 | master2 | master3 | worker | slave | standby | shtdown ]
 .br
 
-Field 6: IndexServer Actual Role
+Field F: IndexServer Actual Role
 .br
 Value: [ master | worker | slave | standby | shtdown ]
 .br
 
-The sub-fields 3-6 are primarily useful for HANA scale-out.
 .\" TODO details for scale-up
 .\" scale-out: master1:master:worker:master | master1:slave:standby:standby | :shtdown:shtdown:shtdown | ... [ master1 | master2 | master3 | worker | slave | shtdown ]
-For scale-up that four fields should be master1:master:worker:master.
-.\" TODO or ":shtdown:shtdown:shtdown"
 .PP
 .B score
 - actual master score on that node
