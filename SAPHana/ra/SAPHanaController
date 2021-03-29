@@ -1482,7 +1482,7 @@ function saphana_stopSystem() {
                BEGIN { partials=0 }
                 $1 ~ "host/[a-zA-Z].*/hostActive" {hostActive = hostActive "-" $2; if ( $2 == "partial" ) { partials=1 } }
                     END { printf "%s:%s\n", hostActive, partials;  } ' vName=$vName )
-            hanahanaHostActive=${hAPart%:*}
+            hanaHostActive=${hAPart%:*}
             partials=${hAPart#*:}
             logger -t "fhlpdebug:" "saphana_stop() hostActive=$hanaHostActive Partials=$partials"
             if [ "$partials" -eq 0 ]; then
