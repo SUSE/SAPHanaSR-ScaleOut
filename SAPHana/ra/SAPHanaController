@@ -1458,45 +1458,45 @@ function saphana_start() {
 }
 
 function saphana_stopSystem() {
-  local rc=0
-  check_sapstartsrv; rc=$?
-  if [ $rc -eq $OCF_SUCCESS ]; then
-     ## TODO: PRIO 1: Only stop System, if I am the last master!
-     ## TODO: PRIO 2: Do we need a "last-man-switch-off-the-light" detection?
-     output=$($SAPCONTROL -nr $InstanceNr -function StopSystem)
-     rc=$?
-     super_ocf_log info "ACT: SAP HANA STOP: Stopping System $SID-$InstanceName: $output"
-  fi
-  if [ $rc -eq 0 ]; then
-      HANA_ACTION_TIMEOUT=$(get_saphana_waitfor_timeout WaitforStopped)
-      output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped $HANA_ACTION_TIMEOUT 1)
+    local rc=0
+    check_sapstartsrv; rc=$?
+    if [ $rc -eq $OCF_SUCCESS ]; then
+        ## TODO: PRIO 1: Only stop System, if I am the last master!
+        ## TODO: PRIO 2: Do we need a "last-man-switch-off-the-light" detection?
+        output=$($SAPCONTROL -nr $InstanceNr -function StopSystem)
+        rc=$?
+         super_ocf_log info "ACT: SAP HANA STOP: Stopping System $SID-$InstanceName: $output"
+    fi
+    if [ $rc -eq 0 ]; then
+        HANA_ACTION_TIMEOUT=$(get_saphana_waitfor_timeout WaitforStopped)
+        output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped $HANA_ACTION_TIMEOUT 1)
         while true; do
-	hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
-        hAPart=$(echo "$hanaANSWER" | tr -d ' ' | \
-		awk -F= '
-	       BEGIN { partials=0 }
-	$1 ~ "host/[a-zA-Z].*/hostActive" {hostActive = hostActive "-" $2; if ( $2 == "partial" ) { partials=1 } }
-		END { printf "%s:%s\n", hostActive, partials;  } ' vName=$vName )
-	hanahanaHostActive=${hAPart%:*}
-	partials=${hAPart#*:}
-	logger -t "fhlpdebug:" "saphana_stop() hostActive=$hanaHostActive Partials=$partials"
-	if [ $partials -eq 0 ]; then
-		break;
-	fi
-	done
-	# TODO PRIO1: RC restore!!
-      if [ $? -eq 0 ]; then
-          super_ocf_log info "ACT: SAP HANA: System $SID-$InstanceName stopped: $output"
-          rc=$OCF_SUCCESS
-      else
-          super_ocf_log err "ACT: SAP HANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
-          rc=$OCF_ERR_GENERIC
-      fi
-  else
-      super_ocf_log err "ACT: SAP HANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
-      rc=$OCF_ERR_GENERIC
-  fi
-  return $rc
+            hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+            hAPart=$(echo "$hanaANSWER" | tr -d ' ' | \
+            awk -F= '
+               BEGIN { partials=0 }
+                $1 ~ "host/[a-zA-Z].*/hostActive" {hostActive = hostActive "-" $2; if ( $2 == "partial" ) { partials=1 } }
+                    END { printf "%s:%s\n", hostActive, partials;  } ' vName=$vName )
+            hanahanaHostActive=${hAPart%:*}
+            partials=${hAPart#*:}
+            logger -t "fhlpdebug:" "saphana_stop() hostActive=$hanaHostActive Partials=$partials"
+            if [ $partials -eq 0 ]; then
+                break;
+            fi
+        done
+	    # TODO PRIO1: RC restore!!
+        if [ $? -eq 0 ]; then
+            super_ocf_log info "ACT: SAP HANA: System $SID-$InstanceName stopped: $output"
+            rc=$OCF_SUCCESS
+        else
+            super_ocf_log err "ACT: SAP HANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
+            rc=$OCF_ERR_GENERIC
+        fi
+    else
+        super_ocf_log err "ACT: SAP HANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
+        rc=$OCF_ERR_GENERIC
+    fi
+    return $rc
 }
 
 #
@@ -3311,3 +3311,4 @@ timeE=$(date '+%s')
 super_ocf_log debug "DBG: ==== SAPHanaFilter=$SAPHanaFilter"
 super_ocf_log info "RA ==== end action $ACTION$CLACT with rc=${ra_rc} ($SAPHanaControllerVersion) (${timeR}s)===="
 exit ${ra_rc}
+# set ts=4 sw=4 sts=4 et
