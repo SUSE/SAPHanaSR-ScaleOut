@@ -1471,6 +1471,11 @@ function saphana_stopSystem() {
         HANA_ACTION_TIMEOUT=$(get_saphana_waitfor_timeout WaitforStopped)
         output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped $HANA_ACTION_TIMEOUT 1)
         while true; do
+            # 
+            # If the master-nameserver dies and does not have a failover candidate but there are still running worker nodes
+            #    WaitforStopped terminates to early and does not wait till the worker nodes are down.
+            #    So we need to wait till the last "partial" node is down.
+            #
             hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
             hAPart=$(echo "$hanaANSWER" | tr -d ' ' | \
             awk -F= '
@@ -1480,8 +1485,18 @@ function saphana_stopSystem() {
             hanahanaHostActive=${hAPart%:*}
             partials=${hAPart#*:}
             logger -t "fhlpdebug:" "saphana_stop() hostActive=$hanaHostActive Partials=$partials"
-            if [ $partials -eq 0 ]; then
+            if [ "$partials" -eq 0 ]; then
+                # terminate wait-for-all-nodes-down if no partial nodes are left any more
                 break;
+            else
+                sleep 5
+                timeNow=$(date '+%s')
+                (( timeStop = timeNow - timeB ))
+                (( timeRemain = HANA_ACTION_TIMEOUT - timeStop ))
+                if [ "$timeRemain" -le 0 ]; then
+                    # terminate wait-for-all-nodes-down if time-to-stop in sum expired HANA_ACTION_TIMEOUT
+                    break;
+                fi
             fi
         done
 	    # TODO PRIO1: RC restore!!
