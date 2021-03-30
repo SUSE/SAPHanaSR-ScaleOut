@@ -1475,6 +1475,7 @@ function saphana_stopSystem() {
             # If the master-nameserver dies and does not have a failover candidate but there are still running worker nodes
             #    WaitforStopped terminates to early and does not wait till the worker nodes are down.
             #    So we need to wait till the last "partial" node is down.
+            # TODO: PRIO1: differ return codes for WaitforStarted from the Number-Of-Partial-Nodes
             #
             rcWfS=0
             hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null);
