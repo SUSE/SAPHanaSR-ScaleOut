@@ -1,0 +1,541 @@
+#!/bin/bash
+#
+# SAPHana-migrate
+#
+# Copyright (c) 2021 SUSE LLC
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# Author:  Angela Briel <abriel@suse.com>, 2021
+#
+# Description: Script to help customers to migrate the cluster configuration
+#              to support multi target replication
+#
+#############################################################################
+
+# variables
+version="202103292118"
+exe="$0"
+cmd=$(basename "$exe")
+
+##### functions
+# USAGE
+usage() {
+    echo "USAGE:    $0 --sid=<SID> [--ino=<INSTNO>] --case <use case> --migrate <resource> | --check"
+    echo -e "\\t--sid=<SID>: SID of the SAP system"
+    echo -e "\\t--ino=<INSTNO>: instance number of the SAP system"
+    echo -e "\\t--case <use case>: the use case for check/migrate"
+    echo -e "\\t                   e.g. multi-target"
+    echo -e "\\t--migrate <resource>: migrate a special resource related to the choosen use case"
+    echo -e "\\t--check: check, if all recommendations for a migration is done"
+    echo -e "\\t--version: show script version"
+    echo -e "\\t--help:    show help"
+    exit 1
+}
+
+function wr_info() {
+    local mode=$1
+    local imsg=$2
+
+    case "$mode" in
+    -ah) msg="  *** ATTENTION: $imsg" ;;
+    -a)  msg="  ***            $imsg" ;;
+    -ih) msg="  *** INFO:      $imsg" ;; 
+    -i)  msg="  ***            $imsg" ;;
+    -eh) msg="  *** ERROR:     $imsg" ;;
+    -e)  msg="  ***            $imsg" ;;
+    esac
+    # Give log message to standard error so that:
+    # it enjoys unbuffered output;
+    # a function that uses "echo" to make return value will not be affected by log output
+    /usr/bin/logger -s -t "$cmd" "$msg"
+}
+
+# function get_hana_attribute copied from the resource agent
+function get_hana_attribute() {
+    local rc=0
+    local attr_node=$1
+    local attr_name=$2
+    local attr_store=${3:-reboot}
+    local attr_default=${4:-}
+    case "$attr_store" in
+    reboot | forever )
+        crm_attribute -N ${attr_node} -G -n "$attr_name" -l $attr_store -q -d "$attr_default"; rc=$?
+        ;;
+    props )
+        crm_attribute -G -n "$attr_name" -t crm_config -q -d "$attr_default"; rc=$?
+        ;;
+    esac
+}
+
+# check RA update state of local cluster node using the RA generation
+# using the attribut hana_${sid}_gra, which holds the RA generation
+chk_upd_state_local_node() {
+    local chk=0
+    wr_info -i ""
+    wr_info -ih "Check resource agent update state of local cluster node"
+    nodeUpdated=$(get_hana_attribute "$nodeName" "${ATTR_NAME_HANA_GRA[@]}")
+    if [ -z "$nodeUpdated" ]; then
+        wr_info -ah "Cluster node '$nodeName' does NOT run the new resource agent needed for the migration."
+        wr_info -a "Please check and update."
+        chk=1
+    else
+        nupd=${nodeUpdated//.}
+        if [ "$nupd" -lt 20 ]; then
+            wr_info -ah "Cluster node '$nodeName' is running an older resource agent (generation='$nodeUpdated'), which does not support multi-target replication."
+            wr_info -a "So a migration is not possible, please check and update."
+            chk=1
+        fi
+    fi
+    return $chk
+}
+
+# check cluster wide update state
+# are all cluster nodes running the new resource agent
+# use the attribute hana_${sid}_glob_upd checked and set during _init
+# function of the resource agent, do not check again all nodes
+chk_upd_state_cluster() {
+    local chk=0
+    wr_info -i ""
+    wr_info -ih "Check cluster wide update state of the resource agents"
+    clusterUpdateState=$(get_hana_attribute "X" "${ATTR_NAME_HANA_UPD_STATE[@]}")
+    wr_info -ih "Cluster update state is '$clusterUpdateState'"
+    if [ "$clusterUpdateState" == "nok" ]; then
+        wr_info -ah "NOT all cluster nodes are updated to the new resource agent needed for the migration."
+        wr_info -a "Please check and update the related nodes"
+        #### ANGI TODO - list of affected nodes
+        chk=1
+    else
+        wr_info -ih "All cluster nodes are updated to the new resource agent"
+    fi
+    return $chk
+}
+
+# check Hook-Gen Attribut in CIB
+chk_hook_gen_local_node() {
+    wr_info -i ""
+    wr_info -ih "Check srHook generation attribute of local node"
+    local chk=0
+    hookGen=$(get_hana_attribute "$nodeName" "${ATTR_NAME_HANA_SRHOOK_GEN[@]}")
+    if [ -z "$hookGen" ]; then
+        # the new srHook code is currently not active, no reload or restart of
+        # srHook on HANA side
+        wr_info -ah "For the local cluster node '$nodeName' the srHook generation attribute is empty."
+        wr_info -a "May be the new srHook is currently not active, no reloaded or no restart of srHook on HANA side was done."
+        wr_info -a "Please check"
+        chk=1
+    fi
+    echo "$hookGen"
+    return $chk
+}
+
+# check which Hook generation is used on all cluster nodes
+chk_hook_gen_cluster() {
+    wr_info -i ""
+    wr_info -ih "Check srHook generation attribute on all cluster nodes"
+    hookGen=$1
+    local chk=0
+    for onode in $allClusterNodes; do
+        onodeSite=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
+        if [ -z "$onodeSite" ] || [ "$onode" == "$nodeName" ]; then
+            # not a HANA node, may be the decision maker / tiebreaker
+            # or local host (already checked before)
+            wr_info -ih "Skipping cluster node '$onode'"
+            continue
+        fi
+        onodeHookGen=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SRHOOK_GEN[@]}")
+        if [ -z "$onodeHookGen" ]; then
+            # the new srHook code is currently not active, not reload or no
+            # restart of srHook on HANA side
+            wr_info -ah "On cluster node '$onode' the srHook generation attribute is empty."
+            wr_info -a "May be the new srHook is currently not active, not reloaded or no restart of srHook on HANA side was done"
+            chk=1
+            continue
+        fi
+        if [ "$hookGen" != "$onodeHookGen" ]; then
+            # the cluster nodes are running different Hook generations
+            wr_info -ah "The cluster nodes '$nodeName' and '$onode' are running different Hook generations ('$hookGen' - '$onodeHookGen')."
+            wr_info -a "May be one of the nodes is running an old srHook or the new srHook is currently not active, not reloaded or no restart of srHook on HANA side was done"
+            chk=1
+        fi
+    done
+    return $chk
+}
+
+# check, if customer has chosen to active migrate the cluster from single
+# target replication to multi target replication
+# check multi-target attribut hana_${SID}_glob_mts
+chk_mts_attr() {
+    wr_info -i ""
+    wr_info -ih "Check multi-target attribute"
+    hookGen=$1
+    local chk=0
+    multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
+    if [ -z "$multiTargetSupport" ]; then
+        # cluster attribute 'hana_${SID}_glob_mts', which should trigger
+        # the migration, not set yet / no customer choice for now
+        wr_info -ah "Attribute 'hana_${SID}_glob_mts' not set yet. For migration you need to set the attribute manually to 'true'"
+        chk=1
+    fi
+    if [ "$multiTargetSupport" != "true" ]; then
+        wr_info -ah "Attribute 'hana_${SID}_glob_mts' is set to '$multiTargetSupport' and NOT to the expected value 'true'"
+        chk=1
+    fi
+    if [ "$multiTargetSupport" == "true" ] && [ "$hookGen" == "1.0" ]; then
+        # Hook generation and multiTargetSupport selection does not
+        # match. May be wrong customer set of cluster attribute
+        # 'hana_${SID}_glob_mts', which should trigger the migration
+        wr_info -ah "The Hook generation '$hookGen' and the customer selection for the attribute 'hana_${SID}_glob_mts' ('$multiTargetSupport') does not match."
+        wr_info -a "The current active Hook generation does not support multiTarget configurations."
+        wr_info -a "So the global Hook attribute will be still available and in use."
+        chk=1
+    fi
+    return $chk
+}
+
+# check that the same Hook is available in all nodes
+chk_hook_from_global_ini() {
+    # check name and path in global.ini
+    # and md5sum
+    wr_info -i ""
+    wr_info -ih "Check srHook across all cluster nodes"
+    local chk=0
+    sameHook="true"
+    samePath="true"
+    sameName="true"
+    hookName=""
+    hookPath=""
+    globalIni="/hana/shared/${RSID}/global/hdb/custom/config/global.ini"
+    runCmd="crm cluster run" 
+    cmdName="grep ^provider $globalIni"
+    cmdPath="grep ^path $globalIni"
+    # check path in global.ini
+    oldpath=""
+    for p in $($runCmd "$cmdPath" 2>/dev/null| awk -F= '$1 ~ "path" { print $2 }'); do
+        if [ -z "$oldpath" ]; then
+            oldpath="$p"
+        fi
+        if [ "$oldpath" != "$p" ]; then
+            samePath="false"
+            chk=1
+        fi
+    done
+    if [ "$samePath" == "false" ]; then
+        wr_info -ah "The path to the srHook differs between the cluster nodes. Please check."
+    else
+        hookPath="$oldpath"
+    fi
+    # check name in global.ini
+    oldname=""
+    for n in $($runCmd "$cmdName" 2>/dev/null| awk -F= '$1 ~ "provider" { print $2 }'); do
+        if [ -z "$oldname" ]; then
+            oldname="$n"
+        fi
+        if [ "$oldname" != "$n" ]; then
+            sameName="false"
+            chk=1
+        fi
+    done
+    if [ "$sameName" == "false" ]; then
+        wr_info -ah "The name of the srHook differs between the cluster nodes. Please check."
+    else
+        hookName="$oldname"
+    fi
+    if [ -n "$hookPath" ] && [ -n "$hookName" ]; then
+        # check md5sum
+        hookFQN="${hookPath}/${hookName}"
+        oldmd5=""
+        for m in $($runCmd "md5sum $hookFQN" 2>/dev/null| awk -F= -v hn="$hookFQN" '$2 ~ hn { print $1 }'); do
+            if [ -z "$oldmd5" ]; then
+                oldmd5="$m"
+            fi
+            if [ "$oldmd5" != "$m" ]; then
+                sameHook="false"
+                chk=1
+            fi
+        done
+        if [ "$sameHook" == "false" ]; then
+            wr_info -ah "The md5sum of the srHook differs between the cluster nodes. Please check."
+        fi
+    else
+        wr_info -ah "srHook differs between the cluster nodes. Please check."
+        chk=1
+    fi
+    return $chk
+}
+
+# check migration requirements
+chk_migration_requirements() {
+    wr_info -ih "Check migration requirements"
+    local chk=0
+
+    # check, if the old global Hook attribute is available. 
+    # if NOT, no migration needed.
+    oldGlobHook=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
+    if [ -z "$oldGlobHook" ]; then
+        wr_info -ih "Old, global Hook attribute NOT found. No migration needed. Exiting...."
+        exit 0
+    else
+        wr_info -ih "Found old, global Hook attribute. Checking now requirements for migration"
+    fi
+
+    # check, if cluster ok
+    if ! chk_cluster_health; then
+        chk=1
+    fi
+
+    # check Hook is in global.ini of all nodes
+    # and check md5sum of all these Hooks
+    if ! chk_hook_from_global_ini; then
+        chk=1
+    fi
+
+    # check RA update state of local cluster node
+    if ! chk_upd_state_local_node; then
+        chk=1
+    fi
+    # check cluster wide update state
+    if ! chk_upd_state_cluster; then
+        chk=1
+    fi
+    # check Hook-Gen Attribut in CIB
+    if ! srHookGen=$(chk_hook_gen_local_node); then
+        chk=1
+    fi
+    # check which Hook generation is used on all cluster nodes
+    if ! chk_hook_gen_cluster "$srHookGen"; then
+        chk=1
+    fi
+    # check multi-target Attribut in CIB
+    if ! chk_mts_attr "$srHookGen"; then
+        chk=1
+    fi
+    return $chk
+}
+
+# check, if cluster is okay
+chk_cluster_health() {
+    wr_info -ih "Check cluster health"
+    local chk=0
+
+    # check for unmanaged
+    if $(crm_mon -r1 | grep -i unmanaged 2>&1 >/dev/null); then
+        wr_info -eh "Cluster has unmanaged parts. Please check"
+        chk=1
+    fi
+    # check for unclean
+    if $(crm_mon -r1 | grep -i unclean 2>&1 >/dev/null); then
+        wr_info -eh "Cluster has unclean parts. Please check"
+        chk=1
+    fi
+    # check for failed
+    if $(crm_mon -r1 | grep -i failed 2>&1 >/dev/null); then
+        wr_info -eh "Cluster has failed resources and/or actions. Please check"
+        chk=1
+    fi
+    # check for stopped
+    if $(crm_mon -r1 | grep -i stopped 2>&1 >/dev/null); then
+        wr_info -eh "Cluster has stopped parts. Please check"
+        chk=1
+    fi
+
+    # ANGI TODO
+    # check failcounts
+    # crm_mon -r1 --failcounts
+
+    if [ -n "$ResID" ]; then
+        # check failcount of resource
+        nofc=0
+        for node in $allClusterNodes; do
+            fc=$(crm_failcount --query -r "$ResID" -n "$node" | awk '{ print $3 }')
+            if [ -z "$fc" ] || [ "${fc%=*}" != "value" ]; then
+                continue
+            fi
+            if [ "${fc#*=}" != "0" ]; then
+                wr_info -eh "resource '$ResID' on node '$node' has a non-zero failcount '${fc#*=}'. Please check."
+                chk=1
+                ((nofc = nofc + ${fc#*=}))
+            fi
+        done
+        if [ "$nofc" != "0" ]; then
+            wr_info -eh "failcount of resource '$ResID' over all cluster nodes is NOT 0. Please check."
+            chk=1
+        fi
+    fi
+
+    # ANGI TODO
+    # check maintenance mode of cluster, node, resource
+    # 
+
+    # get DC and check idle state
+    DC=$(crmadmin -Dq 2>&1 1>/dev/null)
+    if [ -n "$DC" ]; then
+        istate=$(crmadmin -q -S "$DC" 2>&1 1>/dev/null)
+    else
+        wr_info -eh "Could not detect the Designated Controller, please check cluster health"
+        chk=1
+    fi
+    if [ "$istate" != "S_IDLE" ]; then
+        wr_info -eh "Cluster NOT in state S_IDLE, but in state '$istate'. Please check."
+        chk=1
+    fi
+
+    return $chk
+}
+
+# end function definition
+
+# parse cmdline
+if [ $# -eq 0 ]
+then
+    usage
+elif [ $# -lt 2 ]
+then
+    usage
+else
+    # ANGI TODO better cmdline parsing
+    while [ $# -gt 0 ]; do
+        case "$1" in
+        --sid=?*|-sid=?*)
+            SID=${1#*=}
+            ;;
+        --ino=?*|-ino=?*)
+            INO=${1#*=}
+            ;;
+        --check|-c)
+            CFlag="only"
+            ;;
+        --migrate|-m)
+            MFlag="true"
+            ResID="$2"
+            shift
+            ;;
+        --case|-u)
+            USECASE="$2"
+            shift
+            ;;
+        --version|-v)
+            echo "$cmd version - $version"
+            exit
+            ;;
+        --help|-h|-\?)    usage ;;
+        *)     usage ;;
+        esac
+        shift
+    done
+fi
+
+# check needed command line parameter
+if [ -z "$SID" ]; then
+    echo "ERROR: missing SID"
+    usage
+fi
+if [ -z "$INO" ]; then
+    echo "ERROR: missing instance number"
+    usage
+fi
+if [ -z "$USECASE" ]; then
+    echo "ERROR: missing use-case"
+    usage
+fi
+if [ "$MFlag" == "true" ] && [ "$CFlag" == "only" ]; then
+    echo "ERROR: please use only '--migrate' or '--check' but NOT both."
+    usage
+fi
+if [ -z "$MFlag" ] && [ -z "$CFlag" ]; then
+    CFlag=only
+fi
+if [ "$MFlag" == "true" ] && [ -z "$ResID"]; then
+    echo "ERROR: missing resource ID"
+    usage
+fi
+# uppercase SID used for resources
+RSID=${SID^^}
+# lowercase SID used for attributes
+ASID=${SID,,}
+
+# attributes needed for 'multi-target' migration use-case
+ATTR_NAME_HANA_SITE=("hana_${ASID}_site" "forever")
+# attribute containing the current running srHook generation
+ATTR_NAME_HANA_SRHOOK_GEN=("hana_${ASID}_gsh" "reboot")
+# attribute set, if the NewResourceAgent is running on the system
+ATTR_NAME_HANA_GRA=("hana_${ASID}_gra" "forever")
+# attribute summarizing cluster node update status
+# expected value "ok" - "nok", if there still old RAs running in the cluster
+ATTR_NAME_HANA_UPD_STATE=("hana_${ASID}_glob_upd" "props")
+# start migration attribut set by admin
+ATTR_NAME_HANA_multiTargetSupport=("hana_${ASID}_glob_mts" "props")
+# old, global srHook attribute
+ATTR_NAME_HANA_GLOB_SRHOOK=("hana_${sid}_glob_srHook" "props")
+
+check=true
+nodeName=$(crm_node -n)
+allClusterNodes=$(crm_node -l | awk '{if ($2 != "") { print $2 }}')
+
+wr_info -ih "Start checking...."
+# check, if all migration requirements are fullfilled
+if ! chk_migration_requirements; then
+    check=false
+fi
+
+# only check and report, but NOT migrate
+if [ "$CFlag" == "only" ]; then
+    rc=0
+    wr_info -ih "Check finished."
+    if [ "$check" == "false" ]; then
+        wr_info -ah "Some of the migration requirements are not fullfilled. That will prevent a proper migration in the future. Please check."
+        rc=1
+    else
+        wr_info -ih "All migration requirements are fullfilled, which means a migration will be possible now."
+    fi
+    exit $rc
+fi
+
+# migrate
+if [ "$MFlag" == "true" ]; then
+    rc=0
+    if [ "$check" == "false" ]; then
+        wr_info -eh "Can not start the migration, because the migration requirements are not fullfilled completely."
+        wr_info -e "That will prevent a proper migration. Please check and try again"
+        rc=3
+    else
+        wr_info -ih "Start migration...."
+        # check, if cluster ok
+        if ! chk_cluster_health; then
+            exit 1
+        fi
+
+        # ANGI TODO - check, if 'maintenance' or 'unmanaged'
+        # set resource to maintenance
+        wr_info -ih "Set resource '$ResID' to maintenance"
+        crm resource maintenance "$ResID" true; rc=$?
+        if [ $rc -ne 0]; then
+            wr_info -eh "Can not set resource '$ResID' to maintenance (rc=$rc)."
+            exit $rc
+        fi
+        # delete globale SRHook attribute
+        wr_info -ih "Start migration, remove globale SRHook attribute as it's no longer needed"
+        crm_attribute -D -n "hana_${ASID}_glob_srHook" -t crm_config -q; rc=$?
+        if [ $rc -ne 0]; then
+            wr_info -ah "Problems deleting globale SRHook attribute (rc=$rc). Please check"
+        fi
+
+        # ANGI TODO - check, if 'maintenance' or 'managed'
+        # release resource from maintenance
+        wr_info -ih "Release resource '$ResID' from maintenance"
+        crm resource maintenance "$ResID" false; rc=$?
+        if [ $rc -ne 0]; then
+            wr_info -eh "Can not release resource '$ResID' from maintenance (rc=$rc)."
+            ##exit $rc # not needed yet, last element in if-condition
+        fi
+    fi
+    exit $rc
+fi

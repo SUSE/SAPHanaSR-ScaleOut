@@ -26,7 +26,7 @@
 #
 #######################################################################
 # DONE PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
-SAPHanaTopologyVersion="0.164.0"
+SAPHanaTopologyVersion="0.180.0.0330.1811"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -142,18 +142,18 @@ function sht_meta_data() {
 1. Interface to monitor a HANA system: landscapeHostConfiguration.py
 landscapeHostConfiguration.py has some detailed output about HANA system status
 and node roles. For our monitor the overall status is relevant. This overall
-status is reported by the returncode of the script:
+status is reported by the return code of the script:
 0: Internal Fatal
 1: ERROR
 2: WARNING
 3: INFO (maybe a switch of the resource running)
 4: OK
-The SAPHanaTopology resource agent will interpret returncodes 1 as NOT-RUNNING (or 1 failure) and returncodes 2+3+4 as RUNNING.
+The SAPHanaTopology resource agent will interpret return codes 1 as NOT-RUNNING (or 1 failure) and return codes 2+3+4 as RUNNING.
 SAPHanaTopology scans the output table of landscapeHostConfiguration.py to identify the roles of the cluster node. Roles means configured and current role of the nameserver as well as the indexserver.
 
 2. Interface is hdbnsutil
    The interface hdbnsutil is used to check the "topology" of the system replication as well as the current configuration
-   (primary/secondary) of a SAP HANA database instance. A second task of the interface is the posibility to run a
+   (primary/secondary) of a SAP HANA database instance. A second task of the interface is the possibility to run a
    system replication takeover (sr_takeover) or to register a former primary to a newer one (sr_register).
 
 3. saphostctrl
@@ -300,7 +300,7 @@ function sht_methods() {
 # descript: is_clone : find out if we are configured to run in a multi-state configuration
 #   rc: 0: it is a clone
 #       1: it is not a clone
-#   Special EXIT of RA, if clone is missconfigured
+#   Special EXIT of RA, if clone is misconfigured
 #
 function is_clone() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
@@ -425,7 +425,7 @@ function sht_init() {
     super_ocf_log debug "DBG: OCF: $ocf_env"
     ATTR_NAME_HANA_SYNC_STATUS=("hana_${sid}_sync_state" "reboot")  # SOK, SFAIL, UNKNOWN?
     ATTR_NAME_HANA_PRIMARY_AT=("hana_${sid}_primary_at" "reboot")   # Not really used
-    ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UKNOWN?, DEMOTED, PROMOTED
+    ATTR_NAME_HANA_CLONE_STATE=("hana_${sid}_clone_state" "reboot") # UNKNOWN?, DEMOTED, PROMOTED
     #ATTR_NAME_HANA_REMOTEHOST=("hana_${sid}_remoteHost" "forever")
     ATTR_NAME_HANA_SITE=("hana_${sid}_site" "forever")
     ATTR_NAME_HANA_ROLES=("hana_${sid}_roles" "reboot")
@@ -625,7 +625,7 @@ function sht_start() {
 
   case "$RC_hdbnsutil" in
       0 | 1 ) rc=$OCF_SUCCESS;;     # TODO: Prio 3: Need to check rc==1 - is that success or not_running?
-      2 )     rc=$OCF_NOT_RUNNING;; # rc==2 have been seen for bad persistancy layer
+      2 )     rc=$OCF_NOT_RUNNING;; # rc==2 have been seen for bad persistency layer
       * )     rc=$OCF_SUCCESS;;     # TODO: Prio 3: Need to check "other" return codes
   esac
 
@@ -763,7 +763,7 @@ function sht_status() {
 # function: sht_validate - validation of (some) variables/parameters
 # params:   -
 # globals:  OCF_*(r), SID(r), InstanceName(r), InstanceNr(r),
-# sht_validate: Check the symantic of the input parameters
+# sht_validate: Check the semantic of the input parameters
 #
 function sht_validate() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
@@ -910,7 +910,7 @@ function sht_monitor_clone() {
     set_hana_attribute ${NODENAME} "$hanarole" "${ATTR_NAME_HANA_ROLES[@]}"
 
     # TODO PRIO2: COULD/SHOULD WE LIMIT THE SET OF THE LSS/SRR ATTRIBUTE TO ONLY THE_MASTER nodes?
-    # ignore timeout (124) and "ignore" (5) as returncode from the landscapeHostConfiguration call
+    # ignore timeout (124) and "ignore" (5) as return code from the landscapeHostConfiguration call
     super_ocf_log info "DEC: site=$site; hanalrc=$hanalrc"
     if [ -n "$site" -a "$hanalrc" != "124" ]; then
         ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$site"
@@ -1019,7 +1019,7 @@ fi
 super_ocf_log info "RA ==== begin action $ACTION$CLACT ($SAPHanaTopologyVersion) ===="
 ra_rc=$OCF_ERR_UNIMPLEMENTED
 case "$ACTION" in
-    start|stop|monitor) # Standard controling actions
+    start|stop|monitor) # Standard controlling actions
         sht_$ACTION$CLACT
         ra_rc=$?
         ;;
@@ -1027,7 +1027,7 @@ case "$ACTION" in
         sht_validate
         ra_rc=$?
         ;;
-    *)  # seams to be a unknown request
+    *)  # seems to be an unknown request
         sht_methods
         ra_rc=$OCF_ERR_UNIMPLEMENTED
         ;;

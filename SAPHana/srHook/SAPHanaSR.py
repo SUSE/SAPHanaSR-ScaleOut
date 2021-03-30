@@ -22,7 +22,7 @@ similar) to your global.ini:
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.180.0.1102.1914"
+fhSRHookVersion = "0.180.0.0330.1807"
 srHookGen = "1.0"
 
 
@@ -35,11 +35,11 @@ class SAPHanaSR(HADRBase):
         self.tracer.info("{0}.{1}() version {2}".format(self.__class__.__name__, method, fhSRHookVersion))
         mySID = os.environ.get('SAPSYSTEMNAME')
         mysid = mySID.lower()
-        myCMD = "sudo /usr/sbin/crm_attribute -n hana_{1}_srHook_gen -v {0} -l reboot".format(srHookGen, mysid)
+        myCMD = "sudo /usr/sbin/crm_attribute -n hana_{1}_gsh -v {0} -l reboot".format(srHookGen, mysid)
         rc = os.system(myCMD)
         myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
         self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
-        self.tracer.info("{0}.{1}() Running old srHookGeneration {2}, see attribute hana_{3}_srHook_gen too\n".format(self.__class__.__name__, method, srHookGen, mysid))
+        self.tracer.info("{0}.{1}() Running old srHookGeneration {2}, see attribute hana_{3}_gsh too\n".format(self.__class__.__name__, method, srHookGen, mysid))
 
     def about(self):
         return {"provider_company": "SUSE",
@@ -109,11 +109,11 @@ class SAPHanaSR(HADRBase):
         mysid = mySID.lower()
         myInSync = ParamDict["is_in_sync"]
         myReason = ParamDict["reason"]
-        myCMD = "sudo /usr/sbin/crm_attribute -n hana_{1}_srHook_gen -v {0} -l reboot".format(srHookGen, mysid)
+        myCMD = "sudo /usr/sbin/crm_attribute -n hana_{1}_gsh -v {0} -l reboot".format(srHookGen, mysid)
         rc = os.system(myCMD)
         myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
         self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
-        self.tracer.info("{0}.{1}() Running old srHookGeneration {2}, see attribute hana_{3}_srHook_gen too\n".format(self.__class__.__name__, method, srHookGen, mysid))
+        self.tracer.info("{0}.{1}() Running old srHookGeneration {2}, see attribute hana_{3}_gsh too\n".format(self.__class__.__name__, method, srHookGen, mysid))
         if mySystemStatus == 15:
             mySRS = "SOK"
         else:
