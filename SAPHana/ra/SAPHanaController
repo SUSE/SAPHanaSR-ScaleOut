@@ -1477,7 +1477,7 @@ function saphana_stopSystem() {
             #    So we need to wait till the last "partial" node is down.
             #
             rcWfS=0
-            hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+            hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null);
             hAPart=$(echo "$hanaANSWER" | tr -d ' ' | \
             awk -F= '
                BEGIN { partials=0 }
