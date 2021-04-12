@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-showAttr 8 "21 Mar 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "12 Apr 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -97,18 +97,27 @@ An incomplete compilation on field details and purpose follows below.
 .B clone_state
 - clone state of the Linux cluster resource
 
-Value: [ PROMOTED | DEMOTED | UNDEFINED | WAITING4PRIM | WAITING4NODES | WAITING4REG ]
+Value: [ PROMOTED | DEMOTED | UNDEFINED | WAITING4LPA | WAITING4PRIM | WAITING4NODES | WAITING4REG ]
 
 .\" TODO: what kind of attribute?
 This variable is set by the SAPHanaController or SAPHana resource agent.
 .br
-PROMOTED marks the master state of the instance, wich makes a HANA SR primary.
+On scale-up PROMOTED marks the master state of the instance, wich makes an HANA
+SR primary. On scale-out PROMOTED indicates the master name server of the
+primary site.
 .br
-DEMOTED makes a HANA SR secondary.
-The DEMOTED state can be transient, on the way to promoting.
+On scale-up DEMOTED makes an HANA SR secondary.
+On scale-out all running nodes except the primary master name server are marked
+as DEMOTED. The DEMOTED state can be transient, on the way to promoting.
 .br
-WAITING4PRIM indicates potential risk of a dual primary situation. See section
-DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
+WAITING4LPA indicates the cluster is waiting for DUPLICATE_PRIMARY_TIMEOUT
+seconds before promoting the last known primary again. The admin can take that
+time for manually promoting his favoured primary.
+See section DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
+.br
+WAITING4PRIM indicates potential risk of a dual primary situation. 
+The cluster expects the admin to bring up the HANA primary. 
+See section DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
 .PP
 .B gra
 - generation of resource agent
