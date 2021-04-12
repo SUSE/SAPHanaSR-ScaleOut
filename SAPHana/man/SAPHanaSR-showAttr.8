@@ -112,18 +112,19 @@ as DEMOTED. The DEMOTED state can be transient, on the way to promoting.
 WAITING4LPA indicates potential risk of a dual primary situation.
 The cluster is waiting for DUPLICATE_PRIMARY_TIMEOUT seconds before registering
 the former HANA primary as new secondary.
-See AUTOMATED_REGISTER and DUPLICATE_PRIMARY_TIMEOUT in ocf_suse_SAPHana(7)
-and ocf_suse_SAPHanaController(7).
 .br
 WAITING4PRIM indicates the cluster is waiting for the HANA primary becoming ready
 in order to register the HANA secondary.
-See AUTOMATED_REGISTER and DUPLICATE_PRIMARY_TIMEOUT in ocf_suse_SAPHana(7)
-and ocf_suse_SAPHanaController(7).
+.br
+WAITING4NODES indicates on scale-out that not enough nodes are available to
+bring up a functional site, according to the HANA landscape configuration.
 .br
 WAITING4REG indicates potential risk of a dual primary situation.
 The cluster is waiting for the administrator to manually register the former
 HANA primary as new secondary.
-See AUTOMATED_REGISTER in ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
+.br
+See also AUTOMATED_REGISTER and DUPLICATE_PRIMARY_TIMEOUT in ocf_suse_SAPHana(7) and
+ocf_suse_SAPHanaController(7).
 .PP
 .B gra
 - generation of resource agent
