@@ -102,22 +102,28 @@ Value: [ PROMOTED | DEMOTED | UNDEFINED | WAITING4LPA | WAITING4PRIM | WAITING4N
 .\" TODO: what kind of attribute?
 This variable is set by the SAPHanaController or SAPHana resource agent.
 .br
-On scale-up PROMOTED marks the master state of the instance, wich makes an HANA
-SR primary. On scale-out PROMOTED indicates the master name server of the
-primary site.
+On scale-up, PROMOTED marks the master state of an instance, which makes an HANA
+SR primary. On scale-out it indicates the master name server of the primary site.
 .br
-On scale-up DEMOTED makes an HANA SR secondary.
+On scale-up, DEMOTED makes an HANA SR secondary.
 On scale-out all running nodes except the primary master name server are marked
 as DEMOTED. The DEMOTED state can be transient, on the way to promoting.
 .br
-WAITING4LPA indicates the cluster is waiting for DUPLICATE_PRIMARY_TIMEOUT
-seconds before promoting the last known primary again. The admin can take that
-time for manually promoting his favoured primary.
-See section DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
+WAITING4LPA indicates potential risk of a dual primary situation.
+The cluster is waiting for DUPLICATE_PRIMARY_TIMEOUT seconds before registering
+the former HANA primary as new secondary.
+See AUTOMATED_REGISTER and DUPLICATE_PRIMARY_TIMEOUT in ocf_suse_SAPHana(7)
+and ocf_suse_SAPHanaController(7).
 .br
-WAITING4PRIM indicates potential risk of a dual primary situation. 
-The cluster expects the admin to bring up the HANA primary. 
-See section DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
+WAITING4PRIM indicates the cluster is waiting for the HANA primary becoming ready
+in order to register the HANA secondary.
+See AUTOMATED_REGISTER and DUPLICATE_PRIMARY_TIMEOUT in ocf_suse_SAPHana(7)
+and ocf_suse_SAPHanaController(7).
+.br
+WAITING4REG indicates potential risk of a dual primary situation.
+The cluster is waiting for the administrator to manually register the former
+HANA primary as new secondary.
+See AUTOMATED_REGISTER in ocf_suse_SAPHana(7) and ocf_suse_SAPHanaController(7).
 .PP
 .B gra
 - generation of resource agent
