@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "12 Mar 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "14 Apr 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -44,13 +44,24 @@ The "HA/DR providers" API accepts the following parameter for the trace section:
 \fBha_dr_saphanasrmultitarget = [ info | debug ]\fP
 .PP
 \fB*\fP The SAPHanaController and SAPHana RA recognize the effecting system
-replication status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API versions and scenarios. For new SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py provides site-specific
-attributes among the SAPHanaSR properties:
+replication status via attributes in the CIB properties section. The SAP System
+Indentifier (sid) is given in lower case. See REQUIREMENTS section below for
+supported API versions and scenarios. For new SAPHanaSR-ScaleOut the
+SAPHanaSrMultiTarget.py provides site-specific attributes among the SAPHanaSR
+properties:
 .TP
 \fBhana_<sid>_site_srHook_<site> = [ SOK | SFAIL | SWAIT | SREG | SCOPY | PRIM ]\fP
 .PP
 Note: See SAPHanaSR.py(7) for old-style SAPHanaSR-ScaleOut with one global
 attribute instead of site-specific attributes.
+.\" TODO hana_<sid>_glob_srHook during migration process?
+.PP
+\fB*\fP The SAPHanaSR-migrate tool recognizes the scale-out multi-target capability
+via host attribute. The SAP System Indentifier (sid) is given in lower case. See
+REQUIREMENTS section below for supported API versions and scenarios. For new
+SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py reports its generation:
+.TP
+\fBhana_<sid>_gsh = [ \fIgeneration\fR \fB]\fP
 .PP
 .\"
 .SH RETURN CODES
@@ -214,7 +225,7 @@ SID is HA1.
  the directory with HANA trace files
 .TP
 /usr/sap/$SID/HDB$nr/.crm_attribute.$SITE
- the internal cache for srHook status changes while cluster is down, file is owned by ${SID}adm and must never be touched
+ the internal cache for srHook status changes while Linux cluster is down, file is owned by ${SID}adm and must never be touched
 .PP
 .\"
 .SH REQUIREMENTS 
@@ -233,7 +244,7 @@ in memory and on disk (in persistence).
 .PP
 4. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA has to be used.
 .PP
-5. The Linux cluster needs to be up and running to allow HA/DR provider events being written into CIB attributes. The current HANA SR status might differ from CIB srHook attribute after cluster maintenance.
+5. The Linux cluster needs to be up and running to allow HA/DR provider events being written into CIB attributes. The current HANA SR status might differ from CIB srHook attribute after Linux cluster maintenance.
 .PP
 6. Running srHook script and RA need to be of same or compatible generation. This is indicated by node attributes.
 .PP
