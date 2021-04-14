@@ -33,7 +33,6 @@ maintenance status of Linux cluster (\fBmaintenance\fP)
 .br
 filter for resource agent logging (\fBfilter\fP)
 .br
-.\" TODO hana_${SID}_glob_mts
 Linux cluster scale-out multi-target support (\fBmts\fP)
 .br
 HANA primary replication site (\fBprim\fP)
@@ -44,8 +43,7 @@ HANA replication channel state, indicated by srConnectionChanged (\fBsrHook\fP)
 .br
 HANA replication state of secondary site, indicated by systemReplicationStatus.py (\fBsync_state\fP)
 .br
-.\" TODO hana_${SID}_glob_upd
-Linux cluster scale-out update status (\fBupd\fP)
+Linux cluster update status (\fBupd\fP)
 .TP
 Resource section
 .br
@@ -76,11 +74,9 @@ actual and configured roles for HANA on that node (\fBroles\fP)
 .br
 actual master score on that node (\fBscore\fP)
 .br
-.\" TODO hana_${SID}_nra or hana_${SID}_gra?
 generation of resource agent (\fBgra\fP)
 .br
-.\" TODO hana_${SID}_srHook_gen or hana_${SID}_gsa? 
-generation of srHook (\fBgsa\fP)
+generation of srHook (\fBgsh\fP)
 .br
 HANA site where the host sits (\fBsite\fP)
 .br
@@ -139,19 +135,17 @@ ocf_suse_SAPHanaController(7).
 
 Value: [ \fIgeneration\fR ]
 
-.\" TODO hana_${SID}_nra or hana_${SID}_gra?
 The generation attribute identifies which generation of the RA is running.
 It helps determing RA's capabilities and performing cluster-wide upgrades of
 RA and srHook. The generation should be same for both on all nodes of the
 Linux cluster after successful upgrade.
-See also gsa below and SAPHanaSR-migrate(8).
+See also gsh below and SAPHanaSR-migrate(8).
 .PP
-.B gsa
+.B gsh
 - generation of srHook
 
 Value: [ \fIgeneration\fR ]
 
-.\" TODO hana_${SID}_srHook_gen or hana_${SID}_gsa?
 The generation attribute identifies which generation of the srHook is running.
 It helps determing srHook's capabilities and performing cluster-wide upgrades of
 RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out
@@ -160,15 +154,14 @@ by new SAPHanaSrMultiTarget.py.
 See also gra above and SAPHanaSR-migrate(8).
 .PP
 .B mts
-- Linux cluster multi-target support
+- Linux cluster scale-out multi-target support
 
 Value: [ true | false ]
 
-.\" TODO hana_${SID}_glob_mts
-The multi-target support attribute identifies whether the cluster supports HANA
-scale-out multi-target system replication. This needs consistently updated RA
-and srHook to be active on all Linux cluster nodes.
-See also gra, gsa and SAPHanaSR-migrate(8).
+The multi-target support attribute identifies whether the Linux cluster supports
+HANA scale-out multi-target system replication. This needs consistently updated
+RA and srHook to be active on all Linux cluster nodes, including the majority
+maker. See also gra, gsh and SAPHanaSR-migrate(8).
 .PP
 .B upd
 - Linux cluster update status
