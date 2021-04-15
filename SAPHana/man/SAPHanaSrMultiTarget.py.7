@@ -8,7 +8,7 @@ method srConnectionChanged().
 .PP
 .\"
 .\" .SH SYNOPSYS
-.\" \fBSAPHanaSR.py\fP
+.\" \fBSAPHanaSrMultiTarget.py\fP
 .\" .PP
 .\"
 .SH DESCRIPTION
@@ -207,25 +207,25 @@ SID is HA1.
 .SH FILES
 .TP
 /usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
- the old-style hook provider, delivered with the RPM
+the scale-out old-style hook provider, delivered with the RPM
 .TP
 /usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
- the multi-target aware hook provider, delivered with the RPM
+the scale-out multi-target aware hook provider, delivered with the RPM
 .TP
 /hana/shared/srhook/SAPHanaSR.pyc
- the old-style hook provider, if pre-compiled for the particular HANA (optional)
+the old-style hook provider, if pre-compiled for the particular HANA (optional)
 .TP
 /hana/shared/$SID/global/hdb/custom/config/global.ini
- the on-disk representation of HANA global system configuration
+the on-disk representation of HANA global system configuration
 .TP
 /etc/sudoers , /etc/sudoers.d/
- the sudo permissions configuration
+the sudo permissions configuration
 .TP
 /usr/sap/$SID/HDB$nr/$host/trace/
- the directory with HANA trace files
+the directory with HANA trace files
 .TP
 /usr/sap/$SID/HDB$nr/.crm_attribute.$SITE
- the internal cache for srHook status changes while Linux cluster is down, file is owned by ${SID}adm and must never be touched
+the internal cache for srHook status changes while Linux cluster is down, file is owned by ${SID}adm and must never be touched
 .PP
 .\"
 .SH REQUIREMENTS 
