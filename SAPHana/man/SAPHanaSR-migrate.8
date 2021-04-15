@@ -12,7 +12,7 @@ SAPHanaSR-migrate \- Helps with migrating Linux cluster attributes for SAP HANA 
 .\"
 .SH DESCRIPTION
 SAPHanaSR-migrate \- Helps with migrating Linux cluster attributes for SAP HANA system replication.
-
+.\" TODO more description
 .\"
 .SH OPTIONS
 .TP 4
@@ -40,23 +40,32 @@ use instance number of the SAP system
 .\"
 .SH SUPPORTED PARAMETERS
 
-TODO node attributes, see SAPHanaSR-showAttr
-.br
-hana_${sid}_gsa=2.0 lowercase-SID
-.br
-hana_${sid}_gra=2.0 lowercase-SID
+\fB*\fR The resource agent (RA) generation attribute identifies which generation of the RA is running. It helps determing RA's capabilities and performing cluster-wide upgrades of RA and srHook. The generation should be same for both on all nodes of the Linux cluster after successful upgrade. See also hana_${sid}_gsh.
 
-TODO cluster attributes
-.br
-property SAPHanaSR:
-.br
-hana_${sid}_glob_mts=true  lowercase-SID
-.br
-hana_${sid}_glob_upd=ok  lowercase-SID
-.br
-hana_${sid}_site_srHook_${SITE} lowercase-SID, the multi-target aware attribute
-.br
-hana_${sid}_glob_srHook lowercase-SID, the old-style attribute to be replaced by migration
+\fBhana_${sid}_gra\fR = [ \fIgeneration\fR ]
+
+\fB*\fR The srHook generation attribute identifies which generation of the srHook is running. It helps determing srHook's capabilities and performing cluster-wide upgrades of RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out multi-target system replication, which needs replacement of the old SAPHanaSR.py by new SAPHanaSrMultiTarget.py. See also hana_${sid}_gra.
+
+\fBhana_${sid}_gsh\fR = [ \fIgeneration\fR ]
+
+\fB*\fR The SAPHanaController and SAPHana RA recognize the effecting system
+replication status via srHook attributes in the CIB properties section. The scale-out multi-target aware attribute is site-specific. This attribute is used after sucessful migration or fresh installation into target state. See also SAPHanaSrMultiTarget.py(7). The SAP System Indentifier (sid) is given in lower case.
+
+\fBhana_${sid}_site_srHook_${SITE}\fR = [ SOK | SFAIL | SWAIT | SREG | PRIM ]
+
+\fB*\fR The old-style srHook attributes in the CIB properties section does not contain site-specific information. This attribute is to be replaced by the migration. See also SAPHanaSR.py(7). The SAP System Indentifier (sid) is given in lower case.
+
+\fBhana_${sid}_glob_srHook\fR = [ SOK | SFAIL | SWAIT | SREG | PRIM ]
+
+\fB*\fR The multi-target support attribute identifies whether the Linux cluster supports HANA scale-out multi-target system replication. The SAP System Indentifier (sid) is given in lower case.
+.\" TODO See also
+
+\fBhana_${sid}_glob_mts\fR = [ true | false ]
+
+\fB*\fR The update status attribute identifies whether the whole cluster has sucessfully passed an update procedure. The SAP System Indentifier (sid) is given in lower case.
+.\" TODO See also
+
+\fBhana_${sid}_glob_upd\fR = [ ok | nok ]
 .\"
 .SH RETURN CODES
 .B 0
@@ -76,15 +85,17 @@ Certain steps are described in more detail as separate examples. Also see REQUIR
 .br
 3. Set SAPHanaController m/s resource into maintenance.
 .br
-4. Replace HANA HADR provider configuration on both sites.
+4. Replace HANA HADR provider configuration on both sites and reload hook.
 .br
-5. Migrate srHook attribute from old-style to multi-target.
+5. Check HANA HADR provider configuration and related script on both sites.
 .br
-6. Check Linux cluster for matching defined migration target state.
+6. Migrate srHook attribute from old-style to multi-target.
 .br
-7. Check HANA HADR provider configuration and related script on both sites.
+7. Check Linux cluster for matching defined migration target state.
 .br
 8. Set SAPHanaController m/s resoruce from maintenance back into managed.
+.br
+9. Finally check if everyting looks fine.
 .RE
 
 \fB*\fR Check Linux cluster for matching defined migration entry state.
