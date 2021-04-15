@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-migrate 8 "12 Mar 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-migrate 8 "14 Apr 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-migrate \- Helps with migrating Linux cluster attributes for SAP HANA system replication.
@@ -8,33 +8,55 @@ SAPHanaSR-migrate \- Helps with migrating Linux cluster attributes for SAP HANA 
 .SH SYNOPSYS
 \fBSAPHanaSR-migrate\fR [ --help | --version ]
 .br
-\fBSAPHanaSR-migrate\fR [ TODO ]
+\fBSAPHanaSR-migrate\fR --sid=\fISID\fR --ino=\fIINSTNO\fR --case \fIusecase\fR [ --check | --migrate \fIresource\fR ]
 .\"
 .SH DESCRIPTION
 SAPHanaSR-migrate \- Helps with migrating Linux cluster attributes for SAP HANA system replication.
 
-TODO node attributes, see SAPHanaSR-shoAttr
+.\"
+.SH OPTIONS
+.TP 4
+\fB --help\fR | \fB-h\fR
+show help
+.TP 4
+\fB --version\fR | \fB-v\fR
+show script version
+.TP 4
+\fB --check\fR | \fB-c\fR
+check, if all recommended pre-requisites for a migration are met
+.TP 4
+\fB --migrate\fR | \fB-m\fR \fIresource\fR
+migrate that given resource, relatd to the use case
+.TP 4
+\fB --case\fR | \fB-u\fR \fIusecase\fR
+migration use case to process, currently only "multi-target"
+.\" TODO what use cases? 
+.TP 4
+\fB --sid=\fISID\fR
+use SID of the SAP system
+.TP 4
+\fB --ino=\fIINSTNO\fR
+use instance number of the SAP system
+.\"
+.SH SUPPORTED PARAMETERS
+
+TODO node attributes, see SAPHanaSR-showAttr
 .br
-hana_ha1_gsh=2.0 
+hana_${sid}_gsa=2.0 lowercase-SID
 .br
-hana_ha1_gra=2.0
+hana_${sid}_gra=2.0 lowercase-SID
 
 TODO cluster attributes
 .br
 property SAPHanaSR:
 .br
-   hana_upd_state="done:1111" \
+hana_${sid}_glob_mts=true  lowercase-SID
 .br
-   hana_cl_upd_state="done:all:open:none" \
+hana_${sid}_glob_upd=ok  lowercase-SID
 .br
-   hana_cl_multiTargetSupport=true \
+hana_${sid}_site_srHook_${SITE} lowercase-SID, the multi-target aware attribute
 .br
-   hana_ha1_upd="all:none" \
-.br
-   hana_ha1_glob_mts=true \
-.br
-   hana_ha1_glob_upd=ok
-
+hana_${sid}_glob_srHook lowercase-SID, the old-style attribute to be replaced by migration
 .\"
 .SH RETURN CODES
 .B 0
@@ -44,35 +66,131 @@ Successful program execution.
 Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
-.TP
-# SAPHanaSR-migrate TODO
+\fB*\fR Overview on migration procedure from defined entry state with old-style hook into defined target state with multi-target enabled hook. 
+
+Certain steps are described in more detail as separate examples. Also see REQUIREMENTS section below for defined states. The procedure at a glance:
+.RS 4
+1. Check Linux cluster for matching defined migration entry state.
+.br
+2. Check HANA HADR provider configuration and related script on both sites.
+.br
+3. Set SAPHanaController m/s resource into maintenance.
+.br
+4. Replace HANA HADR provider configuration on both sites.
+.br
+5. Migrate srHook attribute from old-style to multi-target.
+.br
+6. Check Linux cluster for matching defined migration target state.
+.br
+7. Check HANA HADR provider configuration and related script on both sites.
+.br
+8. Set SAPHanaController m/s resoruce from maintenance back into managed.
+.RE
+
+\fB*\fR Check Linux cluster for matching defined migration entry state.
+
+This should be always the first step during migration procedure. The check shows if all nodes are online, no resource failures are recorded, HANA is healthy and system replication is in sync. The whole Linux cluster is checked at once. Of course the same check is useful after the migration. See also SAPHanaSR_maintenance_examples(7). Example SID is ABR, instance number is 00.
+.RS 4
+# crm_mon -1r
+.br
+# SAPHanaSR-showAttr
+.br
+# cs_clusterstate -i
+.br
+# SAPHanaSR-migrate --sid=ABR --ino=00 --case multi-target --check
+.RE
+.\" TODO check details
+
+\fB*\fR Check HANA HADR provider configuration and related script.
+
+This should the be second step during migration procedure. The check should be done at both sites. Of course the same check is useful after the migration. See also SAPHanaSrMultiTarget.py(7). Example SID is ABR, instance number is 00.
+.\" TODO is this done by the SAPHanaSR-migrate?
+
+\fB*\fR Replace HANA HADR provider configuration
+
+The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. This task needs to be done at both sites. See example above and REQUIREMENTS section below. Example SID is ABR. 
+.\" TODO Replace HANA HADR provider configuration
+.\" TODO decribe sr_takeover?
+
+\fB*\fR Migrate srHook attribute from old-style to multi-target 
+
+The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. See example above and REQUIREMENTS section below. Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR00. 
+.\" TODO SAPHanaSrMultiTarget.py in global.ini? re-load global.ini and hook online? 
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm resource maintenance msl_SAPHanaCon_ABR00 on
+.br
+# SAPHanaSR-migrate --sid=ABR --ino=00 --case multi-target --migrate
+.br
+# crm_attribute -n hana_abr_glob_srHook -D -t crm_config
+.br
+# SAPHanaSR-showAttr
+.RE
+
+\fB*\fR Delete srHook generation (gsh) and RA generation (gra) from node.
+
+Might be useful for repeating a migration test. Usually this is not needed. Example node is suse12, lowercase-SID (sid) is abr.
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm_attribute --delete -t node -N suse12 -n hana_abr_gsh -l reboot
+.br
+# crm_attribute --delete -t node -N suse12 -n hana_abr_gra -l forever
+.br
+# SAPHanaSR-showAttr
+.RE
 .\"
 .SH FILES
-.TP
-/usr/bin/SAPHanaSR-showAttr
-        the program itself.
-.TP
-/usr/lib/SAPHanaSR-ScaleOut/SAPHanaSRTools.pm
-        needed functions.
+.TP 4
+/usr/sbin/SAPHanaSR-migrate
+the program itself
+.TP 4
+/usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
+the scale-out old-style hook provider, delivered with the RPM for backward compatibility
+.TP 4
+/usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
+the scale-out multi-target aware hook provider, delivered with the RPM
+.TP 4
+/hana/shared/$SID/global/hdb/custom/config/global.ini
+the on-disk representation of HANA global system configuration
+.\"
+.SH REQUIREMENTS
+\fB*\fR For the migration, Linux cluster and HANA are in one of the defined migration entry states. No third HANA site is attached. Defined entry states are:
+.PP
+.RS 4 
+1. The cluster is using old-style global srHook status attribute. All cluster nodes are online in the cluster and there are no current errors in the cluster or HANA. Main use case for SAPHanaSR-migrate.
+.PP
+2. The cluster is set up from scratch. There are neither old-style global, nor site-based srHook attributes. 
+.PP
+3. The site-based srHook attributes are already in correct use, no old-style global attribute is in use. Can be found at early adaptors.
+.RE
+.PP
+\fB*\fR The SAPHanaController m/s resource needs to be set into maintenance mode during migration.
+.PP
+\fB*\fR The old-style global srHook status attribute will be deleted manually as part of the migration procedure.
+.PP
+\fB*\fR Both HANA sites need to re-load the global.ini and the HADR provider script. If that is achieved by re-starting HANA, an sr_takeover might help reducing service impact.
+.PP
+\fB*\fR The Linux cluster can be either migrated to the defined migration target state, or run unchanged with the old-style global attribte and related hook script. Not allowed is mixing old and new attributes or hook scripts within one Linux cluster.
+.PP
+\fB*\fR See also the REQUIREMENTS section of SAPHanaSR-ScaleOut(7) and SAPHanaSrMultiTarget.py(7) for general requirements and for technical details.
 .\"
 .SH BUGS
-Feedback is welcome, please mail to feedback@suse.com.
-.\"
+In case of any problem, please use your favourite SAP support process to open
+a request for the component BC-OP-LNX-SUSE. Please report any other feedback
+and suggestions to feedback@suse.com.
 .\"
 .SH SEE ALSO
-\fBocf_suse_SAPHanaController\fP(7) , \fBocf_suse_SAPHanaTopology\fP(7) ,
-\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-showAttr\fP(8) ,
-\fBSAPHanaSR_maintenance_examples\fP(7) ,
+\fBocf_suse_SAPHanaController\fP(7) , \fBSAPHanaSR-ScaleOut\fP(7) ,
+\fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR_maintenance_examples\fP(7) ,
+\fBSAPHanaSR.py\fP(7) , \fBSAPHanaSrMultiTarget.py\fP(7) ,
 \fBcrm_simulate\fP(8) , \fBcibadmin\fP(8) , \fBcrm_mon\fP(8) ,
 \fBcs_convert_time\fP(8) , \fBcs_clusterstate\fP(8) , \fBcs_show_hana_info\fP(8)
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
 https://documentation.suse.com/sles-sap/ ,
-.br
-https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
-.br
-https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
 .br
 https://www.susecon.com/archive-2020.html
 .\"
@@ -87,6 +205,3 @@ SAPHanaSR-migrate comes with ABSOLUTELY NO WARRANTY.
 For details see the GNU General Public License at
 http://www.gnu.org/licenses/gpl.html
 .\"
-
-
-
