@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.180.0.0330.1713"
+SAPHanaControllerVersion="0.180.0.0419.1448"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -713,21 +713,14 @@ function set_SRHOOK()
     local -a ATTR my_sync old_sync
     local get_sr_name="$1"
     local value="$2"
-    multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
     old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
-    if [ "$multiTargetSupport" == "true" ]; then
-        super_ocf_log info "RA: set SRHOOK - multiTargetSupport is true, write site specific Hook attribute"
-        if [ -n "$old_sync" ]; then
-            super_ocf_log info "RA: set SRHOOK - write still existing old, global Hook attribute too"
-            # old, global attribute still exists, write both attributes
-            set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
-        fi
-        ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
-        set_hana_attribute "X" "$value" "${ATTR[@]}"
-    else
-        super_ocf_log info "RA: set SRHOOK - multiTargetSupport is false, write old, global Hook attribute"
+    if [ -n "$old_sync" ]; then
+        super_ocf_log info "RA: set SRHOOK - write still existing old, global Hook attribute too"
+        # old, global attribute still exists, write both attributes
         set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
     fi
+    ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
+    set_hana_attribute "X" "$value" "${ATTR[@]}"
     return 0
 }
 
@@ -1021,7 +1014,7 @@ function saphana_init() {
             # the migration, not set yet / no customer choice for now
             super_ocf_log info "MTS: RA saphana_init - attribute 'hana_${sid}_glob_mts' not set yet. For migration the attribute needs to set manually to 'true'"
         fi
-        if [ "$multiTargetSupport" == "true" ]; then
+        if ocf_is_true "$multiTargetSupport"; then
             if [ "$srHook_gen" == "2.0" ]; then
                 # remove globale SRHook attribute as it's no longer needed
                 crm_attribute -D -n "hana_${sid}_glob_srHook" -t crm_config -q 2>>$log_attr_file; rc=$?
@@ -1273,7 +1266,7 @@ function analyze_hana_sync_statusSRS()
        # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down than do NOT set SFAIL
        get_hana_landscape_status; lss=$?
        if [ $lss -lt 2 ]; then
-          # keep everithing like it was
+          # keep everything like it was
           rc=2
        else
           # ok we should be careful and set secondary to SFAIL
@@ -1591,7 +1584,7 @@ function saphana_start_primary()
     local lpa_dec=4
     local lpa_advice=""
     #
-    # we will be a PRIMARY so checking, if the is an OTHER master
+    # we will be a PRIMARY so checking, if there is anOTHER master
     #
     super_ocf_log debug "DBG: saphana_primary - check_for_primary reports HANA_STATE_PRIMARY"
     #
@@ -1658,7 +1651,7 @@ function saphana_start_primary()
                 1 ) # lets try to register
                     # DONE: PRIO2: Like Action in start_secondary
                     super_ocf_log info "LPA: landscape: DOWN, LPA: register ==> try to register"
-                    super_ocf_log info "DEC: AN OTHER HANA IS AVAILABLE ==> LETS REGISTER"
+                    super_ocf_log info "DEC: ANOTHER HANA IS AVAILABLE ==> LETS REGISTER"
                     # DONE: PRIO0: For all master nodes of that site
                     set_crm_master  0
                     for m in "${masters[@]}"; do
@@ -1820,7 +1813,7 @@ function saphana_start_secondary()
     # we would be secondary
     # we first need to check, if there are Master Nodes, because the Secondary only starts
     # successfully, if the Primary is available. Therefore we mark the Secondary as "WAITING"
-    # DONE: PRIO3: wait_for_primary_master 10 is just a test value: 10 loops x10 seconds than go to WAITING
+    # DONE: PRIO3: wait_for_primary_master 10 is just a test value: 10 loops x10 seconds, then go to WAITING
     # DONE: PRIO3: rename 'wait_for_primary_master' to match better the use case ("wait_some_time")
     #
     super_ocf_log debug "DBG: wait for promoted side"
@@ -2171,7 +2164,7 @@ function master_walk() {
  # 1084752138 se01group1 member
  # 1084752148 se02group1 lost
  # 1084752154 se03group1 member
- # ====> othernodes contains only members (för openais)
+ # ====> othernodes contains only members (for openais)
  # * crm_attribute ...
  #
  # se01group1:~ # crm_attribute -N se01group1 -n standby -G -l forever -q
@@ -2930,7 +2923,7 @@ function saphana_monitor_clone() {
     #       b) starting the instance here inside the monitor -> may result in longer runtime, timeouts
     #
     # first check with the status function (OS tools) if there could be something like a SAP instance running
-    # as we do not know here, if we are in master or secondary state we do not want to start our monitoring
+    # as we do not know here, if we are in primary or secondary state we do not want to start our monitoring
     # agents (sapstartsrv) on the wrong host
     local rc="$OCF_ERR_GENERIC"
     local promoted=0

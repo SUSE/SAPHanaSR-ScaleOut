@@ -1,0 +1,908 @@
+#!/bin/bash
+#
+# SAPHana-upd2mts
+#
+# Copyright (c) 2021 SUSE LLC
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# Author:  Angela Briel <abriel@suse.com>, 2021
+#
+# Description: Script to help customers to migrate the cluster configuration
+#              to support multi target replication
+#
+#############################################################################
+
+OCFTOOLS=/usr/lib/ocf/lib/heartbeat
+if [ -f ${OCFTOOLS}/ocf-shellfuncs ]; then
+    . ${OCFTOOLS}/ocf-shellfuncs
+else
+    echo "${OCFTOOLS}/ocf-shellfuncs not found. No valid cluster environment available, exiting...."
+    exit 1
+fi
+
+# variables
+version="202104191542"
+exe="$0"
+cmd=$(basename "$exe")
+
+##### functions
+# USAGE
+usage() {
+    echo "USAGE:    $0 --sid=<SID> [--ino=<INSTNO>] --case <use case> --migrate <resource> | --check"
+    echo -e "\\t--sid=<SID>: SID of the SAP system"
+    echo -e "\\t--ino=<INSTNO>: instance number of the SAP system"
+    echo -e "\\t--case <use case>: the use case for check/migrate"
+    echo -e "\\t                   e.g. multi-target"
+    echo -e "\\t--migrate <resource>: migrate a special resource related to the choosen use case"
+    echo -e "\\t--check: check, if all recommendations for a migration is done"
+    echo -e "\\t--version: show script version"
+    echo -e "\\t--help:    show help"
+    exit 1
+}
+
+wr_info() {
+    local mode=$1
+    local imsg=$2
+
+    case "$mode" in
+    -ah) msg="  *** ATTENTION: $imsg" ;;
+    -a)  msg="  ***            $imsg" ;;
+    -ih) msg="  *** INFO:      $imsg" ;; 
+    -i)  msg="  ***            $imsg" ;;
+    -eh) msg="  *** ERROR:     $imsg" ;;
+    -e)  msg="  ***            $imsg" ;;
+    esac
+    # Give log message to standard error so that:
+    # it enjoys unbuffered output;
+    # a function that uses "echo" to make return value will not be affected by log output
+    /usr/bin/logger -s -t "$cmd" "$msg"
+}
+
+# function get_hana_attribute copied from the resource agent
+get_hana_attribute() {
+    local rc=0
+    local attr_node=$1
+    local attr_name=$2
+    local attr_store=${3:-reboot}
+    local attr_default=${4:-}
+    case "$attr_store" in
+    reboot | forever )
+        crm_attribute -N "${attr_node}" -G -n "$attr_name" -l "$attr_store" -q -d "$attr_default"; rc=$?
+        ;;
+    props )
+        crm_attribute -G -n "$attr_name" -t crm_config -q -d "$attr_default"; rc=$?
+        ;;
+    esac
+}
+
+print_stopped_msg() {
+    local st=$1
+    local ret=1
+    local pcnt=0
+    snodes=$(echo "$st" | sed -n 's%.*\[[[:space:]]\([A-Za-z0-9 ][A-Za-z0-9 ]*\)[[:space:]]\]$%\1%pg')
+    sres=$(echo "$st" | grep -v '\[')
+    if [ -n "$snodes" ]; then
+        # stopped nodes available, check for DM
+        for n in $snodes; do
+            if ! is_DM "$n"; then
+                ((pcnt+=1))
+            fi
+        done
+    fi
+    if [ -n "$sres" ]; then
+        # stopped resources
+        pcnt=1
+    fi
+    if [ "$pcnt" != "0" ]; then
+        ret=0
+    fi
+    return $ret
+}
+
+# check if node may be a decision maker / tiebreaker / majority-maker
+# (DM or MM)
+is_DM() {
+    local node=$1
+    local rc=1
+    nSite=$(get_hana_attribute "$node" "${ATTR_NAME_HANA_SITE[@]}")
+    if [ -z "$nSite" ]; then
+        rc=0
+    fi
+    return $rc
+}
+
+# function is_master_nameserver copied from the resource agent
+is_master_nameserver() {
+    local nName=$1
+    local rc=1 nRole="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
+    nRole=$(get_hana_attribute "$nName" "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
+    # shellcheck disable=SC2162,SC2034,SC2086
+    read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+    case "$nNsConf:$nNsCurr" in
+        master[123]:* )
+           rc=0
+           ;;
+        * )
+           rc=1
+           ;;
+    esac
+    return $rc
+}
+
+# check RA update state of all cluster nodes using the RA generation
+# using the attribut hana_${sid}_gra, which holds the RA generation
+chk_ra_upd_state() {
+    local chk=0
+    local nlist=""
+    wr_info -i ""
+    wr_info -ih "Check resource agent update state on all cluster nodes"
+
+    for onode in $allClusterNodes; do
+        onodeSite=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
+        if [ -z "$onodeSite" ]; then
+            # not a HANA node, may be the decision maker / tiebreaker
+            # will not have a ra running
+            wr_info -ih "Skipping cluster node '$onode'"
+            continue
+        fi
+        nodeUpdated=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_GRA[@]}")
+        if [ -z "$nodeUpdated" ]; then
+            wr_info -ah "Cluster node '$onode' does NOT run the new resource agent needed for the migration."
+            wr_info -a "Please check and update."
+            nlist="$nlist $onode"
+            chk=1
+        else
+            nupd=${nodeUpdated//.}
+            if [ "$nupd" -lt 20 ]; then
+                wr_info -ah "Cluster node '$onode' is running an older resource agent (generation='$nodeUpdated'), which does not support multi-target replication."
+                wr_info -a "So a migration is not possible, please check and update."
+                nlist="$nlist $onode"
+                chk=1
+            fi
+        fi
+    done
+    echo "$nlist"
+    return $chk
+}
+
+# check cluster wide update state
+# are all cluster nodes running the new resource agent
+# use the attribute hana_${sid}_glob_upd checked and set during _init
+# function of the resource agent, do not check again all nodes
+chk_cluster_upd_state() {
+    local chk=0
+    local nlist=$1
+    wr_info -i ""
+    wr_info -ih "Check cluster wide update state of the resource agents"
+    clusterUpdateState=$(get_hana_attribute "X" "${ATTR_NAME_HANA_UPD_STATE[@]}")
+    wr_info -ih "Cluster update state is '$clusterUpdateState'"
+    if [ "$clusterUpdateState" == "ok" ]; then
+        wr_info -ih "All cluster nodes are updated to the new resource agent"
+    else
+        wr_info -ah "NOT all cluster nodes are updated to the new resource agent needed for the migration."
+        wr_info -a "The affected nodes are: $nlist"
+        wr_info -a "Please check and update the related nodes"
+        chk=1
+    fi
+    return $chk
+}
+
+# check which Hook generation is used on all master name server nodes
+chk_hook_gen_cluster() {
+    wr_info -i ""
+    wr_info -ih "Check srHook generation attribute on all cluster nodes"
+    local hookGen=""
+    local refNode=""
+    local chk=0
+    for onode in $allClusterNodes; do
+        onodeSite=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
+        if ! is_master_nameserver "$onode" || [ -z "$onodeSite" ]; then
+            # not a HANA node, may be the decision maker / tiebreaker
+            # or not a master name server
+            wr_info -ih "Skipping cluster node '$onode'"
+            continue
+        fi
+        # on a master nameserver check the hook generation attribute
+        onodeHookGen=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SRHOOK_GEN[@]}")
+        if [ -z "$onodeHookGen" ]; then
+            # the new srHook code is currently not active, not reload or no
+            # restart of srHook on HANA side
+            wr_info -ah "On cluster node '$onode' the srHook generation attribute is empty."
+            wr_info -a "May be the new srHook is currently not active, not reloaded or no restart of srHook on HANA side was done"
+            wr_info -a "Please check"
+            chk=1
+            continue
+        fi
+        if [ -z "$hookGen" ]; then
+            # to get the following comparision to work properly, initialize
+            # 'hookGen' with the first non-zero attribute value of the loop
+            # and use the 'onode' as reference node name for the comparision
+            refNode=$onode
+            hookGen=$onodeHookGen
+        fi
+        if [ "$hookGen" != "$onodeHookGen" ]; then
+            # the cluster nodes are running different Hook generations
+            wr_info -ah "The cluster nodes '$refNode' and '$onode' are running different Hook generations ('$hookGen' - '$onodeHookGen')."
+            wr_info -a "May be one of the nodes is running an old srHook or the new srHook is currently not active, not reloaded or no restart of srHook on HANA side was done"
+            wr_info -a "Please check"
+            chk=1
+        fi
+    done
+    echo "$hookGen"
+    return $chk
+}
+
+# check, if customer has chosen to active migrate the cluster from single
+# target replication to multi target replication
+# check multi-target attribut hana_${SID}_glob_mts
+chk_mts_attr() {
+    wr_info -i ""
+    wr_info -ih "Check multi-target attribute"
+    local hookGen=$1
+    local chk=0
+    multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
+    if [ -z "$multiTargetSupport" ]; then
+        # cluster attribute 'hana_${SID}_glob_mts', which should trigger
+        # the migration, not set yet / no customer choice for now
+        wr_info -ah "Attribute 'hana_${SID}_glob_mts' not set yet."
+        wr_info -a "For migration you need to set the attribute manually to 'true'."
+        wr_info -a "Please see man page SAPHanaSR-upd2mts(8) for additional information and help."
+        chk=1
+    else
+        if ! ocf_is_true "$multiTargetSupport" && [ "$multiTargetSupport" != "false" ]; then
+            wr_info -ah "Attribute 'hana_${SID}_glob_mts' is set to '$multiTargetSupport' and NOT to one of the expected values 'true' or 'false'."
+            wr_info -a "Please see man page SAPHanaSR-upd2mts(8) for additional information and help."
+            chk=1
+        fi
+        if [ "$MFlag" == "true" ] && ! ocf_is_true "$multiTargetSupport"; then
+            wr_info -ah "Attribute 'hana_${SID}_glob_mts' is set to '$multiTargetSupport' and NOT to the expected value 'true'."
+            wr_info -a "Please see man page SAPHanaSR-upd2mts(8) for additional information and help."
+            chk=1
+        fi
+    fi
+    if ocf_is_true "$multiTargetSupport" && [[ "$hookGen" == "1.0" || -z "$hookGen" ]]; then
+        # Hook generation and multiTargetSupport selection does not
+        # match. May be wrong customer set of cluster attribute
+        # 'hana_${SID}_glob_mts', which should trigger the migration
+        wr_info -ah "The Hook generation '$hookGen' and the customer selection for the attribute 'hana_${SID}_glob_mts' ('$multiTargetSupport') does not match."
+        wr_info -a "The current active Hook generation does not support multiTarget configurations."
+        wr_info -a "So the global Hook attribute will be still available and in use."
+        chk=1
+    fi
+    return $chk
+}
+
+# get ha/dr provider entries from global.ini of all cluster nodes
+get_global_ini_hooks() {
+    local node=""
+    local provider=""
+    local path=""
+    local no=""
+    local section=""
+    globalIni="/hana/shared/${RSID}/global/hdb/custom/config/global.ini"
+    GLOBINI=$(mktemp /tmp/saphana-upd2mts.XXXXXXXX)
+    $runCmd "cat $globalIni" 2>&1 | awk 'BEGIN {list = 0} /OK: \[/ {print $0 } /ERROR: \[/ {print $0 } { new_section = 0 } /\[ha_dr_provider_/ { list = 1; new_section = 1 } /\[/ { if ( new_section == 0 ) { list = 0 }} { if ( list == 1 ) {print $0 }}' > "$GLOBINI"
+
+    while read -r line; do
+       if ! [[ "$line" =~ [^[:space:]] ]]; then
+           continue
+       fi
+       if [[ "$line" =~ ^OK: ]]; then
+           # shellcheck disable=SC2001
+           node=$(echo "$line" | sed 's%.*\[\(.*\)\].*%\1%')
+           continue
+       fi
+       if [[ "$line" =~ ^ERROR: ]]; then
+           # shellcheck disable=SC2001
+           node=$(echo "$line" | sed 's%.*\[\(.*\)\].*%\1%')
+           wr_info -ah "Error getting global.ini information from node '$node'"
+           section="ERROR"
+           provider="E"
+           path="E"
+           no="0"
+       fi
+       if [[ "$line" =~ ^\[.*\] ]]; then
+           # shellcheck disable=SC2001
+           section=$(echo "$line" | sed "s^\[\(.*\)\]^\1^")
+           provider=""
+           path=""
+           no=""
+       fi
+       if [[ "$line" =~ ^provider ]]; then
+           provider=${line#*= }
+       fi
+       if [[ "$line" =~ ^path ]]; then
+           path=${line#*= }
+       fi
+       if [[ "$line" =~ ^execution_order ]]; then
+           no=${line#*= }
+       fi
+       if [ -z "$provider" ] || [ -z "$path" ] || [ -z "$no" ]; then
+           continue
+       else
+           if [ -z "$section" ]; then
+               wr_info -ah "The entries in the global.ini seem to be broken, missing ha/dr provider section"
+           fi
+           if [ -z "$node" ]; then
+               wr_info -ah "The output of command '$runCmd' seems to be broken, missing node information"
+               continue
+           fi
+           key="$node:$no"
+           value=$section:$provider:$path
+           gini["$key"]="$value"
+       fi
+    done < "$GLOBINI"
+    #done < <( $runCmd "cat $globalIni" | awk 'BEGIN {list = 0} /OK: \[/ {print $0 } { new_section = 0 } /\[ha_dr_provider_/ { list = 1; new_section = 1 } /\[/ { if ( new_section == 0 ) { list = 0 }} { if ( list == 1 ) {print $0 }}')
+    rm -f "$GLOBINI"
+}
+
+get_number_of_sections() {
+    local node=$1
+    local noSect=0
+    local key=""
+    for key in "${!gini[@]}"; do
+        n=${key%:*}
+        if [ "$node" == "$n" ]; then
+            ((noSect+=1))
+        fi
+    done
+    echo "$noSect"
+}
+
+# check md5sum of hook file
+chk_md5_sum() {
+    local chk=0
+    sameHook="true"
+    # use hook values from local cluster nodes
+    for key in "${!gini[@]}"; do
+        node=${key%:*}
+        if [ "$nodeName" == "$node" ]; then
+            values=${gini[$key]}
+            hookName=$(echo "$values" | awk -F":" '{ print $2 }')
+            hookPath=$(echo "$values" | awk -F":" '{ print $3 }')
+            hookFQN="${hookPath}/${hookName}"
+            oldmd5=""
+            for m in $($runCmd "md5sum $hookFQN" 2>/dev/null| awk -F= -v hn="$hookFQN" '$2 ~ hn { print $1 }'); do
+                if [ -z "$oldmd5" ]; then
+                    oldmd5="$m"
+                fi
+                if [ "$oldmd5" != "$m" ]; then
+                    sameHook="false"
+                    chk=1
+                fi
+            done
+            if [ "$sameHook" == "false" ]; then
+                wr_info -ah "The md5sum of the srHook '$hookFQN' differs between the cluster nodes. Please check."
+            fi
+       fi
+   done
+   return $chk
+}
+
+get_node_values() {
+    local node=$1
+    local nodeVals
+    for key in "${!gini[@]}"; do
+        n=${key%:*}
+        if [ "$node" == "$n" ]; then
+	    if [ -z "$nodeVals" ]; then
+	        nodeVals="${gini[$key]}"
+            else
+	        nodeVals="$nodeVals ${gini[$key]}"
+       	    fi
+        fi
+    done
+    echo "$nodeVals"
+}
+
+get_node_sects() {
+    local node=$1
+    for key in "${!gini[@]}"; do
+        n=${key%:*}
+        if [ "$node" == "$n" ]; then
+            v=${gini["$key"]}
+            s=$(echo "$v" | awk -F":" '{ print $1 }')
+            nodeSects["$s"]="$s"
+        fi
+    done
+}
+
+# all cluster nodes need to have the same number of ha/dr provider definitions
+# inside of global.ini with the same entries regarding section name, provider
+# name and path. Not sure, if the order of the sections are important.
+# if we want to support nodes with different number of ha/dr provider definitions
+# we need to change the logic
+#
+# check that the same Hook is available in all nodes
+chk_hook_from_global_ini() {
+    # check section name, provider name and path in global.ini
+    # and md5sum of the files
+    wr_info -i ""
+    wr_info -ih "Check srHook across all cluster nodes"
+    local chk=0
+    samePath="true"
+    sameName="true"
+    nodeMatch=""
+    nmatch=0
+    declare -A loopNodes
+
+    noExpNodes=$(echo "$allClusterNodes" | wc -w)
+    # read global.ini from all cluster nodes
+    get_global_ini_hooks
+    if [ "${#gini[*]}" == "0" ]; then
+        wr_info -ah "No ha/dr provider entries found in global.ini. Please check."
+        return 1
+    fi
+    for n in $allClusterNodes; do
+        loopNodes["$n"]="$n"
+    done
+
+    ((noExpNodes-=1))
+    for onode in $allClusterNodes; do
+        if is_DM "$onode"; then
+            # skip check for node
+            ((noExpNodes-=1))
+	    unset loopNodes["$onode"]
+	    continue
+	fi
+        # for each node
+        smatch=0
+        oldnode=""
+        noExpSect=$(get_number_of_sections "$onode")
+        unset nodeNoMatch
+        declare -A nodeNoMatch
+        for l in "${!loopNodes[@]}"; do
+            nodeNoMatch[$l]=${loopNodes[$l]}
+        done
+        unset nodeNoMatch["$onode"]
+        for node in "${!loopNodes[@]}"; do
+            if [ "$onode" == "$node" ]; then
+                # do not check against yourself
+                continue
+            fi
+            # for all nodes all sections
+            # check all related global.ini entries available for all other nodes against the entries for $onode
+            if [ "$oldnode" != "$node" ]; then
+                oldnode=$node
+                noSect=$(get_number_of_sections "$node")
+                sectCnt=0
+                nsmatch=0
+                # initialize section from origin node to check - 'onode'
+                unset nodeSects
+                declare -A nodeSects
+                get_node_sects "$onode"
+                if [ "$noSect" != "$noExpSect" ] && ! is_DM "$onode"; then
+                    wr_info -ah "The nodes '$onode' and '$node' have a different number of defined ha/dr provider entries in the global.ini file."
+                    wr_info -a "Please check."
+                    # skip check for node
+                    chk=1
+                    continue
+                fi
+            fi
+            for values in $(get_node_values "$onode"); do
+                # check sections for node $onode
+                # check all related global.ini entries available for $onode
+                section=$(echo "$values" | awk -F":" '{ print $1 }')
+                if [ "$section" == "ERROR" ]; then
+                    if is_DM "$onode"; then
+                        wr_info -ih "Skipping node '$onode' (DM/MM) as there is no global.ini information available."
+                    else
+                        wr_info -ah "The node '$onode' does not contain valid global.ini informations. Please check."
+                    fi
+                    # skipping check for node
+                    break
+                fi
+                for vals in $(get_node_values "$node"); do
+                    sect=$(echo "$vals" | awk -F":" '{ print $1 }')
+                    ((sectCnt+=1))
+                    if [ "$sect" == "ERROR" ] && is_DM "$node"; then
+                        # skip DM/MM
+                        continue
+                    fi
+                    wr_info -ih "Checking section '$section' from node '$onode'"
+                    wr_info -i "against section '$sect' from node '$node'"
+                    if [ "$section" == "$sect" ]; then
+                        unset nodeSects["$section"]
+                        if [ "$values" == "$vals" ]; then
+                            ((nsmatch+=1))
+                        else
+                            chk=1
+                            provider=$(echo "$values" | awk -F":" '{ print $2 }')
+                            prov=$(echo "$vals" | awk -F":" '{ print $2 }')
+                            if [ "$provider" != "$prov" ]; then
+                                wr_info -ah "For ha/dr provider section '$section' the provider name of the srHook differs between node '$onode' ($provider) and node '$node' ($prov)."
+                                wr_info -a "Please check."
+                                sameName="false"
+                            fi
+                            path=$(echo "$values" | awk -F":" '{ print $3 }')
+                            pth=$(echo "$vals" | awk -F":" '{ print $3 }')
+                            if [ "$path" != "$pth" ]; then
+                                wr_info -ah "For ha/dr provider section '$section' the path to the srHook differs between node '$onode' ($path) and node '$node' ($pth)."
+                                wr_info -a "Please check."
+                                samePath="false"
+                            fi
+                        fi
+                    #else
+                        #section '$section' does not match sect '$sect', next
+                    fi
+                done
+                if [ "$noExpSect" == "$nsmatch" ]; then
+                    ((smatch+=1))
+                    nsmatch=0
+                    unset nodeNoMatch["$node"]
+                fi
+            done
+            if [ "$noExpNodes" == "$smatch" ]; then
+                ((nmatch+=1))
+                smatch=0
+            fi
+            if [ "${#nodeSects[*]}" != "0" ]; then
+                wr_info -ah "On node '$onode' and node '$node' the ha/dr provider section names differ (${nodeSects[*]})."
+                wr_info -a "Please check."
+            fi
+        done
+        if [ "$nmatch" != "0" ]; then
+            if [ -z "$nodeMatch" ]; then
+                nodeMatch="$onode"
+            else
+                nodeMatch="$nodeMatch $onode"
+            fi
+            nmatch=0
+        else
+            if ! is_DM "$onode"; then
+                wr_info -ah "Entries in global.ini of node '$onode' do not match or only partial match the entries of the other nodes (${nodeNoMatch[*]})"
+            fi
+            chk=1
+        fi
+    done
+    if [ -n "$nodeMatch" ]; then
+        wr_info -i "matching nodes are '$nodeMatch'"
+    fi
+    if [ "$sameName" == "true" ] && [ "$samePath" == "true" ]; then
+        # check md5sum of hook files only, if all cluster nodes have the same
+        # ha/dr provider configuration
+        # (same name and same path for all defined provider sections)
+        if ! chk_md5_sum; then
+            chk=1
+        fi
+    fi
+    return $chk
+}
+
+# check migration requirements
+chk_migration_requirements() {
+    wr_info -ih "Check migration requirements"
+    local chk=0
+
+    # check, if the old global Hook attribute is available. 
+    # if NOT, no migration needed.
+    oldGlobHook=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
+    if [ -z "$oldGlobHook" ]; then
+        wr_info -ih "Old, global Hook attribute NOT found. No migration needed."
+        if [ "$MFlag" == "true" ]; then
+            # if 'migration' flag is set, exit, as nothing to do
+            wr_info -i "Exiting...."
+            exit 0
+        else
+            wr_info -i "But as we are in 'check' mode only, go ahead and check..."
+        fi
+    else
+        wr_info -ih "Found old, global Hook attribute. Checking now requirements for migration"
+    fi
+
+    # check, if cluster ok
+    if ! chk_cluster_health; then
+        chk=1
+    fi
+
+    # check Hook is in global.ini of all nodes
+    # and check md5sum of all these Hooks
+    if ! chk_hook_from_global_ini; then
+        chk=1
+    fi
+
+    # check RA update state of all cluster nodes
+    if ! nlist=$(chk_ra_upd_state); then
+        chk=1
+    fi
+    # check cluster wide update state
+    if ! chk_cluster_upd_state "$nlist"; then
+        chk=1
+    fi
+    # check which Hook generation is used on all cluster nodes
+    if ! srHookGen=$(chk_hook_gen_cluster); then
+        chk=1
+    fi
+    # check multi-target Attribut in CIB
+    if ! chk_mts_attr "$srHookGen"; then
+        chk=1
+    fi
+    return $chk
+}
+
+# check, if cluster is okay
+chk_cluster_health() {
+    wr_info -ih "Check cluster health"
+    local chk=0
+
+    # check for unmanaged - only warn, not abort the check
+    if crm_mon -r1 | grep -i unmanaged >/dev/null 2>&1; then
+        wr_info -ah "Cluster has unmanaged parts. Please check"
+    fi
+    # check for maintenance - only warn, not abort the check
+    # check maintenance mode of cluster and node
+    # resource is covered by test before (unmanaged)
+    #
+    # check maintenance mode of nodes
+    if mnodes=$(crm_mon -r1 | grep maintenance | awk '{ print $2 }' 2>/dev/null); then
+        wr_info -ah "Cluster has nodes in maintenance. Please check"
+        if [ -n "$mnodes" ]; then
+            wr_info -a "Affected nodes are: ${mnodes//[$'\t\r\n:']/ }"
+        fi
+    fi
+    # check maintenance mode of cluster
+    if crm_mon -r1 | grep "Resource management is DISABLED" >/dev/null 2>&1; then
+        wr_info -ah "Whole cluster is in maintenance. Please check"
+        # msl resource is reported unmanaged, but cln resource not
+        cluInMaint="true"
+    fi
+
+    # check for unclean
+    if crm_mon -r1 | grep -i unclean >/dev/null 2>&1; then
+        wr_info -eh "Cluster has unclean parts. Please check"
+        chk=1
+    fi
+    # check for standby
+    if crm_mon -r1 | grep -i standby >/dev/null 2>&1; then
+        wr_info -ah "Cluster has standby parts. Please check"
+    fi
+    # check for offline
+    if crm_mon -r1 | grep -i offline >/dev/null 2>&1; then
+        wr_info -eh "Cluster has offline parts. Please check"
+        chk=1
+    fi
+    # check for pending
+    if crm_mon -r1 | grep -i pending >/dev/null 2>&1; then
+        wr_info -eh "Cluster has pending parts. Please check"
+        chk=1
+    fi
+    # check for failed
+    if crm_mon -r1 | grep -i failed >/dev/null 2>&1; then
+        wr_info -eh "Cluster has failed resources and/or actions. Please check"
+        chk=1
+    fi
+    # check for stopped - only warn, not abort the check
+    if st=$(crm_mon -r1 | grep -i stopped 2>/dev/null); then
+        if print_stopped_msg "$st"; then
+            wr_info -ah "Cluster has stopped parts. Please check"
+        fi
+    fi
+    # check overall failcounts
+    if crm_mon -r1 --failcounts | grep -i fail-count= >/dev/null 2>&1; then
+        wr_info -ah "Cluster has parts with failcounts. Please check"
+        chk=1
+    fi
+    # check failcount of clone and ms resource and
+    # of the resource, which should be migrated
+    if [ -n "$ResID" ]; then
+        res2chk="$ResID"
+    fi
+    #rs=$(crm_mon -r1 2>/dev/null | awk '/Clone Set:/ { print $3 }')
+    # 'Clone Set:' or 'Master/Slave Set:' (on older pacemaker-cli versions)
+    rs=$(crm_mon -r1 2>/dev/null | awk '/[A-Za-z/ ][[:space:]]Set:/ { print $3 }')
+    if [ -z "$res2chk" ]; then
+        res2chk="$rs"
+    else
+        res2chk="$res2chk $rs"
+    fi
+    for res in $res2chk; do
+        nofc=0
+        for node in $allClusterNodes; do
+            fc=$(crm_failcount --query -r "$res" -n "$node" | awk '{ print $3 }')
+            if [ -z "$fc" ] || [ "${fc%=*}" != "value" ]; then
+                continue
+            fi
+            if [ "${fc#*=}" != "0" ]; then
+                wr_info -eh "resource '$res' on node '$node' has a non-zero failcount '${fc#*=}'. Please check."
+                chk=1
+                ((nofc = nofc + ${fc#*=}))
+            fi
+        done
+        if [ "$nofc" != "0" ]; then
+            wr_info -eh "failcount of resource '$res' over all cluster nodes is NOT 0. Please check."
+            chk=1
+        fi
+    done
+
+    # get DC and check idle state
+    DC=$(crmadmin -Dq 2>&1 1>/dev/null)
+    if [ -n "$DC" ]; then
+        istate=$(crmadmin -q -S "$DC" 2>&1 1>/dev/null)
+    else
+        wr_info -eh "Could not detect the Designated Controller, please check cluster health"
+        chk=1
+    fi
+    if [ "$istate" != "S_IDLE" ]; then
+        wr_info -eh "Cluster NOT in state S_IDLE, but in state '$istate'. Please check."
+        chk=1
+    fi
+
+    return $chk
+}
+
+# end function definition
+
+# parse cmdline
+if [ $# -eq 0 ]
+then
+    usage
+elif [ $# -lt 2 ]
+then
+    usage
+else
+    while [ $# -gt 0 ]; do
+        case "$1" in
+        --sid=?*)
+            SID=${1#*=}
+            ;;
+        --ino=?*)
+            INO=${1#*=}
+            ;;
+        --check)
+            CFlag="only"
+            ;;
+        --migrate)
+            MFlag="true"
+            ResID="$2"
+            shift
+            ;;
+        --case)
+            USECASE="$2"
+            shift
+            ;;
+        --version)
+            echo "$cmd version - $version"
+            exit
+            ;;
+        --help|-h|-\?)    usage ;;
+        *)     usage ;;
+        esac
+        shift
+    done
+fi
+
+# check needed command line parameter
+if [ -z "$SID" ]; then
+    echo "ERROR: missing SID"
+    usage
+fi
+if [ -z "$INO" ]; then
+    echo "ERROR: missing instance number"
+    usage
+fi
+if [ -z "$USECASE" ]; then
+    echo "ERROR: missing use-case"
+    usage
+fi
+if [ "$MFlag" == "true" ] && [ "$CFlag" == "only" ]; then
+    echo "ERROR: please use only '--migrate' or '--check' but NOT both."
+    usage
+fi
+if [ -z "$MFlag" ] && [ -z "$CFlag" ]; then
+    CFlag=only
+fi
+if [ "$MFlag" == "true" ] && [ -z "$ResID" ]; then
+    echo "ERROR: missing resource ID"
+    usage
+fi
+# uppercase SID used for resources
+RSID=${SID^^}
+# lowercase SID used for attributes
+ASID=${SID,,}
+
+# Attribute definition copied from SAPHanaController
+# attributes needed for 'multi-target' migration use-case
+ATTR_NAME_HANA_SITE=("hana_${ASID}_site" "forever")
+# attribute containing the current running srHook generation
+ATTR_NAME_HANA_SRHOOK_GEN=("hana_${ASID}_gsh" "reboot")
+# attribute set, if the NewResourceAgent is running on the system
+ATTR_NAME_HANA_GRA=("hana_${ASID}_gra" "forever")
+# attribute summarizing cluster node update status
+# expected value "ok" - "nok", if there still old RAs running in the cluster
+ATTR_NAME_HANA_UPD_STATE=("hana_${ASID}_glob_upd" "props")
+# start migration attribut set by admin
+ATTR_NAME_HANA_multiTargetSupport=("hana_${ASID}_glob_mts" "props")
+# old, global srHook attribute
+ATTR_NAME_HANA_GLOB_SRHOOK=("hana_${ASID}_glob_srHook" "props")
+# role attribute to find the name server
+ATTR_NAME_HANA_ROLES=("hana_${ASID}_roles" "reboot")
+
+check=true
+nodeName=$(crm_node -n)
+allClusterNodes=$(crm_node -l | awk '{if ($2 != "") { print $2 }}')
+declare -A gini
+runCmd="crm cluster run"
+cluInMaint="false"
+
+wr_info -ih "Start checking...."
+# check, if all migration requirements are fullfilled
+if ! chk_migration_requirements; then
+    check=false
+fi
+
+# only check and report, but NOT migrate
+if [ "$CFlag" == "only" ]; then
+    rc=0
+    wr_info -ih "Check finished."
+    if [ "$check" == "false" ]; then
+        wr_info -ah "Some of the migration requirements are not fullfilled."
+        wr_info -a "That will prevent a proper migration in the future."
+        wr_info -a "Please check."
+        rc=1
+    else
+        wr_info -ih "All migration requirements are fullfilled, which means a migration will be possible now."
+    fi
+    exit $rc
+fi
+
+# migrate
+if [ "$MFlag" == "true" ]; then
+    rc=0
+    if [ "$check" == "false" ]; then
+        wr_info -eh "Can not start the migration, because the migration requirements are not fullfilled completely."
+        wr_info -e "That will prevent a proper migration. Please check and try again"
+        rc=3
+    else
+        wr_info -ih "Start migration...."
+        # check, if cluster ok
+        if ! chk_cluster_health; then
+            exit 1
+        fi
+
+        setByUs="false"
+        wr_info -ih "Set resource '$ResID' to maintenance, if needed"
+        # check, if resource is already unmanaged
+        if crm_mon -r1 | grep "$ResID" | grep unmanaged >/dev/null 2>&1; then
+            wr_info -ih "Resource '$ResID' already unmanaged."
+        elif [ "$cluInMaint" == "true" ]; then
+            wr_info -ih "Whole cluster already in maintenance."
+        else
+            # set resource to maintenance
+            crm resource maintenance "$ResID" true; rc=$?
+            if [ $rc -ne 0 ]; then
+                wr_info -eh "Can not set resource '$ResID' to maintenance (rc=$rc)."
+                exit $rc
+            fi
+            setByUs="true"
+        fi
+        # delete globale SRHook attribute
+        wr_info -ih "Start migration, remove globale SRHook attribute as it's no longer needed"
+        crm_attribute -D -n "hana_${ASID}_glob_srHook" -t crm_config -q; rc=$?
+        tstGlobHook=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
+        if [ $rc -ne 0 ] || [ -n "$tstGlobHook" ]; then
+            wr_info -ah "Problems deleting globale SRHook attribute (rc=$rc). Please check"
+        fi
+
+        # release resource from maintenance
+        wr_info -ih "Release resource '$ResID' from maintenance"
+        if [ "$setByUs" == "false" ]; then
+            wr_info -ah "As WE do not set the resource '$ResID' into maintenance before, we will not release the maintenance state for the resource now. Please check and release it by yourself."
+        else
+            crm resource maintenance "$ResID" false; rc=$?
+            if [ $rc -ne 0 ]; then
+                wr_info -eh "Can not release resource '$ResID' from maintenance (rc=$rc)."
+                ##exit $rc # not needed yet, last element in if-condition
+            fi
+        fi
+    fi
+    exit $rc
+fi
