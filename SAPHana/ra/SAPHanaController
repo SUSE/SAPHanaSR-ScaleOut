@@ -1097,7 +1097,7 @@ function analyze_hana_sync_statusSRS()
        lpa_set_lpt 30 "$remSR_name"
        rc=0;
     elif [ $srRc -le 11 ]; then # 11 and 10
-       # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down than do NOT set SFAIL
+       # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down then do NOT set SFAIL
        get_hana_landscape_status; lss=$?
        if [ $lss -lt 2 ]; then
           # keep everithing like it was
@@ -1371,7 +1371,7 @@ function saphana_start_primary()
     local lpa_dec=4
     local lpa_advice=""
     #
-    # we will be a master (PRIMARY) so checking, if the is an OTHER master
+    # we will be a master (PRIMARY) so checking, if there is anOTHER master
     #
     super_ocf_log debug "DBG: saphana_primary - check_for_primary reports HANA_STATE_PRIMARY"
     #
@@ -1437,7 +1437,7 @@ function saphana_start_primary()
                 1 ) # lets try to register
                     # DONE: PRIO2: Like Action in start_secondary
                     super_ocf_log info "LPA: landscape: DOWN, LPA: register ==> try to register"
-                    super_ocf_log info "DEC: AN OTHER HANA IS AVAILABLE ==> LETS REGISTER"
+                    super_ocf_log info "DEC: ANOTHER HANA IS AVAILABLE ==> LETS REGISTER"
                     # DONE: PRIO0: For all master nodes of that site
                     set_crm_master  0
                     for m in "${masters[@]}"; do
@@ -1598,7 +1598,7 @@ function saphana_start_secondary()
     # we would be secondary
     # we first need to check, if there are Master Nodes, because the Secondary only starts
     # successfully, if the Primary is available. Therefore we mark the Secondary as "WAITING"
-    # DONE: PRIO3: wait_for_primary_master 10 is just a test value: 10 loops x10 seconds than go to WAITING
+    # DONE: PRIO3: wait_for_primary_master 10 is just a test value: 10 loops x10 seconds, then go to WAITING
     # DONE: PRIO3: rename 'wait_for_primary_master' to match better the use case ("wait_some_time")
     #
     super_ocf_log debug "DBG: wait for promoted side"
@@ -1609,9 +1609,9 @@ function saphana_start_secondary()
        saphana_start; rc=$?
        if [ $rc -ne $OCF_SUCCESS ]; then
            if ! wait_for_primary_master 1; then
-               # It seams the stating secondary could not start because of stopping primary
+               # It seems the stating secondary could not start because of stopping primary
                #    so this is a WAITING situation
-               super_ocf_log info "ACT: PRIMARY seams to be down now ==> WAITING"
+               super_ocf_log info "ACT: PRIMARY seems to be down now ==> WAITING"
                set_hana_attribute ${NODENAME} "WAITING4PRIM" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                set_crm_master -INFINITY
                rc=$OCF_SUCCESS
@@ -2809,7 +2809,7 @@ function saphana_monitor_clone() {
               #              This reflects the situation that swarm members get be started (as resource)
               #              before the master nameserver runs the StartSystem command
               #           => However we need to check, if it could happen that NO started (warm) master nameserver
-              #              is available and we miss to monitor the degraded HANA on an other node
+              #              is available and we miss to monitor the degraded HANA on another node
               case "$nState" in
                   DEMOTED ) rc=$OCF_SUCCESS;;              # local instance is up -> report SUCCESS
                   PROMOTED ) rc=$OCF_RUNNING_MASTER;;      # same but state is MASTER -> report RUNNING_MASTER
@@ -2899,7 +2899,7 @@ function saphana_promote_clone() {
         esac
      else
         #
-        # neither PRIMARY nor SECONDARY - This clone instance seams to be broken!!
+        # neither PRIMARY nor SECONDARY - This clone instance seems to be broken!!
         #
         rc=$OCF_ERR_GENERIC
      fi
@@ -3020,7 +3020,7 @@ case "$ACTION" in
         lpa_check_lpt_status
         ra_rc=$?
         ;;
-    *)  # seams to be an unknown request
+    *)  # seems to be an unknown request
         saphana_methods
         ra_rc=$OCF_ERR_UNIMPLEMENTED
         ;;

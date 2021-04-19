@@ -1027,7 +1027,7 @@ case "$ACTION" in
         sht_validate
         ra_rc=$?
         ;;
-    *)  # seams to be an unknown request
+    *)  # seems to be an unknown request
         sht_methods
         ra_rc=$OCF_ERR_UNIMPLEMENTED
         ;;
