@@ -1100,7 +1100,7 @@ function analyze_hana_sync_statusSRS()
        # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down then do NOT set SFAIL
        get_hana_landscape_status; lss=$?
        if [ $lss -lt 2 ]; then
-          # keep everithing like it was
+          # keep everything like it was
           rc=2
        else
           # ok we should be careful and set secondary to SFAIL
