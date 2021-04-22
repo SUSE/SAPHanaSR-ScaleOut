@@ -47,6 +47,23 @@ Wed Mar 10 09:15:09 UTC 2021 - abriel@suse.com
   and others
 
 -------------------------------------------------------------------
+Thu Mar  4 18:00:41 UTC 2021 - abriel@suse.com
+
+- change version to 0.164.2
+- The resource start and stop timeout is now configurable by
+  increasing the timeout for the action 'start' and/or 'stop'.
+  We will use 95% of this action timeouts to calculate the new
+  resource start and stop timeout for the 'WaitforStarted' and
+  'WaitforStopped' functions. If the new, calculated timeout value
+  is less than '3600', it will be set to '3600', so that we do not
+  decrease this timeout by accident
+  (bsc#1182545)
+- add return codes for saphana_stop and saphana_StopSystem
+  (bsc#1182115)
+- man page SAPhanaSR-ScaleOut minor mistakes
+  (bsc#1144442)
+
+-------------------------------------------------------------------
 Wed Nov  4 10:10:06 UTC 2020 - abriel@suse.com
 
 - change version to 0.164.1

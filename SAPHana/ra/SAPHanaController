@@ -1263,7 +1263,7 @@ function analyze_hana_sync_statusSRS()
        lpa_set_lpt 30 "$remSR_name"
        rc=0;
     elif [ $srRc -le 11 ]; then # 11 and 10
-       # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down than do NOT set SFAIL
+       # if systemReplicationStatus is ERROR and landscapeHostConfiguration is down then do NOT set SFAIL
        get_hana_landscape_status; lss=$?
        if [ $lss -lt 2 ]; then
           # keep everything like it was
