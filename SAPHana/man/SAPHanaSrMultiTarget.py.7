@@ -56,7 +56,7 @@ Note: See SAPHanaSR.py(7) for old-style SAPHanaSR-ScaleOut with one global
 attribute instead of site-specific attributes.
 .\" TODO hana_<sid>_glob_srHook during migration process?
 .PP
-\fB*\fP The SAPHanaSR-migrate tool recognizes the scale-out multi-target capability
+\fB*\fP The SAPHanaSR-manageAttr tool recognizes the scale-out multi-target capability
 via host attribute. The SAP System Indentifier (sid) is given in lower case. See
 REQUIREMENTS section below for supported API versions and scenarios. For new
 SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py reports its generation:
@@ -187,7 +187,7 @@ Note: Understand the impact before trying.
 \fB*\fR Example for removing orphaned global srHook attribute.
 This might be done after upgrading from old-style srHook, to avoid confusion
 caused by different HANA HADR provider API versions.
-See also SAPHanaSR.py(7) and SAPHanaSR-migrate(8) from SAPHanaSR-ScaleOut.
+See also SAPHanaSR.py(7) and SAPHanaSR-manageAttr(8) from SAPHanaSR-ScaleOut.
 SID is HA1.
 .\" TODO scale-up: SID is HA1, node is node1. All nodes need to be cleaned.
 .\" TODO scale-up: # crm_attribute --delete -t nodes --node node1 --name hana_ha1_glob_srHook
@@ -262,7 +262,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR.py\fP(7) ,
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) , 
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
-\fBSAPHanaSR-migrate\fP(8) ,
+\fBSAPHanaSR-manageAttr\fP(8) ,
 \fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
