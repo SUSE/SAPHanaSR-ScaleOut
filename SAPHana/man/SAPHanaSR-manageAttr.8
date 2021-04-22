@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-manageAttr 8 "14 Apr 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-manageAttr 8 "21 Apr 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-manageAttr \- Helps managing Linux cluster attributes for SAP HANA system replication.
@@ -100,16 +100,18 @@ REQUIREMENTS section below for defined states. The procedure at a glance:
 11. Optionally connect third HANA site via system-replication outside of the Linux cluster.
 .RE
 
-As final result of this upgrade, the RAs and hook script are updated from
-old-style to multi-target. Further the Linux cluster's srHook attribute is
-migrated and new auxiliary attributes are introduced. 
+As final result of this upgrade, the RAs and hook script are upgraded from
+old-style to multi-target. Further the Linux cluster's old-style global srHook
+attribute hana_${sid}_glob_srHook is replaced by site-aware attributes
+hana_${sid}_site_srHook_${SITE}. New auxiliary attributes are introduced,
+see PARAMETERS section.
 .\" TODO what attributes
 
 \fB*\fR Overview on upgrading existing multi-target hook to new one. 
 
 Upgrade procedure from defined entry state already using a specific
-multi-target enabled hook into defined target state with productional
-multi-target enabled hook.
+multi-target aware hook into defined target state with productional
+multi-target aware hook.
 This case is relevant for early adopters who attended the ramp-up phase.
 Certain steps are described in more detail as separate examples. Also see
 REQUIREMENTS section below for defined states. The procedure at a glance:
@@ -124,8 +126,9 @@ REQUIREMENTS section below for defined states. The procedure at a glance:
 .RE
 
 As final result of this upgrade, the already multi-target aware RAs and hook
-script are updated to an new version. Further new auxiliary attributes are
-introduced.
+script are updated to an new version. The existing site-aware attributes
+hana_${sid}_site_srHook_${SITE} are kept. New auxiliary attributes are
+introduced, see PARAMETERS section.
 .\" TODO what attributes
 
 \fB*\fR Overview on upgrading old-style hook to new one, no multi-target hook.
@@ -145,7 +148,8 @@ states. The procedure at a glance:
 .RE
 
 As final result of this upgrade, the RAs and hook script are updated to an new
-version. Further new auxiliary attributes are introduced.
+version. The existing old-style global attribute hana_${sid}_glob_srHook is
+kept. New auxiliary attributes are introduced, see PARAMETERS section.
 
 \fB*\fR Check Linux cluster for matching defined upgrade entry state.
 
