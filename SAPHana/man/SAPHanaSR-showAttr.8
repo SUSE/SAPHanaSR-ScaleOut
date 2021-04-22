@@ -139,7 +139,7 @@ The RA generation attribute identifies which generation of the RA is running.
 It helps determing RA's capabilities and performing cluster-wide upgrades of
 RA and srHook. The generation should be same for both on all nodes of the
 Linux cluster after successful upgrade.
-See also gsh below and SAPHanaSR-migrate(8).
+See also gsh below and SAPHanaSR-manageAttr(8).
 .PP
 .B gsh
 - generation of srHook
@@ -151,7 +151,7 @@ It helps determing srHook's capabilities and performing cluster-wide upgrades of
 RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out
 multi-target system replication, which needs replacement of the old SAPHanaSR.py
 by new SAPHanaSrMultiTarget.py.
-See also gra above and SAPHanaSR-migrate(8).
+See also gra above and SAPHanaSR-manageAttr(8).
 .PP
 .B mts
 - Linux cluster scale-out multi-target support
@@ -162,7 +162,7 @@ The multi-target support attribute identifies whether the Linux cluster supports
 HANA scale-out multi-target system replication. This needs consistently updated
 RA and srHook to be active on all Linux cluster nodes, including the majority
 maker.
-See also gra, gsh and SAPHanaSR-migrate(8).
+See also gra, gsh and SAPHanaSR-manageAttr(8).
 .PP
 .B upd
 - Linux cluster update status
@@ -172,7 +172,7 @@ Value: [ ok | nok ]
 .\" TODO
 The update status attribute identifies whether the whole cluster has sucessfully
 passed an update procedure.
-See also mts above and SAPHanaSR-migrate(8).
+See also mts above and SAPHanaSR-manageAttr(8).
 .PP
 .B maintenance
 - maintenance status of Linux cluster or cluster resource
@@ -327,7 +327,7 @@ Value: [ master | worker | slave | standby | shtdown ]
 
 .\"scale-up:
 .\"Value: [ 150 | 140 | 100 | 90 | 80 | 60 | 10 | 0 | -1 | -INFINITY ]
-Value: [ 150 | 145 | 140 | 115 | 110 | 100 | 90| 80 | 70 | 60 | 10 | 5 | 0 | -1 | -9000 | -10000 | -12200 | -22100 | -22200 | -32300 | -33333 | -INFINITY ]
+Value: [ 150 | 145 | 140 | 115 | 110 | 100 | 90 | 80 | 70 | 60 | 10 | 5 | 0 | -1 | -9000 | -10000 | -12200 | -22100 | -22200 | -32300 | -33333 | -INFINITY ]
 
 This is a variable of the SAPHanaController or SAPHana resource agent. It is calculated
 based on an internal scoring table. A value of 150 should cause the Linux cluster promoting
@@ -506,7 +506,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBocf_suse_SAPHanaController\fP(7) , \fBocf_suse_SAPHanaTopology\fP(7) ,
 \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-replay-archive\fP(8) , \fBSAPHanaSR-filter\fP(8) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR_maintenance_examples\fP(7) ,
-\fBSAPHanaSR-migrate\fP(8) ,
+\fBSAPHanaSR-manageAttr\fP(8) ,
 \fBcrm_simulate\fP(8) , \fBcibadmin\fP(8) , \fBcrm_mon\fP(8) ,
 \fBcs_convert_time\fP(8) , \fBcs_clusterstate\fP(8) , \fBcs_show_hana_info\fP(8) , \fBcs_show_scores\fP(8) ,
 .br
