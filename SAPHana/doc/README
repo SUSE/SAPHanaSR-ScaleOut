@@ -76,4 +76,3 @@ limited to the following scenarios and parameters:
 28. The current resource agent for Scale-Out supports SAP HANA in system
     replication beginning with HANA version 1.0 SPS12 (121) or HANA 2.0 SPS2.
     Older versions do not provide the srHook method srConnectionChanged().
-
