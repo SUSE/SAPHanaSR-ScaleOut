@@ -161,7 +161,7 @@ try:
                 if rc != 0:
                     #
                     # FALLBACK
-                    # sending attribute to the cluster failed - using failback method and write status to a file - RA to pick-up the value during next SAPHanaController monitor operation
+                    # sending attribute to the cluster failed - using fallback method and write status to a file - RA to pick-up the value during next SAPHanaController monitor operation
                     #
                     myMSG = "sending attribute to the cluster failed - using local file as fallback"
                     self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
