@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-manageAttr 8 "21 Apr 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-manageAttr 8 "26 Apr 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-manageAttr \- Helps managing Linux cluster attributes for SAP HANA system replication.
@@ -75,29 +75,25 @@ Upgrade procedure from defined entry state with old-style hook into defined
 target state with multi-target enabled hook. This case is the main target for
 the upgrade.
 Certain steps are described in more detail as separate examples. Also see
-REQUIREMENTS section below for defined states. The procedure at a glance:
+REQUIREMENTS section below for defined states.
+
+The procedure at a glance:
 .RS 4
-1. Install scale-out multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+1. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br 
-2. Check Linux cluster for matching defined upgrade entry state.
+2. Replace HANA HADR provider configuration on both sites.
 .br
-3. Check HANA HADR provider configuration and related script on both sites.
+3. Reload HANA HADR provider hook script on both sites.
 .br
-4. Set SAPHanaController m/s resource into maintenance.
+4. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
 .br
-5. Replace HANA HADR provider configuration on both sites and reload hook.
+5. Migrate srHook attribute from old-style to multi-target.
 .br
-6. Check HANA HADR provider configuration and related script on both sites.
+6. Check Linux cluster for matching defined upgrade target state.
 .br
-7. Migrate srHook attribute from old-style to multi-target.
+7. Optionally connect third HANA site via system replication outside of the Linux cluster.
 .br
-8. Check Linux cluster for matching defined upgrade target state.
-.br
-9. Set SAPHanaController m/s resource from maintenance back into managed.
-.br
-10. Finally check if everything looks fine.
-.br
-11. Optionally connect third HANA site via system-replication outside of the Linux cluster.
+8. Finally check if everything looks fine.
 .RE
 
 As final result of this upgrade, the RAs and hook script are upgraded from
@@ -114,13 +110,15 @@ multi-target aware hook into defined target state with productional
 multi-target aware hook.
 This case is relevant for early adopters who attended the ramp-up phase.
 Certain steps are described in more detail as separate examples. Also see
-REQUIREMENTS section below for defined states. The procedure at a glance:
+REQUIREMENTS section below for defined states.
+
+The procedure at a glance:
 .RS 4
-1. Install scale-out multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+1. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br
 2. Check Linux cluster for matching defined upgrade entry state.
 .br
-3. Reload hook on both sites.
+3. Reload HANA HADR provider hook script on both sites.
 .br
 4. Check Linux cluster for matching defined upgrade target state.
 .RE
@@ -131,18 +129,20 @@ hana_${sid}_site_srHook_${SITE} are kept. New auxiliary attributes are
 introduced, see PARAMETERS section.
 .\" TODO what attributes
 
-\fB*\fR Overview on upgrading old-style hook to new one, no multi-target hook.
+\fB*\fR Overview on upgrading old-style hook, no multi-target hook needed.
 
 Upgrade procedure from defined entry state with old-style hook into defined
-target state with old-style hook.
+target state while keeping old-style hook.
 This case is relevant for customer who do not want to change from old-style to
 multi-target, but just upgrade the RPM. Certain steps are described in more
 detail as separate examples. Also see REQUIREMENTS section below for defined
-states. The procedure at a glance:
+states.
+
+The procedure at a glance:
 .RS 4
-1. Install scale-out multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+1. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br
-2. Reload hook on both sites.
+2. Reload HANA HADR provider hook script on both sites.
 .br
 3. Check Linux cluster for matching defined upgrade target state.
 .RE
@@ -153,7 +153,7 @@ kept. New auxiliary attributes are introduced, see PARAMETERS section.
 
 \fB*\fR Check Linux cluster for matching defined upgrade entry state.
 
-This should be always the first step during upgrade procedure. The check shows if all nodes are online, no resource failures are recorded, HANA is healthy and system replication is in sync. The whole Linux cluster is checked at once. Of course the same check is useful after the upgrade. See also SAPHanaSR_maintenance_examples(7). Example SID is ABR, instance number is 00.
+This should be always the first step during upgrade procedure, after having the RPM upgraded. The check shows if all nodes are online, no resource failures are recorded, HANA is healthy and system replication is in sync. The whole Linux cluster is checked at once. Of course the same check is useful after the upgrade has been completed. See also SAPHanaSR_maintenance_examples(7). Example SID is ABR, instance number is 00.
 .RS 4
 # crm_mon -1r
 .br
@@ -167,7 +167,7 @@ This should be always the first step during upgrade procedure. The check shows i
 
 \fB*\fR Remove logger information from script output.
 
-This might be useful when capturing script output for documentation, or if screen width is limited otherwise. Example SID is ABR, instance number is 00.
+This might be useful when capturing script output for documentation, or if screen width is limited. Example SID is ABR, instance number is 00.
 .RS 4
 # SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --check 2>&1 | colrm 1 45
 .RE
@@ -177,13 +177,38 @@ This might be useful when capturing script output for documentation, or if scree
 This should the be second step during upgrade procedure. The check should be done at both sites. Of course the same check is useful after the upgrade. See also SAPHanaSrMultiTarget.py(7). Example SID is ABR, instance number is 00.
 .\" TODO is this done by the SAPHanaSR-manageAttr?
 
-\fB*\fR Replace HANA HADR provider configuration
+\fB*\fR Replace HANA HADR provider configuration.
 
-The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. This task needs to be done at both sites. See example above and REQUIREMENTS section below. Example SID is ABR. 
-.\" TODO Replace HANA HADR provider configuration
-.\" TODO describe sr_takeover?
+The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line fof the section [trace] should be adapted as well. This task needs to be done at both sites. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr. 
+.RS 4
+# su - abradm
+.br
+~> cdcoc
+.br
+~> cp global.ini global.ini.$RANDOM
+.br
+~> vi global.ini
+.br
+ ...
+.br
+[ha_dr_provider_saphanasrmultitarget]
+.br
+provider = SAPHanaSrMultiTarget
+.br
+path = /usr/share/SAPHanaSR-ScaleOut/
+.br
+execution_order = 1
+.br
+ ...
+.br
+[trace]
+.br
+ha_dr_saphanasrmultitarget = info
+.br
+ ...
+.RE
 
-\fB*\fR Reload HANA HADR provider hook script from persistence into running HANA
+.\fB*\fR Reload hook script from persistence into running HANA.
 
 When installing an new package version, the HANA HADR provider hook script might
 be updated on-disk. Nevertheless HANA is still running with the old version of
@@ -191,29 +216,27 @@ that script. To make changes active, the new script can be loaded from disk into
 HANA. This should be done on both sites. Please refer to SAP documentation for
 details. Example lowercase-SID (sid) is abr.
 .RS 4
-# su - ha1adm
+# su - abradm
 .br
 ~> hdbnsutil -reloadHADRProviders; echo $?
 .br
 ~> cdtrace
 .br
-~> grep HADR.*SAPHanaS nameserver.*trc
+~> grep HADR.*loading.*SAPHanaS nameserver_*.trc
 .br
 ~> exit
 .RE
 
-\fB*\fR Migrate srHook attribute from old-style to multi-target 
+\fB*\fR Migrate srHook attribute from old-style to multi-target.
 
-The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. See example above and REQUIREMENTS section below. Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR00. 
-.\" TODO SAPHanaSrMultiTarget.py in global.ini? re-load global.ini and hook online? 
+The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. The correct hook script needs to be already configured in HANA's global.ini. See example above and REQUIREMENTS section below. Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR_HDB00. 
 .RS 4
 # SAPHanaSR-showAttr
 .br
-# crm resource maintenance msl_SAPHanaCon_ABR00 on
+# crm_attribute -n hana_abr_glob_mts -s SAPHanaSR -t crm_config -v true
+.\" TODO could this be done by the hook script at initialisation?
 .br
-# SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --migrate
-.br
-# crm_attribute -n hana_abr_glob_srHook -D -t crm_config
+# SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --migrate msl_SAPHanaCon_ABR_HDB00
 .br
 # SAPHanaSR-showAttr
 .RE
@@ -268,6 +291,8 @@ SAPHanaSR-manageAttr writes even regular output to stderr
 \fB*\fR The HANA config file global.ini is located at /hana/shared/$SID/global/hdb/custom/config/global.ini .
 .PP
 \fB*\fR The Linux cluster can be either upgraded to the defined upgrade target state, or run unchanged with the old-style global attribte and related hook script. Not allowed is mixing old and new attributes or hook scripts within one Linux cluster.
+.PP
+\fB*\fR Any procedure is tested for matching particular purpose and environment before applying it to production systems. 
 .PP
 \fB*\fR See also the REQUIREMENTS section of SAPHanaSR-ScaleOut(7) and SAPHanaSrMultiTarget.py(7) for general requirements and for technical details.
 .\"
