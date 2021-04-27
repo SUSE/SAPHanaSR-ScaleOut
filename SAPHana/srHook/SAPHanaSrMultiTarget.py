@@ -178,7 +178,7 @@ try:
                     self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
                     #
                     # cwd of hana is /hana/shared/<SID>/HDB00/<hananode> we use a relative path to cwd this gives us a <sid>adm permitted directory
-                    #     however we go one level up (..) to have the file accessable for all SAP HANA swarm nodes
+                    #     however we go one level up (..) to have the file accessible for all SAP HANA swarm nodes
                     #
                     fallbackFileObject = open("../.crm_attribute.stage.{0}".format(mySite), "w")
                     fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format(mysid, mySite, mySRS))
