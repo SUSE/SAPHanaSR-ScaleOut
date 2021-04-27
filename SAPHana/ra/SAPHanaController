@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.180.0.0419.1448"
+SAPHanaControllerVersion="0.180.0.0423.1703"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -713,14 +713,21 @@ function set_SRHOOK()
     local -a ATTR my_sync old_sync
     local get_sr_name="$1"
     local value="$2"
+    multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
     old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
-    if [ -n "$old_sync" ]; then
-        super_ocf_log info "RA: set SRHOOK - write still existing old, global Hook attribute too"
-        # old, global attribute still exists, write both attributes
+    if ocf_is_true "$multiTargetSupport"; then
+        super_ocf_log info "RA: set SRHOOK - multiTargetSupport is true, write site specific Hook attribute"
+        if [ -n "$old_sync" ]; then
+            super_ocf_log info "RA: set SRHOOK - write still existing old, global Hook attribute too"
+            # old, global attribute still exists, write both attributes
+            set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
+        fi
+        ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
+        set_hana_attribute "X" "$value" "${ATTR[@]}"
+    else
+        super_ocf_log info "RA: set SRHOOK - multiTargetSupport is false or not set, write old, global Hook attribute"
         set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
     fi
-    ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
-    set_hana_attribute "X" "$value" "${ATTR[@]}"
     return 0
 }
 
@@ -1010,20 +1017,17 @@ function saphana_init() {
         # be in mind: it may be that not all nodes running the same Hook generation
         multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
         if [ -z "$multiTargetSupport" ]; then
-            # cluster attribute 'hana_${sid}_glob_mts', which should trigger
-            # the migration, not set yet / no customer choice for now
-            super_ocf_log info "MTS: RA saphana_init - attribute 'hana_${sid}_glob_mts' not set yet. For migration the attribute needs to set manually to 'true'"
+            # cluster attribute 'hana_${sid}_glob_mts' not set
+            super_ocf_log info "RA: multiTargetSupport attribute not set. May be no Hook is configured or the old-style Hook is used."
         fi
         if ocf_is_true "$multiTargetSupport"; then
+            super_ocf_log info "RA: multiTargetSupport attribute is set to 'true'"
             if [ "$srHook_gen" == "2.0" ]; then
-                # remove globale SRHook attribute as it's no longer needed
-                crm_attribute -D -n "hana_${sid}_glob_srHook" -t crm_config -q 2>>$log_attr_file; rc=$?
-                super_ocf_log debug "DBG: cmd 'crm_attribute' to delete the global Hook attribute returned rc=$rc"
-            else
-                # Hook generation and multiTargetSupport selection does not
-                # match. May be wrong customer set of cluster attribute
-                # 'hana_${sid}_glob_mts', which should trigger the migration
-                super_ocf_log error "ERR: RA saphana_init - the Hook generation '$srHook_gen' and the customer selection for the attribute 'hana_${sid}_glob_mts' ('$multiTargetSupport') does not match. The current active Hook generation does not support multiTarget configurations. So the global Hook attribute will be still available and in use."
+                old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
+                if [ -n "$old_sync" ]; then
+                    # old, global attribute still exists
+                    super_ocf_log info "RA: The global Hook attribute is still available. Use cmd 'SAPHanaSR-manageAttr' to remove this attribute"
+                fi
             fi
         fi
     fi
