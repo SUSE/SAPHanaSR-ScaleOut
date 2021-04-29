@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "14 Apr 2021" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "29 Apr 2021" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -137,18 +137,41 @@ Optional. Default value: false\&.
 .br
 \fBhana_${sid}_glob_filter\fR
 .RS 4
-Global cluster property \fBhana_${sid}_glob_filter\fR . This property should only be set if requested by support engineers. The default is sufficient for normal operation.
-.\" message levels: (dbg)|info|warn|err|error
-.\" grep super_ocf_log SAPHanaController SAPHanaTopology | tr -s " " | awk '{print $2,$3,$4}' | sort -u
+Global cluster property \fBhana_${sid}_glob_filter\fR . This property defines which messages are logged by the RA. It should only be set if requested by support engineers. The default is sufficient for normal operation. See also SAPHanaSR-showAttr(8).
 .br
-Values: act|ra|flow|dbg|lpa|dec|dbg2|score|top
+Message Types: [ act | dbg | dec | flow | lpa | ra | score | top ]
+.\" TODO SAPHanaController and SAPHanaTopology RA: only one time tag "ERR:"?   
+.\" TODO dbg2?
+.\" TODO message levels: debug|dbg|info|warn|err|error
+.br
+ACT: Action. Start, stop, sr_takeover and others. See also section SUPPORTED ACTIONS.
+.br
+DBG: Debugging info. Usually not needed at customer site. See SUSE TID 7022678 for maximum RA tracing.
+.br
+DEC: Decision taken by the RA.
+.br
+ERR: Error.
+.br
+FLOW: Function calls and the respective return codes.
+.\" TODO SAPHanaController RA: unify FLOW vs. FLOW: and others
+.br
+LPA: Last Primary Arbritration. Everything related to the LPT calculation.
+.br
+RA: Resource Agent messages marking the start of an resource action and the stop with time needed for the action.
+.br
+SCORE: Everything related to node scoring calculation. See also parameter PREFER_SITE_TAKEOVER.
+.br
+TOP: Topology. Messages related to HANA SR topology, like site name and remote site.
+.\" TODO SAPHanaController RA: only two times tag "TOP:"?
 .br
 Optional, advanced. Default value: ra-act-dec-lpa\&.
 .RE
 .PP
 \fBhana_${sid}_gra\fR
 .RS 4
-The node attribute \fBhana_${sid}_gra\fR identifies which generation of the RA is running. The generation should be same on all nodes. See also SAPHanaSR-showAttr(8) and SAPHanaSR-manageAttr(8). 
+The node attribute \fBhana_${sid}_gra\fR identifies what generation of the RA is running. The generation should be same on all nodes. See also SAPHanaSR-showAttr(8) and SAPHanaSR-manageAttr(8).
+.br
+Optional.
 .RE
 .PP
 .\"
@@ -254,7 +277,7 @@ location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_HAE_HDB00 -inf: vm-majo
 * The following shows the filter for log messages set to defaults, pacemaker-1.0.
 .br
 This property should only be set if requested by support engineers. The default is sufficient for normal operation. SID is HA1.
-.\" TODO explain meaning of all types, see Fabian's mail 2021-04-27
+.\" TODO grep super_ocf_log SAPHanaController SAPHanaTopology | tr -s " " | awk '{print $2,$3,$4}' | sort -u
 .RE
 .PP
 .RS 4
