@@ -115,12 +115,6 @@ execution_order = 1
 ha_dr_saphanasrmultitarget = info
 .RE
 .PP
-.\" TODO * Example for removing left-over global attributes from CIB after updating SAPHanaSR-ScaleOut
-.\".PP
-.\".RS 2
-.\"# 
-.\".RE
-.\".PP
 * Example for creating the optional SAPHanaSrMultiTarget.pyc python object file manually. SID is SLE.
 .PP
 .RS 2
@@ -157,6 +151,16 @@ ha_dr_saphanasrmultitarget = info
 ~> grep crm_attribute.*SAPHanaSR nameserver_*.trc
 .br
 # exit
+.RE
+.PP
+* Example for checking the HANA tracefiles for when the hook script has been loaded. To be executed on both site's master nameservers.
+.PP
+.RS 2
+# su - sleadm
+.br
+~> cdtrace
+.br
+~> grep HADR.*loading.*SAPHanaS nameserver_*.trc
 .RE
 .PP
 * Example for comparing Linux cluster srHook attribute with current HANA SR state. SID is HA1. To be executed on current HANA primary site.
