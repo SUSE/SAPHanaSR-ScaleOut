@@ -387,27 +387,22 @@ manual page SAPHanaSR-manageAttr(8).
 The procedure at a glance:
 .PP
 .RS 4
-1. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
-.br 
-2. Check Linux cluster for matching defined upgrade entry state.
+1. Install multi-target aware  SAPHanaSR-ScaleOut package on all nodes.
 .br
-3. Check HANA HADR provider configuration and related script on both sites.
+2. Replace HANA HADR provider configuration on both sites.
 .br
-4. Set SAPHanaController m/s resource into maintenance.
+3. Reload HANA HADR provider hook script on both sites.
 .br
-5. Replace HANA HADR provider configuration on both sites and reload hook.
+4. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
 .br
-6. Check HANA HADR provider configuration and related script on both sites.
+5. Migrate srHook attribute from old-style to multi-target.
 .br
-7. Migrate srHook attribute from old-style to multi-target.
+6. Check Linux cluster for matching defined upgrade target state.
 .br
-8. Check Linux cluster for matching defined upgrade target state.
+7. Optionally connect third HANA site via system replication outside of the Linux cluster.
 .br
-9. Set SAPHanaController m/s resource from maintenance back into managed.
-.br
-10. Finally check if everything looks fine.
-.br
-11. Optionally connect third HANA site via system-replication outside of the Linux cluster.
+8. Finally check if everything looks fine.
+.RE
 .PP
 .\"
 .SH FILES
