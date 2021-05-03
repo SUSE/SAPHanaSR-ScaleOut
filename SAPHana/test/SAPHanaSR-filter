@@ -35,7 +35,7 @@ while ( <> ) {
     if ( /(.*)="(.*)"/ ) {
         # lines like: a/b/c="d e f"
         $key="$1"; $value="$2";
-        if ( $key eq "Global/global/cib-time" ) {
+        if ( $key =~ "Global/.*/cib-time" ) {
             $cibTime=$value;
         } else {
             foreach my $search ( @search ) {
