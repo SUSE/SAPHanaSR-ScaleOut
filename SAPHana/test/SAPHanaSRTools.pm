@@ -700,7 +700,7 @@ sub check_all_ok
 sub host_attr2string
 {
     my $string="";
-    my ($refH, $refN, $title, $sort, $format) = @_;
+    my ($refH, $refN, $title, $sort, $format, $time) = @_;
     my ($len, $line_len, $hclen);
     #
     # leave function if hash is empty
@@ -793,11 +793,11 @@ sub host_attr2string
 sub print_host_attr
 {
     my $string="";
-    my ($refH, $refN, $title, $sort, $format) = @_;
+    my ($refH, $refN, $title, $sort, $format, $time) = @_;
     if ( ! defined $format) {
         $format="tables"
     }
-    my $print_attributes_result = host_attr2string($refH, $refN, $title, $sort, $format);
+    my $print_attributes_result = host_attr2string($refH, $refN, $title, $sort, $format, $time);
     if ( $print_attributes_result ) {
         printf "%s", $print_attributes_result;
     }
