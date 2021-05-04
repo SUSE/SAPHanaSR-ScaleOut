@@ -943,7 +943,9 @@ function saphana_init() {
     #
     # handle RA update state
     node_updated=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_GRA[@]}")
-    if [ "$node_updated" != "$RAG" ]; then
+    onode_site=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_SITE[@]}")
+    if [ -n "$onode_site" ] && [ "$node_updated" != "$RAG" ]; then
+        # only set on HANA nodes, skip the decision maker / tiebreaker
         # attribute is empty or set by an older RA generation
         # update attribute to the new RA generation
         node_updated="$RAG"
@@ -958,6 +960,7 @@ function saphana_init() {
         for onode in "${otherNodes[@]}"; do
             onode_site=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
             if [ -z "$onode_site" ]; then
+                # not a HANA node, may be the decision maker / tiebreaker
                 continue
             fi
             (( nrOfNodes++ ))
