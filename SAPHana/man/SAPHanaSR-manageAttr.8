@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-manageAttr 8 "26 Apr 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-manageAttr 8 "4 May 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-manageAttr \- Helps managing Linux cluster attributes for SAP HANA system replication.
@@ -165,11 +165,11 @@ This should be always the first step during upgrade procedure, after having the 
 .RE
 .\" TODO check details
 
-\fB*\fR Remove logger information from script output.
+\fB*\fR Remove pretty ornaments from script output.
 
 This might be useful when capturing script output for documentation, or if screen width is limited. Example SID is ABR, instance number is 00.
 .RS 4
-# SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --check 2>&1 | colrm 1 45
+# SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --check 2>&1 | colrm 1 6
 .RE
 
 \fB*\fR Check HANA HADR provider configuration and related script.
