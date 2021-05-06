@@ -192,6 +192,10 @@ This should be always the first step during upgrade procedure, after having the 
 # SAPHanaSR-showAttr
 .RE
 
+\fB*\fR Check HANA HADR provider configuration and related script.
+
+Manual checks can be done in addition to the built-in checks of SAPHanaSR-manageAttr. The check should be done at both sites. See below examples on HANA HADR provider configuration and hook script as well SAPHanaSrMultiTarget.py(7) for details.
+
 \fB*\fR Remove pretty ornaments from script output.
 
 This might be useful when capturing script output for documentation, or if screen width is limited. Example SID is ABR, instance number is 00.
@@ -199,11 +203,6 @@ This might be useful when capturing script output for documentation, or if scree
 .RS 4
 # SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --check 2>&1 | colrm 1 6
 .RE
-
-\fB*\fR Check HANA HADR provider configuration and related script.
-
-This should the be second step during upgrade procedure. The check should be done at both sites. Of course the same check is useful after the upgrade. See also SAPHanaSrMultiTarget.py(7). Example SID is ABR, instance number is 00.
-.\" TODO 
 
 \fB*\fR Replace HANA HADR provider configuration.
 
