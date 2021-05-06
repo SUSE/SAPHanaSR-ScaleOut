@@ -160,25 +160,37 @@ As final result of this upgrade, the RAs and hook script are updated to an new
 version. The existing old-style global attribute hana_${sid}_glob_srHook is
 kept. New auxiliary attributes are introduced, see PARAMETERS section.
 
-\fB*\fR Upgrade SAPHanaSR-ScaleOut package on all nodes.
+\fB*\fR Overview on update procedure for the SAPHanaSR and SAPHanaSR-ScaleOut package.
 
-The RPM upgrade TODO
-For details see SAPHanaSR_maintenance_examples(7).
+This procedure can be used to update RAs, HANA HADR provider hook scripts and
+related tools while HANA and Linux cluster stay online. For details see
+SAPHanaSR_maintenance_examples(7).
+
+The procedure at a glance:
+.br
+1. Check status of Linux cluster and HANA.
+.br
+2. Set resources SAPHanaController and SAPHanaTopology to maintenance.
+.br
+3. Update RPM on all cluster nodes.
+.br
+4. Refresh resources SAPHana SAPHanaController and SAPHanaTopology.
+.br
+5. Check status of Linux cluster and HANA.
 
 \fB*\fR Check Linux cluster for matching defined upgrade state.
 
-This should be always the first step during upgrade procedure, after having the RPM upgraded. The check shows if all nodes are online, no resource failures are recorded, HANA is healthy and system replication is in sync. The whole Linux cluster is checked at once. Of course the same check is useful after the upgrade has been completed. See also SAPHanaSR_maintenance_examples(7). Example SID is ABR, instance number is 00.
+This should be always the first step during upgrade procedure, after having the RPM upgraded. The check shows if all nodes are online, no resource failures are recorded, HANA is healthy and system replication is in sync. The whole Linux cluster is checked at once. The resources SAPHanaController and SAPHanaTopology have to be in maintenance mode. Of course the same check is useful after the upgrade has been completed. See also SAPHanaSR_maintenance_examples(7). Example SID is ABR, instance number is 00.
 .PP
 .RS 4
 # crm_mon -1r
 .br
-# SAPHanaSR-showAttr
-.br
 # cs_clusterstate -i
 .br
 # SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --check
+.br
+# SAPHanaSR-showAttr
 .RE
-.\" TODO check details
 
 \fB*\fR Remove pretty ornaments from script output.
 
