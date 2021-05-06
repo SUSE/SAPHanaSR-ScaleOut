@@ -160,7 +160,7 @@ As final result of this upgrade, the RAs and hook script are updated to an new
 version. The existing old-style global attribute hana_${sid}_glob_srHook is
 kept. New auxiliary attributes are introduced, see PARAMETERS section.
 
-\fB*\fR Overview on update procedure for the SAPHanaSR and SAPHanaSR-ScaleOut package.
+\fB*\fR Overview on update procedure for the SAPHanaSR-ScaleOut package.
 
 This procedure can be used to update RAs, HANA HADR provider hook scripts and
 related tools while HANA and Linux cluster stay online. For details see
@@ -172,9 +172,9 @@ The procedure at a glance:
 .br
 2. Set resources SAPHanaController and SAPHanaTopology to maintenance.
 .br
-3. Update RPM on all cluster nodes.
+3. Update SAPHanaSR-ScaleOut RPM on all cluster nodes.
 .br
-4. Refresh resources SAPHana SAPHanaController and SAPHanaTopology.
+4. Refresh resources SAPHanaController and SAPHanaTopology.
 .br
 5. Check status of Linux cluster and HANA.
 
@@ -203,11 +203,11 @@ This might be useful when capturing script output for documentation, or if scree
 \fB*\fR Check HANA HADR provider configuration and related script.
 
 This should the be second step during upgrade procedure. The check should be done at both sites. Of course the same check is useful after the upgrade. See also SAPHanaSrMultiTarget.py(7). Example SID is ABR, instance number is 00.
-.\" TODO is this done by the SAPHanaSR-manageAttr?
+.\" TODO 
 
 \fB*\fR Replace HANA HADR provider configuration.
 
-The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line fof the section [trace] should be adapted as well. This task needs to be done at both sites. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr. 
+The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line of the section [trace] should be adapted as well. This task needs to be done at both sites. To make changes active, HANA needs to be informed about the change. This can be done by re-laoding the hook as shonw in another example. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr. 
 .PP
 .RS 4
 # su - abradm
@@ -237,7 +237,7 @@ ha_dr_saphanasrmultitarget = info
  ...
 .RE
 
-.\fB*\fR Reload hook script from persistence into running HANA.
+\fB*\fR Reload hook script from persistence into running HANA.
 
 When installing an new package version, the HANA HADR provider hook script might
 be updated on-disk. Nevertheless HANA is still running with the old version of
@@ -257,19 +257,25 @@ details. Example lowercase-SID (sid) is abr.
 ~> exit
 .RE
 
-\fB*\fR Migrate srHook attribute from old-style to multi-target.
+\fB*\fR Upgrade srHook attribute from old-style to multi-target.
 
 The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. The correct hook script needs to be already configured in HANA's global.ini. See example above and REQUIREMENTS section below. Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR_HDB00. 
 .PP
 .RS 4
 # SAPHanaSR-showAttr
 .br
-# crm_attribute -n hana_abr_glob_mts -s SAPHanaSR -t crm_config -v true
-.\" TODO could this be done by the hook script at initialisation?
-.br
 # SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --migrate msl_SAPHanaCon_ABR_HDB00
 .br
 # SAPHanaSR-showAttr
+.RE
+
+\fB*\fR Manually enable srHook attribute upgrade.
+
+This should not be necessary under normal circumstances. This usually is been
+done by the SAPHanaSrMultiTarget.py hook script. Example lowercase-SID is abr.
+.PP
+.RS 4
+# crm_attribute -n hana_abr_glob_mts -s SAPHanaSR -t crm_config -v true
 .RE
 
 \fB*\fR Delete srHook generation (gsh) and RA generation (gra) from node.
@@ -301,7 +307,7 @@ the scale-out multi-target aware hook provider, delivered with the RPM
 the on-disk representation of HANA global system configuration
 .TP 4
 /dev/stderr
-SAPHanaSR-manageAttr writes even regular output to stderr
+SAPHanaSR-manageAttr writes warnings and errors to stderr
 .\"
 .SH REQUIREMENTS
 \fB*\fR For upgrading resource agents, hook script and related attributes, Linux cluster and HANA are in one of the defined upgrade entry states. Defined entry states are:
@@ -316,13 +322,13 @@ SAPHanaSR-manageAttr writes even regular output to stderr
 .PP
 \fB*\fR The SAPHanaController m/s resource needs to be set into maintenance mode during upgrade.
 .PP
-\fB*\fR The old-style global srHook status attribute will be deleted manually as part of the upgrade procedure.
+\fB*\fR The old-style global srHook status attribute will be deleted as part of the upgrade procedure.
 .PP
 \fB*\fR Both HANA sites need to re-load the global.ini and the HADR provider script. If that is achieved by re-starting HANA, an SR take-over might help reducing service impact. Please refer to SAPHanaSR_maintenance_examples(7) for how performing an SR take-over.
 .PP
 \fB*\fR The HANA config file global.ini is located at /hana/shared/$SID/global/hdb/custom/config/global.ini .
 .PP
-\fB*\fR The Linux cluster can be either upgraded to the defined upgrade target state, or run unchanged with the old-style global attribte and related hook script. Not allowed is mixing old and new attributes or hook scripts within one Linux cluster.
+\fB*\fR The Linux cluster can be either upgraded to the defined upgrade target state, or run unchanged with the old-style global attribute and related hook script. Not allowed is mixing old and new attributes or hook scripts within one Linux cluster.
 .PP
 \fB*\fR Any procedure is tested for matching particular purpose and environment before applying it to production systems. 
 .PP
