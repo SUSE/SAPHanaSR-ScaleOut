@@ -686,8 +686,8 @@ chk_for_maintenance() {
         cluInMaint="true"
     fi
     # check maintenance mode of msl and cln resource
-    resC="msl_.*_${RSID}_HDB${INO}"
-    resT="cln_.*_${RSID}_HDB${INO}"
+    resC="msl_.*_${RSID}_HDB"
+    resT="cln_.*_${RSID}_HDB"
     if crm_mon -r1 | grep "$resC" | grep unmanaged >/dev/null 2>&1; then
         mslInMaint="true"
     fi
@@ -938,7 +938,9 @@ case "$USECASE" in
         # initialize attributes
         init_ra
     else
-        wr_info -eh "For use-case 'multi-target' the cluster or (at least) the multi-state and clone resource of the SID '$RSID' need to be in maintenance mode."
+        wr_info -eh "For use-case 'multi-target' the cluster or (at least)"
+        wr_info -e "the multi-state and clone resource of the SID '$RSID'"
+        wr_info -e "need to be in maintenance mode."
         wr_info -e "Please check. Exiting...."
         exit 1
     fi
