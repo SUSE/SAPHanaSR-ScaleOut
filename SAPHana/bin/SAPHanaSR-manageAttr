@@ -99,7 +99,11 @@ get_hana_attribute() {
 # call the RA to initialize the needed attributes.
 # should be called only, if cluster or the resources are in mainteance/unmanaged
 init_ra() {
-    raEnv="export OCF_ROOT=${OCFROOT}; export OCF_RESKEY_SID=${RSID}"
+    if [ -z "$INO" ]; then
+        raEnv="export OCF_ROOT=${OCFROOT}; export OCF_RESKEY_SID=${RSID}"
+    else
+        raEnv="export OCF_ROOT=${OCFROOT}; export OCF_RESKEY_SID=${RSID}; export OCF_RESKEY_InstanceNumber=${INO}"
+    fi
     $runCmd "${raEnv}; ${RAC} status" >/dev/null 2>&1
 }
 
@@ -681,28 +685,58 @@ get_res() {
     local resType=$1
     cib=/var/lib/pacemaker/cib/cib.xml
     # get resources for given $RSID
-    res="$(grep '<nvpair name="SID"' $cib | sed -n "/${RSID}/s/.*id=\"rsc\(_.*\)-instance_attributes-.*>/\1/gp")"
+    resS="$(grep '<nvpair name="SID"' $cib | sed -n "/value=\"${RSID}\"/s/.*id=\"rsc\(_.*\)-instance_attributes-.*>/\1/gp")"
+    if [ -n "$INO" ]; then
+        resI="$(grep '<nvpair name="InstanceNumber"' $cib | sed -n "/value=\"${INO}\"/s/.*id=\"rsc\(_.*\)-instance_attributes-.*>/\1/gp")"
+    fi
     # get cln or msl resource name for given $RSID
-    for r in $res; do
-        pat="[A-Za-z/ ][[:space:]]Set:.*${resType}${r}"
-        crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }'
+    for rs in $resS; do
+        if [ -n "$INO" ]; then
+            for ri in $resI; do
+                if [ "$rs" == "$ri" ]; then
+                    pat="[A-Za-z/ ][[:space:]]Set:.*${resType}${rs}"
+                    crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }'
+                fi
+            done
+        else
+            pat="[A-Za-z/ ][[:space:]]Set:.*${resType}${rs}"
+            crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }'
+        fi
     done
 }
 
 # check, if the cluster or the msl and cln resource is in maintenance
 chk_for_maintenance() {
+    local cmaint="true"
+    local tmaint="true"
     # check maintenance mode of cluster
     # msl resource is reported unmanaged, but cln resource not
     if crm_mon -r1 | grep "Resource management is DISABLED" >/dev/null 2>&1; then
         cluInMaint="true"
     fi
     # check maintenance mode of msl and cln resource
-    resC=$(get_res msl)
-    resT=$(get_res cln)
-    if crm_mon -r1 | grep "$resC" | grep unmanaged >/dev/null 2>&1; then
+    resC="$(get_res msl)"
+    if [ -z "$resC" ]; then
+            cmaint="false"
+    fi
+    resT="$(get_res cln)"
+    if [ -z "$resT" ]; then
+            tmaint="false"
+    fi
+    for c in $resC; do
+        if ! crm_mon -r1 | grep "$c" | grep unmanaged >/dev/null 2>&1; then
+            cmaint="false"
+        fi
+    done
+    if [ "$cmaint" == "true" ]; then
         mslInMaint="true"
     fi
-    if crm_mon -r1 | grep "$resT" | grep unmanaged >/dev/null 2>&1; then
+    for t in $resT; do
+        if ! crm_mon -r1 | grep "$t" | grep unmanaged >/dev/null 2>&1; then
+            tmaint="false"
+        fi
+    done
+    if [ "$tmaint" == "true" ]; then
         clnInMaint="true"
     fi
 }
