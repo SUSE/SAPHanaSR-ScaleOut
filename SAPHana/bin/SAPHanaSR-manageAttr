@@ -32,14 +32,14 @@ else
 fi
 
 # variables
-version="202104271931"
+version="202105071116"
 exe="$0"
 cmd=$(basename "$exe")
 
 ##### functions
 # USAGE
 usage() {
-    echo "USAGE:    $0 --sid=<SID> --ino=<INSTNO> --case <use case> --migrate <resource> | --check"
+    echo "USAGE:    $0 --sid=<SID> [--ino=<INSTNO>] --case <use case> --migrate <resource> | --check"
     echo -e "\\t--sid=<SID>: SID of the SAP system"
     echo -e "\\t--ino=<INSTNO>: instance number of the SAP system"
     echo -e "\\t--case <use case>: the use case for check/migrate"
@@ -99,9 +99,8 @@ get_hana_attribute() {
 # call the RA to initialize the needed attributes.
 # should be called only, if cluster or the resources are in mainteance/unmanaged
 init_ra() {
-    raEnv="export OCF_ROOT=${OCFROOT}; export OCF_RESKEY_SID=${RSID}; export OCF_RESKEY_InstanceNumber=${INO}"
-    raPath=${OCFROOT}/resource.d/suse/SAPHanaController
-    $runCmd "${raEnv}; ${raPath} status" >/dev/null 2>&1
+    raEnv="export OCF_ROOT=${OCFROOT}; export OCF_RESKEY_SID=${RSID}"
+    $runCmd "${raEnv}; ${RAC} status" >/dev/null 2>&1
 }
 
 print_stopped_msg() {
@@ -170,8 +169,7 @@ chk_ra_upd_state() {
             # will not have a ra running, but installed.
             # so no attribute is available inside the CIB
             # need to check on disk/filesystem level
-            ra="/usr/lib/ocf/resource.d/suse/SAPHanaController"
-            nodeUpdated=$($runCmd "if [ -f $ra ]; then sed -n 's/^RAG=\(.*\)$/\1/p' $ra; fi" "$onode" 2>/dev/null | grep -v "$onode" | sed 's/"//g')
+            nodeUpdated=$($runCmd "if [ -f $RAC ]; then sed -n 's/^RAG=\(.*\)$/\1/p' $RAC; fi" "$onode" 2>/dev/null | grep -v "$onode" | sed 's/"//g')
         else
             nodeUpdated=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_GRA[@]}")
         fi
@@ -678,6 +676,19 @@ chk_multi_target_requirements() {
     return $chk
 }
 
+# get resource name from cib
+get_res() {
+    local resType=$1
+    cib=/var/lib/pacemaker/cib/cib.xml
+    # get resources for given $RSID
+    res="$(grep '<nvpair name="SID"' $cib | sed -n "/${RSID}/s/.*id=\"rsc\(_.*\)-instance_attributes-.*>/\1/gp")"
+    # get cln or msl resource name for given $RSID
+    for r in $res; do
+        pat="[A-Za-z/ ][[:space:]]Set:.*${resType}${r}"
+        crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }'
+    done
+}
+
 # check, if the cluster or the msl and cln resource is in maintenance
 chk_for_maintenance() {
     # check maintenance mode of cluster
@@ -686,8 +697,8 @@ chk_for_maintenance() {
         cluInMaint="true"
     fi
     # check maintenance mode of msl and cln resource
-    resC="msl_.*_${RSID}_HDB"
-    resT="cln_.*_${RSID}_HDB"
+    resC=$(get_res msl)
+    resT=$(get_res cln)
     if crm_mon -r1 | grep "$resC" | grep unmanaged >/dev/null 2>&1; then
         mslInMaint="true"
     fi
@@ -916,6 +927,8 @@ ATTR_NAME_HANA_multiTargetSupport=("hana_${ASID}_glob_mts" "props")
 ATTR_NAME_HANA_GLOB_SRHOOK=("hana_${ASID}_glob_srHook" "props")
 # role attribute to find the name server
 ATTR_NAME_HANA_ROLES=("hana_${ASID}_roles" "reboot")
+
+RAC="${OCFROOT}/resource.d/suse/SAPHanaController"
 
 check=true
 needMig=true
