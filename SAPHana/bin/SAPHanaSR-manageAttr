@@ -206,7 +206,7 @@ chk_cluster_upd_state() {
     wr_info -i ""
     wr_info -ih "Check cluster wide update state of the resource agents."
     clusterUpdateState=$(get_hana_attribute "X" "${ATTR_NAME_HANA_UPD_STATE[@]}")
-    wr_info -ih "Cluster update state is '$clusterUpdateState'."
+    wr_info -ih "Cluster update state of the resource agents is '$clusterUpdateState'."
     if [ "$clusterUpdateState" == "ok" ]; then
         wr_info -ih "All cluster nodes are updated to the new resource agent."
     else
@@ -685,43 +685,66 @@ get_res() {
     local resType=$1
     cib=/var/lib/pacemaker/cib/cib.xml
     # get resources for given $RSID
-    resS="$(grep '<nvpair name="SID"' $cib | sed -n "/value=\"${RSID}\"/s/.*id=\"rsc\(_.*\)-instance_attributes-.*>/\1/gp")"
+    resS="$(grep '<nvpair name="SID"' $cib | sed -n "/value=\"${RSID}\"/s/.*id=\"\(.*\)-instance_attributes-.*>/\1/gp")"
     if [ -n "$INO" ]; then
-        resI="$(grep '<nvpair name="InstanceNumber"' $cib | sed -n "/value=\"${INO}\"/s/.*id=\"rsc\(_.*\)-instance_attributes-.*>/\1/gp")"
+        # get resources for given $INO
+        resI="$(grep '<nvpair name="InstanceNumber"' $cib | sed -n "/value=\"${INO}\"/s/.*id=\"\(.*\)-instance_attributes-.*>/\1/gp")"
     fi
     # get cln or msl resource name for given $RSID
+    # if possible do not use 'crm configure show', even if it's nicer to parse
+    # it's much slower than direkt reading cib.xml
     for rs in $resS; do
         if [ -n "$INO" ]; then
             for ri in $resI; do
                 if [ "$rs" == "$ri" ]; then
-                    pat="[A-Za-z/ ][[:space:]]Set:.*${resType}${rs}"
-                    crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }'
+                    pat="[A-Za-z/ ][[:space:]]Set:.*${rs}"
+                    rname=$(crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }')
+                    rtype=$(awk -v pat="id=\"${rname}\"" '$0 ~ pat { print substr($1,2,length($1)-1) }' $cib)
+                    # clone oder ms?
+                    if [ "$rtype" == "$resType" ]; then
+                        echo "$rname"
+                    fi
                 fi
             done
         else
-            pat="[A-Za-z/ ][[:space:]]Set:.*${resType}${rs}"
-            crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }'
+            pat="[A-Za-z/ ][[:space:]]Set:.*${rs}"
+            rname=$(crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }')
+            rtype=$(awk -v pat="id=\"${rname}\"" '$0 ~ pat { print substr($1,2,length($1)-1) }' $cib)
+            # clone oder ms?
+            if [ "$rtype" == "$resType" ]; then
+                echo "$rname"
+            fi
         fi
     done
 }
 
 # check, if the cluster or the msl and cln resource is in maintenance
 chk_for_maintenance() {
+    local mmaint="true"
     local cmaint="true"
-    local tmaint="true"
     # check maintenance mode of cluster
     # msl resource is reported unmanaged, but cln resource not
     if crm_mon -r1 | grep "Resource management is DISABLED" >/dev/null 2>&1; then
         cluInMaint="true"
     fi
-    # check maintenance mode of msl and cln resource
-    resC="$(get_res msl)"
+    # check maintenance mode of ms and cln resource
+    # Attention: if the keyword in the cib will change from 'master' to 'multistate'
+    # or something else, we need to adapt the following line
+    resM="$(get_res master)"
+    if [ -z "$resM" ]; then
+            mmaint="false"
+    fi
+    resC="$(get_res clone)"
     if [ -z "$resC" ]; then
             cmaint="false"
     fi
-    resT="$(get_res cln)"
-    if [ -z "$resT" ]; then
-            tmaint="false"
+    for m in $resM; do
+        if ! crm_mon -r1 | grep "$m" | grep unmanaged >/dev/null 2>&1; then
+            mmaint="false"
+        fi
+    done
+    if [ "$mmaint" == "true" ]; then
+        mslInMaint="true"
     fi
     for c in $resC; do
         if ! crm_mon -r1 | grep "$c" | grep unmanaged >/dev/null 2>&1; then
@@ -729,14 +752,6 @@ chk_for_maintenance() {
         fi
     done
     if [ "$cmaint" == "true" ]; then
-        mslInMaint="true"
-    fi
-    for t in $resT; do
-        if ! crm_mon -r1 | grep "$t" | grep unmanaged >/dev/null 2>&1; then
-            tmaint="false"
-        fi
-    done
-    if [ "$tmaint" == "true" ]; then
         clnInMaint="true"
     fi
 }
@@ -748,24 +763,23 @@ chk_cluster_health() {
 
     # check for unmanaged - only warn, not abort the check
     if crm_mon -r1 | grep -i unmanaged >/dev/null 2>&1; then
-        wr_info -wh "Cluster has unmanaged parts. Please check."
+        wr_info -ih "Cluster has unmanaged parts."
     fi
     if [ "$mslInMaint" == "true" ]; then
-        wr_info -w "The multi-state resource for SID '$RSID' is currently unmanaged."
+        wr_info -i "The multi-state resource for SID '$RSID' is currently unmanaged."
     fi
     if [ "$clnInMaint" == "true" ]; then
-        wr_info -w "The clone resource for SID '$RSID' is currently unmanaged."
+        wr_info -i "The clone resource for SID '$RSID' is currently unmanaged."
     fi
     # check for maintenance - only inform, not abort the check
     # check maintenance mode of cluster and node
     # resource is covered by test before (unmanaged)
     #
     # check maintenance mode of nodes
-    if mnodes=$(crm_mon -r1 | grep maintenance | awk '{ print $2 }' 2>/dev/null); then
+    mnodes=$(crm_mon -r1 | grep maintenance | awk '{ print $2 }' 2>/dev/null)
+    if [ -n "$mnodes" ]; then
         wr_info -ih "Cluster has nodes in maintenance."
-        if [ -n "$mnodes" ]; then
-            wr_info -i "Affected nodes are: ${mnodes//[$'\t\r\n:']/ }."
-        fi
+        wr_info -i "Affected nodes are: ${mnodes//[$'\t\r\n:']/ }."
     fi
     # check maintenance mode of cluster
     if [ "$cluInMaint" == "true" ]; then
