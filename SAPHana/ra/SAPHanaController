@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.180.0.0504.1453"
+SAPHanaControllerVersion="0.180.0.0521.1232"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -712,15 +712,23 @@ function set_SRHOOK()
     local -a ATTR my_sync old_sync
     local get_sr_name="$1"
     local value="$2"
+    # for compatibility reasons with 'old', non multi-target environments
     case "$value" in
     "SOK"|"SFAIL"|"SWAIT")
         set_global="ok" ;;
     *)
         set_global="nok" ;;
     esac
-    multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
-    if ocf_is_true "$multiTargetSupport"; then
-        super_ocf_log info "RA: set SRHOOK - multiTargetSupport is true, write site specific Hook attribute"
+    mts=true
+    srHook_gen=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_SRHOOK_GEN[@]}")
+    if [ "$srHook_gen" == "" ] || [ "$srHook_gen" == "1.0" ]; then
+        # no Hook is used or the old Hook from a previous package is used or
+        # the new, but 'old-style' Hook is used
+        # multi-target support not available, use global Hook attribute
+        mts=false
+    fi
+    if ocf_is_true "$mts"; then
+        super_ocf_log info "RA: set SRHOOK - multi-target support available, write site specific Hook attribute"
         old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
         if [ -n "$old_sync" ] && [ "$set_global" == "ok" ]; then
             super_ocf_log info "RA: set SRHOOK - write still existing old, global Hook attribute too"
@@ -731,7 +739,7 @@ function set_SRHOOK()
         set_hana_attribute "X" "$value" "${ATTR[@]}"
     else
         if [ "$set_global" == "ok" ]; then
-            super_ocf_log info "RA: set SRHOOK - multiTargetSupport is false or not set, write old, global Hook attribute"
+            super_ocf_log info "RA: set SRHOOK - no multi-target support, write old, global Hook attribute"
             set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
         fi
     fi
@@ -2719,8 +2727,7 @@ function saphana_monitor_primary()
                                         # HANA was already in (stable) sync, so the HANA Hook would never been called till
                                         # a new event comes up. This is why we transfer the 'polled' attribute to the Hook attribute.
                                         my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-                                        # TODO: PRIO0: SCOPY is only to test - change to $my_sync later
-                                        set_SRHOOK "$remSR_name" "SCOPY"
+                                        set_SRHOOK "$remSR_name" "$my_sync"
                                         super_ocf_log info "DEC: ${ATTR_NAME_HANA_SRHOOK[0]} was still SWAIT, so copy attribute ${ATTR_NAME_HANA_SEC_SYNC_STATUS[0]} ($my_sync)"
                                     fi
                                     ;;
