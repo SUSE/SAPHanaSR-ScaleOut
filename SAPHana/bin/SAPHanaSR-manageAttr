@@ -715,7 +715,7 @@ chk_for_maintenance() {
     local cmaint="true"
     # check maintenance mode of cluster
     # msl resource is reported unmanaged, but cln resource not
-    cluInMaint=$(cibadmin -Q | xmllint -xpath "string(//*/*/nvpair[@name='maintenance-mode']/@value)" -)
+    cluInMaint=$(cibadmin -Q | xmllint -xpath "string(//crm_config/*/nvpair[@name='maintenance-mode']/@value)" -)
     # check maintenance mode of ms and cln resource
     # Attention: if the keyword in the cib will change from 'master' to 'multistate'
     # or something else, we need to adapt the following line
