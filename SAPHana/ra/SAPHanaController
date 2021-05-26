@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.180.0.0423.1703"
+SAPHanaControllerVersion="0.180.0.0521.1232"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -202,7 +202,7 @@ The resource agent uses the following four interfaces provided by SAP:
 4. hdbsql / systemReplicationStatus
    Interface is SQL query into HANA (system replication table).  The hdbsql query will be replaced by a python script
    "systemReplicationStatus.py" in SAP HANA SPS8 or 9.
-   As long as we need to use hdbsql you need to setup secure store users for linux user root to be able to
+   As long as we need to use hdbsql you need to set up secure store users for linux user root to be able to
    access the SAP HANA database. You need to configure a secure store user key "SAP HANA${SID}SR" which can connect the SAP
    HANA database:
 
@@ -381,7 +381,7 @@ function get_saphana_waitfor_timeout() {
     if [ -z "$timeout" ] || [ "$timeout" -lt "$stdTimeOut" ]; then
         timeout=$stdTimeOut
         super_ocf_log info "DEC: SAP HANA $hanaAction timeout is '$stdTimeOut'"
-    else 
+    else
         super_ocf_log info "DEC: SAP HANA $hanaAction timeout is '$timeout', was default '$stdTimeOut'"
     fi
     super_ocf_log info "FLOW $FUNCNAME"
@@ -551,7 +551,6 @@ function set_crm_master()
        super_ocf_log debug "DBG: LET crm master: $score"
        rc=0
     fi
-    #logger -t fhLOG "crm_master with: $OCF_RESOURCE_INSTANCE -v $score -l reboot"
     return $rc
 }
 
@@ -713,11 +712,25 @@ function set_SRHOOK()
     local -a ATTR my_sync old_sync
     local get_sr_name="$1"
     local value="$2"
-    multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
-    old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
-    if ocf_is_true "$multiTargetSupport"; then
-        super_ocf_log info "RA: set SRHOOK - multiTargetSupport is true, write site specific Hook attribute"
-        if [ -n "$old_sync" ]; then
+    # for compatibility reasons with 'old', non multi-target environments
+    case "$value" in
+    "SOK"|"SFAIL"|"SWAIT")
+        set_global="ok" ;;
+    *)
+        set_global="nok" ;;
+    esac
+    mts=true
+    srHook_gen=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_SRHOOK_GEN[@]}")
+    if [ "$srHook_gen" == "" ] || [ "$srHook_gen" == "1.0" ]; then
+        # no Hook is used or the old Hook from a previous package is used or
+        # the new, but 'old-style' Hook is used
+        # multi-target support not available, use global Hook attribute
+        mts=false
+    fi
+    if ocf_is_true "$mts"; then
+        super_ocf_log info "RA: set SRHOOK - multi-target support available, write site specific Hook attribute"
+        old_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}")
+        if [ -n "$old_sync" ] && [ "$set_global" == "ok" ]; then
             super_ocf_log info "RA: set SRHOOK - write still existing old, global Hook attribute too"
             # old, global attribute still exists, write both attributes
             set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
@@ -725,8 +738,10 @@ function set_SRHOOK()
         ATTR=(${ATTR_NAME_HANA_SRHOOK[@]}); ATTR[0]="${ATTR[0]}_$get_sr_name"
         set_hana_attribute "X" "$value" "${ATTR[@]}"
     else
-        super_ocf_log info "RA: set SRHOOK - multiTargetSupport is false or not set, write old, global Hook attribute"
-        set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
+        if [ "$set_global" == "ok" ]; then
+            super_ocf_log info "RA: set SRHOOK - no multi-target support, write old, global Hook attribute"
+            set_hana_attribute "X" "$value" "${ATTR_NAME_HANA_GLOB_SRHOOK[@]}"
+        fi
     fi
     return 0
 }
@@ -944,7 +959,9 @@ function saphana_init() {
     #
     # handle RA update state
     node_updated=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_GRA[@]}")
-    if [ "$node_updated" != "$RAG" ]; then
+    onode_site=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_SITE[@]}")
+    if [ -n "$onode_site" ] && [ "$node_updated" != "$RAG" ]; then
+        # only set on HANA nodes, skip the decision maker / tiebreaker
         # attribute is empty or set by an older RA generation
         # update attribute to the new RA generation
         node_updated="$RAG"
@@ -958,9 +975,11 @@ function saphana_init() {
         updNodes=1
         for onode in "${otherNodes[@]}"; do
             onode_site=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
-            if [ -n "$onode_site" ]; then
-                (( nrOfNodes++ ))
+            if [ -z "$onode_site" ]; then
+                # not a HANA node, may be the decision maker / tiebreaker
+                continue
             fi
+            (( nrOfNodes++ ))
             onode_updated=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_GRA[@]}")
             if [ -n "$onode_updated" ]; then
                 if [ "$onode_updated" == "$RAG" ]; then
@@ -1417,7 +1436,6 @@ function saphana_start() {
             output=$($SAPCONTROL -nr $InstanceNr -function WaitforStarted $HANA_ACTION_TIMEOUT 1)
             if [ $? -eq 0 ]
             then
-                logger -t "fhlpdebug:" "saphana_start() WaitforStarted rc=0"
                 for i in 1 2 3 4; do
                     super_ocf_log info "ACT: SAP HANA: System $SID-$InstanceName started: $output"
                     hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
@@ -1436,17 +1454,13 @@ function saphana_start() {
                     awk -F= '
                                 $1 ~ "host/[a-zA-Z].*/hostActive" {hostActive = hostActive ":" $2}
                                 END { printf "%s\n", hostActive;  } ' vName=$vName )
-                    logger -t "fhlpdebug:" "saphana_start() hostActive=$hanaHostActive"
                     set_hana_attribute ${NODENAME} "$hanarole" "${ATTR_NAME_HANA_ROLES[@]}"
-                    logger -t "fhlpdebug:" "saphana_start() roles=$hanarole"
                     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
-                    logger -t "fhlpdebug:" "saphana_start() lss=$hanalrc"
                     set_hana_attribute ${NODENAME} "$hanalrc" "${ATTR[@]}"
                     sleep 5
                 done
                 rc=$OCF_SUCCESS
             else
-                logger -t "fhlpdebug:" "saphana_start() WaitforStarted rc!=0"
                 super_ocf_log err  "ACT: SAP HANA: System $SID-$InstanceName start failed: $output"
                 rc=$OCF_ERR_GENERIC
             fi
@@ -1476,7 +1490,7 @@ function saphana_stopSystem() {
         HANA_ACTION_TIMEOUT=$(get_saphana_waitfor_timeout WaitforStopped)
         output=$($SAPCONTROL -nr $InstanceNr -function WaitforStopped $HANA_ACTION_TIMEOUT 1); rcWfS="$?"
         while true; do
-            # 
+            #
             # If the master-nameserver dies and does not have a failover candidate but there are still running worker nodes
             #    WaitforStopped terminates to early and does not wait till the worker nodes are down.
             #    So we need to wait till the last "partial" node is down.
@@ -1491,7 +1505,6 @@ function saphana_stopSystem() {
                     END { printf "%s:%s\n", hostActive, partials;  } ' vName=$vName )
             hanaHostActive="${hAPart%:*}"
             partials="${hAPart#*:}"
-            logger -t "fhlpdebug:" "saphana_stop() hostActive=$hanaHostActive Partials=$partials"
             if [ "$partials" -eq 0 ]; then
                 # terminate wait-for-all-nodes-down if no partial nodes are left any more
                 break;
@@ -2714,8 +2727,7 @@ function saphana_monitor_primary()
                                         # HANA was already in (stable) sync, so the HANA Hook would never been called till
                                         # a new event comes up. This is why we transfer the 'polled' attribute to the Hook attribute.
                                         my_sync=$(get_hana_attribute "X" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}")
-                                        # TODO: PRIO0: SCOPY is only to test - change to $my_sync later
-                                        set_SRHOOK "$remSR_name" "SCOPY"
+                                        set_SRHOOK "$remSR_name" "$my_sync"
                                         super_ocf_log info "DEC: ${ATTR_NAME_HANA_SRHOOK[0]} was still SWAIT, so copy attribute ${ATTR_NAME_HANA_SEC_SYNC_STATUS[0]} ($my_sync)"
                                     fi
                                     ;;
@@ -2935,7 +2947,6 @@ function saphana_monitor_clone() {
     local nState=""
     local primary_status="$HANA_STATE_DEFECT"
 
-    logger -t "fhlpdebug:" "saphana_monitor_clone() called"
     ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
     my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
     ATTR=(${ATTR_NAME_HANA_SRR[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
@@ -2961,29 +2972,22 @@ function saphana_monitor_clone() {
         fi
     else
         super_ocf_log debug "DBG: REGULAR MONITOR"
-        logger -t "fhlpdebug:" "saphana_monitor_clone() regular monitor"
     fi
     if is_the_master_nameserver; then
         #
         # First check, if we are PRIMARY or SECONDARY
         #
-        logger -t "fhlpdebug:" "saphana_monitor_clone() is_the_master_nameserver"
         check_for_primary; primary_status=$?
         if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
             saphana_check_local_instance
-            logger -t "fhlpdebug:" "saphana_monitor_clone() calling saphana_monitor_primary()"
             saphana_monitor_primary; rc=$?
-            logger -t "fhlpdebug:" "saphana_monitor_clone() saphana_monitor_primary() saphana_monitor_primary rc=$rc"
         elif [ $primary_status -eq $HANA_STATE_SECONDARY  ]; then
             saphana_check_local_instance
-            logger -t "fhlpdebug:" "saphana_monitor_clone() calling saphana_monitor_secondary()"
             saphana_monitor_secondary; rc=$?
-            logger -t "fhlpdebug:" "saphana_monitor_clone() saphana_monitor_primary() saphana_monitor_secondary rc=$rc"
         else
             #
             # OK, we are neither HANA PRIMARY nor HANA SECONDARY
             #
-            logger -t "fhlpdebug:" "saphana_monitor_clone() we are neither HANA PRIMARY nor HANA SECONDARY"
             super_ocf_log warn "ACT: saphana_monitor_clone: HANA_STATE_DEFECT"
             # TODO: PRIO2: Or only set_crm_master -INFINITY ?
             # TODO: PRIO9: Currently pacemaker-remote nodes does not support 'reboot' attributes
@@ -3009,7 +3013,6 @@ function saphana_monitor_clone() {
         #
         # instance is not THE master nameserver
         #
-        logger -t "fhlpdebug:" "saphana_monitor_clone() instance is not THE master nameserver"
         nState=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_CLONE_STATE[@]}")
         # TODO: PRIO2: Check, if we need to (re) start a failed SAP HANA instance in a swarm
         if ! saphana_check_local_instance; then
@@ -3017,7 +3020,6 @@ function saphana_monitor_clone() {
             # local instance is not THE master nameserver and is currently stopped
             #
             # IF LS>=2 AND ROLE STANDBY "RESTART" INSTANCE
-            logger -t "fhlpdebug:" "saphana_monitor_clone() local instance is not THE master nameserver and is currently stopped"
             get_hana_landscape_status; lss=$?
             if [ $lss -gt 2 ]; then
                 super_ocf_log info "DEC: local instance is down landscape is up (lss=$lss)"
@@ -3047,7 +3049,6 @@ function saphana_monitor_clone() {
             #
             # local instance not THE master nameserver, but up-and-running
             #
-            logger -t "fhlpdebug:" "saphana_monitor_clone() local instance not THE master nameserver, but up-and-running"
             super_ocf_log info "DEC: the_master=<<$the_master>>"
             if [ -z "$the_master"  ]; then
                 #
@@ -3113,7 +3114,6 @@ function saphana_monitor_clone() {
             fi
         fi
     fi
-    logger -t "fhlpdebug:" "saphana_monitor_clone() end with rc=$rc"
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
 }

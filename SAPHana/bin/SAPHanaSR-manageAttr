@@ -21,9 +21,10 @@
 #
 #############################################################################
 
-OCFTOOLS=/usr/lib/ocf/lib/heartbeat
+OCFROOT=/usr/lib/ocf
+OCFTOOLS=${OCFROOT}/lib/heartbeat
 if [ -f ${OCFTOOLS}/ocf-shellfuncs ]; then
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1090,SC1091
     . ${OCFTOOLS}/ocf-shellfuncs
 else
     echo "${OCFTOOLS}/ocf-shellfuncs not found. No valid cluster environment available, exiting...."
@@ -31,7 +32,7 @@ else
 fi
 
 # variables
-version="202104271931"
+version="202105071116"
 exe="$0"
 cmd=$(basename "$exe")
 
@@ -93,6 +94,17 @@ get_hana_attribute() {
         crm_attribute -G -n "$attr_name" -t crm_config -q -d "$attr_default"; rc=$?
         ;;
     esac
+}
+
+# call the RA to initialize the needed attributes.
+# should be called only, if cluster or the resources are in mainteance/unmanaged
+init_ra() {
+    if [ -z "$INO" ]; then
+        raEnv="export OCF_ROOT=${OCFROOT}; export OCF_RESKEY_SID=${RSID}"
+    else
+        raEnv="export OCF_ROOT=${OCFROOT}; export OCF_RESKEY_SID=${RSID}; export OCF_RESKEY_InstanceNumber=${INO}"
+    fi
+    $runCmd "${raEnv}; ${RAC} status" >/dev/null 2>&1
 }
 
 print_stopped_msg() {
@@ -161,8 +173,7 @@ chk_ra_upd_state() {
             # will not have a ra running, but installed.
             # so no attribute is available inside the CIB
             # need to check on disk/filesystem level
-            ra="/usr/lib/ocf/resource.d/suse/SAPHanaController"
-            nodeUpdated=$($runCmd "if [ -f $ra ]; then sed -n 's/^RAG=\(.*\)$/\1/p' $ra; fi" "$onode" 2>/dev/null | grep -v "$onode" | sed 's/"//g')
+            nodeUpdated=$($runCmd "if [ -f $RAC ]; then sed -n 's/^RAG=\(.*\)$/\1/p' $RAC; fi" "$onode" 2>/dev/null | grep -v "$onode" | sed 's/"//g')
         else
             nodeUpdated=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_GRA[@]}")
         fi
@@ -195,7 +206,7 @@ chk_cluster_upd_state() {
     wr_info -i ""
     wr_info -ih "Check cluster wide update state of the resource agents."
     clusterUpdateState=$(get_hana_attribute "X" "${ATTR_NAME_HANA_UPD_STATE[@]}")
-    wr_info -ih "Cluster update state is '$clusterUpdateState'."
+    wr_info -ih "Cluster update state of the resource agents is '$clusterUpdateState'."
     if [ "$clusterUpdateState" == "ok" ]; then
         wr_info -ih "All cluster nodes are updated to the new resource agent."
     else
@@ -231,6 +242,7 @@ chk_hook_gen_cluster() {
             chk=1
             continue
         fi
+        wr_info -i "On cluster node '$onode' the srHook generation is '$onodeHookGen'."
         if [ -z "$hookGen" ]; then
             # to get the following comparison to work properly, initialize
             # 'hookGen' with the first non-zero attribute value of the loop
@@ -296,7 +308,7 @@ chk_presence_of_file() {
     local file=$1
     local exclude=$2
     local chk=0
-    $runCmd "if [ -f $file ]; then echo 'ok'; else echo 'nok'; fi" | while read -r line; do
+    while read -r line; do
         if [[ "$line" =~ ^OK: ]]; then
            # shellcheck disable=SC2001
             node=$(echo "$line" | sed 's%.*\[\(.*\)\].*%\1%')
@@ -318,7 +330,7 @@ chk_presence_of_file() {
                 chk=1
            fi
         fi
-    done
+    done < <($runCmd "if [ -f $file ]; then echo 'ok'; else echo 'nok'; fi")
     return $chk
 }
 
@@ -326,8 +338,6 @@ chk_presence_of_file() {
 get_global_ini_hooks() {
     local node=""
     local provider=""
-    local path=""
-    local no=""
     local section=""
 
     GLOBINI=$(mktemp /tmp/saphana-manageAttr.XXXXXXXX)
@@ -670,6 +680,82 @@ chk_multi_target_requirements() {
     return $chk
 }
 
+# get resource name from cib
+get_res() {
+    local resType=$1
+    cib=/var/lib/pacemaker/cib/cib.xml
+    # get resources for given $RSID
+    resS="$(grep '<nvpair name="SID"' $cib | sed -n "/value=\"${RSID}\"/s/.*id=\"\(.*\)-instance_attributes-.*>/\1/gp")"
+    if [ -n "$INO" ]; then
+        # get resources for given $INO
+        resI="$(grep '<nvpair name="InstanceNumber"' $cib | sed -n "/value=\"${INO}\"/s/.*id=\"\(.*\)-instance_attributes-.*>/\1/gp")"
+    fi
+    # get cln or msl resource name for given $RSID
+    # if possible do not use 'crm configure show', even if it's nicer to parse
+    # it's much slower than direkt reading cib.xml
+    for rs in $resS; do
+        if [ -n "$INO" ]; then
+            for ri in $resI; do
+                if [ "$rs" == "$ri" ]; then
+                    pat="[A-Za-z/ ][[:space:]]Set:.*${rs}"
+                    rname=$(crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }')
+                    rtype=$(awk -v pat="id=\"${rname}\"" '$0 ~ pat { print substr($1,2,length($1)-1) }' $cib)
+                    # clone oder ms?
+                    if [ "$rtype" == "$resType" ]; then
+                        echo "$rname"
+                    fi
+                fi
+            done
+        else
+            pat="[A-Za-z/ ][[:space:]]Set:.*${rs}"
+            rname=$(crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }')
+            rtype=$(awk -v pat="id=\"${rname}\"" '$0 ~ pat { print substr($1,2,length($1)-1) }' $cib)
+            # clone oder ms?
+            if [ "$rtype" == "$resType" ]; then
+                echo "$rname"
+            fi
+        fi
+    done
+}
+
+# check, if the cluster or the msl and cln resource is in maintenance
+chk_for_maintenance() {
+    local mmaint="true"
+    local cmaint="true"
+    # check maintenance mode of cluster
+    # msl resource is reported unmanaged, but cln resource not
+    if crm_mon -r1 | grep "Resource management is DISABLED" >/dev/null 2>&1; then
+        cluInMaint="true"
+    fi
+    # check maintenance mode of ms and cln resource
+    # Attention: if the keyword in the cib will change from 'master' to 'multistate'
+    # or something else, we need to adapt the following line
+    resM="$(get_res master)"
+    if [ -z "$resM" ]; then
+            mmaint="false"
+    fi
+    resC="$(get_res clone)"
+    if [ -z "$resC" ]; then
+            cmaint="false"
+    fi
+    for m in $resM; do
+        if ! crm_mon -r1 | grep "$m" | grep unmanaged >/dev/null 2>&1; then
+            mmaint="false"
+        fi
+    done
+    if [ "$mmaint" == "true" ]; then
+        mslInMaint="true"
+    fi
+    for c in $resC; do
+        if ! crm_mon -r1 | grep "$c" | grep unmanaged >/dev/null 2>&1; then
+            cmaint="false"
+        fi
+    done
+    if [ "$cmaint" == "true" ]; then
+        clnInMaint="true"
+    fi
+}
+
 # check, if cluster is okay
 chk_cluster_health() {
     wr_info -ih "Check cluster health."
@@ -677,24 +763,27 @@ chk_cluster_health() {
 
     # check for unmanaged - only warn, not abort the check
     if crm_mon -r1 | grep -i unmanaged >/dev/null 2>&1; then
-        wr_info -wh "Cluster has unmanaged parts. Please check."
+        wr_info -ih "Cluster has unmanaged parts."
+    fi
+    if [ "$mslInMaint" == "true" ]; then
+        wr_info -i "The multi-state resource for SID '$RSID' is currently unmanaged."
+    fi
+    if [ "$clnInMaint" == "true" ]; then
+        wr_info -i "The clone resource for SID '$RSID' is currently unmanaged."
     fi
     # check for maintenance - only inform, not abort the check
     # check maintenance mode of cluster and node
     # resource is covered by test before (unmanaged)
     #
     # check maintenance mode of nodes
-    if mnodes=$(crm_mon -r1 | grep maintenance | awk '{ print $2 }' 2>/dev/null); then
+    mnodes=$(crm_mon -r1 | grep maintenance | awk '{ print $2 }' 2>/dev/null)
+    if [ -n "$mnodes" ]; then
         wr_info -ih "Cluster has nodes in maintenance."
-        if [ -n "$mnodes" ]; then
-            wr_info -i "Affected nodes are: ${mnodes//[$'\t\r\n:']/ }."
-        fi
+        wr_info -i "Affected nodes are: ${mnodes//[$'\t\r\n:']/ }."
     fi
     # check maintenance mode of cluster
-    if crm_mon -r1 | grep "Resource management is DISABLED" >/dev/null 2>&1; then
+    if [ "$cluInMaint" == "true" ]; then
         wr_info -ih "Whole cluster is in maintenance."
-        # msl resource is reported unmanaged, but cln resource not
-        cluInMaint="true"
     fi
 
     # check for unclean
@@ -887,24 +976,41 @@ ATTR_NAME_HANA_GLOB_SRHOOK=("hana_${ASID}_glob_srHook" "props")
 # role attribute to find the name server
 ATTR_NAME_HANA_ROLES=("hana_${ASID}_roles" "reboot")
 
+RAC="${OCFROOT}/resource.d/suse/SAPHanaController"
+
 check=true
 needMig=true
-nodeName=$(crm_node -n)
 allClusterNodes=$(crm_node -l | awk '{if ($2 != "") { print $2 }}')
 declare -A gini
 runCmd="crm cluster run"
 cluInMaint="false"
+mslInMaint="false"
+clnInMaint="false"
+
+chk_for_maintenance
 
 wr_info -ih "Start checking...."
 # check, if all migration requirements for use case '$USECASE' are fulfilled
 case "$USECASE" in
 "multi-target")
+    # whole cluster in maintenance or
+    # multi-state resource AND clone resource unmanaged
+    if [ "$cluInMaint" == "true" ] || [[ "$mslInMaint" == "true"  &&  "$clnInMaint" == "true" ]]; then
+        # initialize attributes
+        init_ra
+    else
+        wr_info -eh "For use-case 'multi-target' the cluster or (at least)"
+        wr_info -e "the multi-state and clone resource of the SID '$RSID'"
+        wr_info -e "need to be in maintenance mode."
+        wr_info -e "Please check. Exiting...."
+        exit 1
+    fi
     if ! chk_multi_target_requirements; then
         check=false
     fi
     ;;
 *)
-    wr_info -wh "Unsupported use case. Exiting...."
+    wr_info -eh "Unsupported use case. Exiting...."
     exit 1
     ;;
 esac
