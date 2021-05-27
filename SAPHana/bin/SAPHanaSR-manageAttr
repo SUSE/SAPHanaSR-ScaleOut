@@ -32,7 +32,7 @@ else
 fi
 
 # variables
-version="202105071116"
+version="202105271500"
 exe="$0"
 cmd=$(basename "$exe")
 
@@ -914,10 +914,6 @@ fi
 # check needed command line parameter
 if [ -z "$SID" ]; then
     echo "ERROR: missing SID"
-    usage
-fi
-if [ -z "$INO" ]; then
-    echo "ERROR: missing instance number"
     usage
 fi
 if [ -z "$USECASE" ]; then
