@@ -683,37 +683,28 @@ chk_multi_target_requirements() {
 # get resource name from cib
 get_res() {
     local resType=$1
-    cib=/var/lib/pacemaker/cib/cib.xml
-    # get resources for given $RSID
-    resS="$(grep '<nvpair name="SID"' $cib | sed -n "/value=\"${RSID}\"/s/.*id=\"\(.*\)-instance_attributes-.*>/\1/gp")"
-    if [ -n "$INO" ]; then
-        # get resources for given $INO
-        resI="$(grep '<nvpair name="InstanceNumber"' $cib | sed -n "/value=\"${INO}\"/s/.*id=\"\(.*\)-instance_attributes-.*>/\1/gp")"
-    fi
-    # get cln or msl resource name for given $RSID
-    # if possible do not use 'crm configure show', even if it's nicer to parse
-    # it's much slower than direkt reading cib.xml
-    for rs in $resS; do
+    # get primitives
+    prims="$(cibadmin -Q | xmllint -xpath "//*/primitive[@class='ocf' and @provider='suse']/@id" - | sed -e 's/id=//g' -e 's/"//g')"
+    for ps in $prims; do
+        sid=$(cibadmin -Q | xmllint -xpath "string(//primitive[@id='$ps']/instance_attributes/nvpair[@name='SID']/@value)" -)
+        if [ "$sid" != "$RSID" ]; then
+            # SID does not match, skipping
+            continue
+        fi
         if [ -n "$INO" ]; then
-            for ri in $resI; do
-                if [ "$rs" == "$ri" ]; then
-                    pat="[A-Za-z/ ][[:space:]]Set:.*${rs}"
-                    rname=$(crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }')
-                    rtype=$(awk -v pat="id=\"${rname}\"" '$0 ~ pat { print substr($1,2,length($1)-1) }' $cib)
-                    # clone oder ms?
-                    if [ "$rtype" == "$resType" ]; then
-                        echo "$rname"
-                    fi
-                fi
-            done
-        else
-            pat="[A-Za-z/ ][[:space:]]Set:.*${rs}"
-            rname=$(crm_mon -r1 2>/dev/null | awk -v pat="$pat" '$0 ~ pat { print $3 }')
-            rtype=$(awk -v pat="id=\"${rname}\"" '$0 ~ pat { print substr($1,2,length($1)-1) }' $cib)
-            # clone oder ms?
-            if [ "$rtype" == "$resType" ]; then
-                echo "$rname"
+            # check for given $INO
+            ino=$(cibadmin -Q | xmllint -xpath "string(//primitive[@id='$ps']/instance_attributes/nvpair[@name='InstanceNumber']/@value)" -)
+            if [ "$ino" != "$INO" ]; then
+                # INO does not match, skipping
+                continue
             fi
+        fi
+        rname=$(cibadmin -Q | xmllint -xpath "string(//*[primitive[@id='$ps']]/@id)" -)
+        rtype=$(cibadmin -Q | xmllint -xpath "name(//*[@id='$rname'])" -)
+
+        # clone oder ms?
+        if [ "$rtype" == "$resType" ]; then
+             echo "$rname"
         fi
     done
 }
@@ -724,9 +715,7 @@ chk_for_maintenance() {
     local cmaint="true"
     # check maintenance mode of cluster
     # msl resource is reported unmanaged, but cln resource not
-    if crm_mon -r1 | grep "Resource management is DISABLED" >/dev/null 2>&1; then
-        cluInMaint="true"
-    fi
+    cluInMaint=$(cibadmin -Q | xmllint -xpath "string(//crm_config/*/nvpair[@name='maintenance-mode']/@value)" -)
     # check maintenance mode of ms and cln resource
     # Attention: if the keyword in the cib will change from 'master' to 'multistate'
     # or something else, we need to adapt the following line
