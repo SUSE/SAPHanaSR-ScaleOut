@@ -32,7 +32,7 @@ else
 fi
 
 # variables
-version="202105271500"
+version="202105271836"
 exe="$0"
 cmd=$(basename "$exe")
 
@@ -765,7 +765,7 @@ chk_cluster_health() {
     # resource is covered by test before (unmanaged)
     #
     # check maintenance mode of nodes
-    mnodes=$(crm_mon -r1 | grep maintenance | awk '{ print $2 }' 2>/dev/null)
+    mnodes="$(cibadmin -Q | xmllint -xpath "//node/*/nvpair[@name='maintenance' and @value='on']/../../@uname" - 2>/dev/null | sed -e 's/uname=//g' -e 's/"//g')"
     if [ -n "$mnodes" ]; then
         wr_info -ih "Cluster has nodes in maintenance."
         wr_info -i "Affected nodes are: ${mnodes//[$'\t\r\n:']/ }."
@@ -780,18 +780,26 @@ chk_cluster_health() {
         wr_info -eh "Cluster has unclean parts. Please check."
         chk=1
     fi
+
     # check for standby
-    if crm_mon -r1 | grep -i standby >/dev/null 2>&1; then
-        wr_info -wh "Cluster has standby parts. Please check."
+    stdbynodes="$(cibadmin -Q | xmllint -xpath "//node/*/nvpair[@name='standby' and @value='on']/../../@uname" - 2>/dev/null | sed -e 's/uname=//g' -e 's/"//g')"
+    if [ -n "$stdbynodes" ]; then
+        wr_info -ih "Cluster has nodes in standby. Please check."
+        wr_info -i "Affected nodes are: ${stdbynodes//[$'\t\r\n:']/ }."
+        chk=1
     fi
     # check for offline
-    if crm_mon -r1 | grep -i offline >/dev/null 2>&1; then
-        wr_info -eh "Cluster has offline parts. Please check."
+    offnodes="$(cibadmin -Q | xmllint -xpath "//status/node_state[@crmd='offline']/@uname" - 2>/dev/null | sed -e 's/uname=//g' -e 's/"//g')"
+    if [ -n "$offnodes" ]; then
+        wr_info -ih "Cluster has offline nodes. Please check."
+        wr_info -i "Affected nodes are: ${offnodes//[$'\t\r\n:']/ }."
         chk=1
     fi
     # check for pending
-    if crm_mon -r1 | grep -i pending >/dev/null 2>&1; then
-        wr_info -eh "Cluster has pending parts. Please check."
+    pendingnodes="$(cibadmin -Q | xmllint -xpath "//status/node_state[@join='pending']/@uname" - 2>/dev/null | sed -e 's/uname=//g' -e 's/"//g')"
+    if [ -n "$pendingnodes" ]; then
+        wr_info -ih "Cluster has nodes in state pending. Please check."
+        wr_info -i "Affected nodes are: ${pendingnodes//[$'\t\r\n:']/ }."
         chk=1
     fi
     # check for failed
