@@ -1,0 +1,372 @@
+.\" Version: 0.180.0
+.\"
+.TH SAPHanaSR-manageAttr 8 "8 May 2021" "" "SAPHanaSR-ScaleOut"
+.\"
+.SH NAME
+SAPHanaSR-manageAttr \- Helps managing Linux cluster attributes for SAP HANA system replication.
+.\"
+.SH SYNOPSYS
+\fBSAPHanaSR-manageAttr\fR [ --help | --version ]
+.br
+\fBSAPHanaSR-manageAttr\fR --sid=\fISID\fR --ino=\fIINSTNO\fR --case \fIusecase\fR [ --check | --migrate \fIresource\fR ]
+.\"
+.SH DESCRIPTION
+\fBSAPHanaSR-manageAttr\fR helps managing Linux cluster attributes for SAP HANA system replication.
+.PP
+Current sole use case is the upgrade of RAs and HADR provider hook script to "multi-target". Defined entry and target states, upgrade procedures and requirements are described in the EXAMPLES and REQUIREMENTS sections below. 
+.\" TODO more description
+.\"
+.SH OPTIONS
+.TP 4
+\fB --help\fR | \fB-h\fR
+show help
+.TP 4
+\fB --version\fR | \fB-v\fR
+show script version
+.TP 4
+\fB --check\fR | \fB-c\fR
+check, if all recommended pre-requisites for an upgrade are met
+.TP 4
+\fB --migrate\fR | \fB-m\fR \fIresource\fR
+migrate that given resource, related to the use case
+.TP 4
+\fB --case\fR | \fB-u\fR \fIusecase\fR
+use case to process, currently only upgrade to "multi-target"
+.\" TODO what use cases?
+.TP 4
+\fB --sid=\fISID\fR
+use SID of the SAP system
+.TP 4
+\fB --ino=\fIINSTNO\fR
+use instance number of the SAP system
+.\"
+.SH SUPPORTED PARAMETERS
+.TP
+\fBhana_${sid}_gra\fR = [ \fIgeneration\fR ]
+The resource agent (RA) generation attribute identifies which generation of the RA is running. It helps determing RA's capabilities and performing cluster-wide upgrades of RA and srHook. The generation should be same for both on all nodes of the Linux cluster after successful upgrade. See also hana_${sid}_gsh.
+.TP
+\fBhana_${sid}_gsh\fR = [ \fIgeneration\fR ]
+The srHook generation attribute identifies which generation of the srHook is running. It helps determing srHook's capabilities and performing cluster-wide upgrades of RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out multi-target system replication, which needs replacement of the old SAPHanaSR.py by new SAPHanaSrMultiTarget.py. See also hana_${sid}_gra.
+.TP
+\fBhana_${sid}_site_srHook_${SITE}\fR = [ SOK | SFAIL | SWAIT | SREG | PRIM ]
+The SAPHanaController and SAPHana RA recognize the effecting system replication status via srHook attributes in the CIB properties section. The scale-out multi-target aware attribute is site-specific. This attribute is used after successful upgrade or fresh installation into target state. See also SAPHanaSrMultiTarget.py(7). The SAP System Indentifier (sid) is given in lower case.
+.TP
+\fBhana_${sid}_glob_srHook\fR = [ SOK | SFAIL | SWAIT | SREG | PRIM ]
+The old-style srHook attributes in the CIB properties section does not contain site-specific information. This attribute is to be replaced by the upgrade. See also SAPHanaSR.py(7). The SAP System Indentifier (sid) is given in lower case.
+.TP
+\fBhana_${sid}_glob_mts\fR = [ true | false ]
+The multi-target support attribute identifies whether the Linux cluster supports HANA scale-out multi-target system replication. The SAP System Indentifier (sid) is given in lower case.
+.\" TODO See also
+.TP
+\fBhana_${sid}_glob_upd\fR = [ ok | nok ]
+The update status attribute identifies whether the whole cluster has successfully passed an update procedure. The SAP System Indentifier (sid) is given in lower case.
+.\" TODO See also
+.\"
+.SH RETURN CODES
+.B 0
+Successful program execution.
+.br
+.B >0
+Usage, syntax or execution errors.
+.\"TODO meaning of INFO WARNING ERROR
+.\"
+.SH EXAMPLES 
+\fB*\fR Overview on upgrading old-style hook to multi-target hook.
+
+Upgrade procedure from defined entry state with old-style hook into defined
+target state with multi-target enabled hook. This case is the main target for
+the upgrade.
+Certain steps are described in more detail as separate examples. Also see
+REQUIREMENTS section below for defined states.
+
+The procedure at a glance:
+.br
+a. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+.br
+b. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+.br 
+c. Replace HANA HADR provider configuration on both sites.
+.br
+d. Reload HANA HADR provider hook script on both sites.
+.br
+e. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
+.br
+f. Migrate srHook attribute from old-style to multi-target.
+.br
+g. Check Linux cluster for matching defined upgrade target state.
+.br
+h. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+.br
+i. Optionally connect third HANA site via system replication outside of the Linux cluster.
+.br
+j. Finally check if everything looks fine.
+
+As final result of this upgrade, the RAs and hook script are upgraded from
+old-style to multi-target. Further the Linux cluster's old-style global srHook
+attribute hana_${sid}_glob_srHook is replaced by site-aware attributes
+hana_${sid}_site_srHook_${SITE}. New auxiliary attributes are introduced,
+see PARAMETERS section.
+.\" TODO what attributes
+
+\fB*\fR Overview on upgrading existing multi-target hook to new one. 
+
+Upgrade procedure from defined entry state already using a specific
+multi-target aware hook into defined target state with general product
+multi-target aware hook.
+This case is relevant for early adopters who attended the ramp-up phase.
+Certain steps are described in more detail as separate examples. Also see
+REQUIREMENTS section below for defined states.
+
+The procedure at a glance:
+.br
+a. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+.br
+b. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+.br
+c. Check Linux cluster for matching defined upgrade entry state.
+.br
+d. Reload HANA HADR provider hook script on both sites.
+.br
+e. Check Linux cluster for matching defined upgrade target state.
+.br
+f. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+
+As final result of this upgrade, the already multi-target aware RAs and hook
+script are updated to an new version. The existing site-aware attributes
+hana_${sid}_site_srHook_${SITE} are kept. New auxiliary attributes are
+introduced, see PARAMETERS section.
+.\" TODO what attributes
+
+\fB*\fR Overview on upgrading old-style hook, no multi-target hook needed.
+
+Upgrade procedure from defined entry state with old-style hook into defined
+target state while keeping old-style hook.
+This case is relevant for customer who do not want to change from old-style to
+multi-target, but just upgrade the RPM. Certain steps are described in more
+detail as separate examples. Also see REQUIREMENTS section below for defined
+states.
+
+The procedure at a glance:
+.br
+a. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+.br
+b. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+.br
+c. Reload HANA HADR provider hook script on both sites.
+.br
+d. Check Linux cluster for matching defined upgrade target state.
+.br
+e. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+
+As final result of this upgrade, the RAs and hook script are updated to an new
+version. The existing old-style global attribute hana_${sid}_glob_srHook is
+kept. New auxiliary attributes are introduced, see PARAMETERS section.
+
+\fB*\fR Overview on update procedure for the SAPHanaSR-ScaleOut package.
+
+This procedure can be used to update RAs, HANA HADR provider hook scripts and
+related tools while HANA and Linux cluster stay online. For details see
+SAPHanaSR_maintenance_examples(7).
+
+The procedure at a glance:
+.br
+1. Check status of Linux cluster and HANA.
+.br
+2. Set resources SAPHanaController and SAPHanaTopology to maintenance.
+.br
+3. Update SAPHanaSR-ScaleOut RPM on all cluster nodes.
+.br
+4. Refresh resources SAPHanaController and SAPHanaTopology.
+.br
+5. Check status of Linux cluster and HANA.
+
+\fB*\fR Check Linux cluster for matching defined upgrade state.
+
+This should be always the first step during upgrade procedure, after having the RPM upgraded. The check shows if all nodes are online, no resource failures are recorded, HANA is healthy and system replication is in sync. The whole Linux cluster is checked at once. The resources SAPHanaController and SAPHanaTopology have to be in maintenance mode. Of course the same check is useful after the upgrade has been completed. See also SAPHanaSR_maintenance_examples(7). Example SID is ABR, instance number is 00.
+.PP
+.RS 4
+# crm_mon -1r
+.br
+# cs_clusterstate -i
+.br
+# SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --check
+.br
+# SAPHanaSR-showAttr
+.RE
+
+\fB*\fR Check HANA HADR provider configuration and related script.
+
+Manual checks can be done in addition to the built-in checks of SAPHanaSR-manageAttr. The check should be done at both sites. See below examples on HANA HADR provider configuration and hook script as well SAPHanaSrMultiTarget.py(7) for details.
+
+\fB*\fR Remove pretty ornaments from script output.
+
+This might be useful when capturing script output for documentation, or if screen width is limited. Example SID is ABR, instance number is 00.
+.PP
+.RS 4
+# SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --check 2>&1 | colrm 1 6
+.RE
+
+\fB*\fR Replace HANA HADR provider configuration.
+
+The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line of the section [trace] should be adapted as well. This task needs to be done at both sites. To make changes active, HANA needs to be informed about the change. This can be done by re-laoding the hook as shonw in another example. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr. 
+.PP
+.RS 4
+# su - abradm
+.br
+~> cdcoc
+.br
+~> cp global.ini global.ini.$RANDOM
+.br
+~> vi global.ini
+.br
+ ...
+.br
+[ha_dr_provider_saphanasrmultitarget]
+.br
+provider = SAPHanaSrMultiTarget
+.br
+path = /usr/share/SAPHanaSR-ScaleOut/
+.br
+execution_order = 1
+.br
+ ...
+.br
+[trace]
+.br
+ha_dr_saphanasrmultitarget = info
+.br
+ ...
+.RE
+
+\fB*\fR Reload hook script from persistence into running HANA.
+
+When installing an new package version, the HANA HADR provider hook script might
+be updated on-disk. Nevertheless HANA is still running with the old version of
+that script. To make changes active, the new script can be loaded from disk into
+HANA. This should be done on both sites. Please refer to SAP documentation for
+details. Example lowercase-SID (sid) is abr.
+.PP
+.RS 4
+# su - abradm
+.br
+~> hdbnsutil -reloadHADRProviders; echo $?
+.br
+~> cdtrace
+.br
+~> grep HADR.*loading.*SAPHanaS nameserver_*.trc
+.br
+~> exit
+.RE
+
+\fB*\fR Upgrade srHook attribute from old-style to multi-target.
+
+The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. The correct hook script needs to be already configured in HANA's global.ini. See example above and REQUIREMENTS section below. Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR_HDB00. 
+.PP
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --migrate msl_SAPHanaCon_ABR_HDB00
+.br
+# SAPHanaSR-showAttr
+.RE
+
+\fB*\fR Manually enable srHook attribute upgrade.
+
+This should not be necessary under normal circumstances. This usually is been
+done by the SAPHanaSrMultiTarget.py hook script. Example lowercase-SID is abr.
+.PP
+.RS 4
+# crm_attribute -n hana_abr_glob_mts -s SAPHanaSR -t crm_config -v true
+.RE
+
+\fB*\fR Delete srHook generation (gsh) and RA generation (gra) from node.
+
+Might be useful for repeating an upgrade test. Usually this is not needed. Example node is suse12, lowercase-SID (sid) is abr.
+.PP
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm_attribute --delete -t node -N suse12 -n hana_abr_gsh -l reboot
+.br
+# crm_attribute --delete -t node -N suse12 -n hana_abr_gra -l forever
+.br
+# SAPHanaSR-showAttr
+.RE
+.\"
+.SH FILES
+.TP 4
+/usr/sbin/SAPHanaSR-manageAttr
+the program itself
+.TP 4
+/usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
+the scale-out old-style hook provider, delivered with the RPM for backward compatibility
+.TP 4
+/usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
+the scale-out multi-target aware hook provider, delivered with the RPM
+.TP 4
+/hana/shared/$SID/global/hdb/custom/config/global.ini
+the on-disk representation of HANA global system configuration
+.TP 4
+/dev/stderr
+SAPHanaSR-manageAttr writes warnings and errors to stderr
+.\"
+.SH REQUIREMENTS
+\fB*\fR For upgrading resource agents, hook script and related attributes, Linux cluster and HANA are in one of the defined upgrade entry states. Defined entry states are:
+.PP
+.RS 4 
+1. The cluster is using old-style global srHook status attribute. All cluster nodes are online in the cluster and there are no current errors in the cluster or HANA. No third HANA site is attached. Main use case for SAPHanaSR-manageAttr.
+.PP
+2. The site-based srHook attributes are already in correct use, no old-style global attribute is in use. A third HANA site might be attached. Can be found at early adopters.
+.PP
+3. The cluster is set up from scratch. A third HANA site might be attached. There are neither old-style global, nor site-based srHook attributes.
+.RE
+.PP
+\fB*\fR The SAPHanaController m/s resource needs to be set into maintenance mode during upgrade.
+.PP
+\fB*\fR The old-style global srHook status attribute will be deleted as part of the upgrade procedure.
+.PP
+\fB*\fR Both HANA sites need to reload the global.ini and the HADR provider script. If that is achieved by restarting HANA, an SR take-over might help reducing service impact. Please refer to SAPHanaSR_maintenance_examples(7) for how performing an SR take-over.
+.PP
+\fB*\fR The HANA config file global.ini is located at /hana/shared/$SID/global/hdb/custom/config/global.ini .
+.PP
+\fB*\fR The Linux cluster can be either upgraded to the defined upgrade target state, or run unchanged with the old-style global attribute and related hook script. Not allowed is mixing old and new attributes or hook scripts within one Linux cluster.
+.PP
+.\" \fB*\fR The resources SAPHanaController and SAPHanaTopology are named according to the schema <prefix>_<resource_type>_<SID>_HDB<instance_number>. E.g. msl_SAPHanaCon_SLE_HDB00 or c_SAPHanaTopology_ABR_HDB10. This requirement might be removed in a future version of SAPHanaSR-manageAttr.
+.PP
+\fB*\fR Any procedure is tested for matching particular purpose and environment before applying it to production systems. 
+.PP
+\fB*\fR See also the REQUIREMENTS section of SAPHanaSR-ScaleOut(7) and SAPHanaSrMultiTarget.py(7) for general requirements and for technical details.
+.\"
+.SH BUGS
+\fB*\fR Formatting  and  content of this script's output will change, since this script is under development. This script is not intended to be called from tools.
+.\" .br
+.\" \fB*\fR The resources SAPHanaController and SAPHanaTopology have to be named according to a given schema.
+.br
+\fB*\fR In case of any problem, please use your favourite SAP support process to
+open a request for the component BC-OP-LNX-SUSE. Please report any other feedback
+and suggestions to feedback@suse.com.
+.\"
+.SH SEE ALSO
+\fBocf_suse_SAPHanaController\fP(7) , \fBSAPHanaSR-ScaleOut\fP(7) ,
+\fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR_maintenance_examples\fP(7) ,
+\fBSAPHanaSR.py\fP(7) , \fBSAPHanaSrMultiTarget.py\fP(7) ,
+\fBcrm_simulate\fP(8) , \fBcibadmin\fP(8) , \fBcrm_mon\fP(8) ,
+\fBcs_convert_time\fP(8) , \fBcs_clusterstate\fP(8) , \fBcs_show_hana_info\fP(8)
+.br
+https://documentation.suse.com/sbp/all/?context=sles-sap ,
+.br
+https://documentation.suse.com/sles-sap/ ,
+.br
+https://www.susecon.com/archive-2020.html
+.\"
+.SH AUTHORS
+A.Briel, F.Herschel, L.Pinne
+.\"
+.SH COPYRIGHT
+(c) 2021 SUSE LLC
+.br
+SAPHanaSR-manageAttr comes with ABSOLUTELY NO WARRANTY.
+.br
+For details see the GNU General Public License at
+http://www.gnu.org/licenses/gpl.html
+.\"

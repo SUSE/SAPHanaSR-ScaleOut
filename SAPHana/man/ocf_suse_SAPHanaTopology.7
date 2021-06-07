@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH ocf_suse_SAPHanaTopology 7 "10 Aug 2020" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaTopology 7 "29 Apr 2021" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaTopology \- Helps to manage two SAP HANA databases with system replication.
@@ -90,9 +90,23 @@ Optional. Default value: 120.
 .SH SUPPORTED PROPERTIES
 \fBhana_${sid}_glob_filter\fR
 .RS 4
-Global cluster property \fBhana_${sid}_glob_filter\fR .
-This property should only be set if requested by support engineers.
-The default is sufficient for normal operation.
+Global cluster property \fBhana_${sid}_glob_filter\fR . This property defines which messages are logged by the RA. It should only be set if requested by support engineers. The default is sufficient for normal operation.
+.br
+Message Types: [ act | dbg | dec | flow | top ]
+.\" TODO dbg2?
+.\" TODO message levels: (dbg)|info|warn|err|error
+.br
+ACT: Action. Start, stop, sr_takeover and others. See also section SUPPORTED ACTIONS.
+.br
+DBG: Debugging info. Usually not needed at customer site. See SUSE TID 7022678 for maximum RA tracing.
+.br
+DEC: Decision taken by the RA.
+.br
+FLOW: Function calls and the respective return codes.
+.br
+TOP: Topology. Messages related to HANA SR topology, like site name and remote site.
+.br
+Optional, advanced. Default value: ra-act-dec-lpa\&.
 .RE
 .PP
 .\"
@@ -254,7 +268,7 @@ F.Herschel, L.Pinne.
 .br
 (c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2018-2020 SUSE LLC
+(c) 2018-2021 SUSE LLC
 .br
 SAPHanaTopology comes with ABSOLUTELY NO WARRANTY.
 .br
