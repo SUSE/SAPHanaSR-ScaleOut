@@ -116,7 +116,7 @@ install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 /usr/lib/%{name}
 /usr/sbin/SAPHanaSR-monitor
 /usr/sbin/SAPHanaSR-showAttr
-/usr/sbin/SAPHanaSR-migrate
+/usr/sbin/SAPHanaSR-manageAttr
 /usr/sbin/SAPHanaSR-replay-archive
 /usr/sbin/SAPHanaSR-filter
 %dir /srv/www/hawk

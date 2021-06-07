@@ -26,7 +26,7 @@ To use this HA/DR hook provide please add the following lines (or similar) to yo
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.180.0.0330.1807"
+fhSRHookVersion = "0.180.0.0423.1704"
 srHookGen = "2.0"
 
 try:
@@ -44,6 +44,17 @@ try:
             myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
             self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
             self.tracer.info("{0}.{1}() Running srHookGeneration {2}, see attribute hana_{3}_gsh too\n".format(self.__class__.__name__, method, srHookGen, mysid))
+
+            # check if multi-target support attribute exists
+            mts = "true"
+            myCMD = "sudo /usr/sbin/crm_attribute -n hana_%s_glob_mts -G" % (mysid)
+            rc = os.system(myCMD)
+            if rc != 0:
+                # multi-target support attribute not found, create it
+                myCMD = "sudo /usr/sbin/crm_attribute -n hana_{0}_glob_mts -v {1} -t crm_config -s SAPHanaSR".format(mysid, mts)
+                rc = os.system(myCMD)
+                myMSG = "CALLING CRM: <{0}> rc={1}".format(myCMD, rc)
+                self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
 
         def about(self):
             method = "about"
@@ -161,13 +172,13 @@ try:
                 if rc != 0:
                     #
                     # FALLBACK
-                    # sending attribute to the cluster failed - using failback method and write status to a file - RA to pick-up the value during next SAPHanaController monitor operation
+                    # sending attribute to the cluster failed - using fallback method and write status to a file - RA to pick-up the value during next SAPHanaController monitor operation
                     #
                     myMSG = "sending attribute to the cluster failed - using local file as fallback"
                     self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
                     #
                     # cwd of hana is /hana/shared/<SID>/HDB00/<hananode> we use a relative path to cwd this gives us a <sid>adm permitted directory
-                    #     however we go one level up (..) to have the file accessable for all SAP HANA swarm nodes
+                    #     however we go one level up (..) to have the file accessible for all SAP HANA swarm nodes
                     #
                     fallbackFileObject = open("../.crm_attribute.stage.{0}".format(mySite), "w")
                     fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format(mysid, mySite, mySRS))
