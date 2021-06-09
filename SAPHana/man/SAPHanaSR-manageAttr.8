@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-manageAttr 8 "8 May 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-manageAttr 8 "8 Jun 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-manageAttr \- Helps managing Linux cluster attributes for SAP HANA system replication.
@@ -208,7 +208,7 @@ This might be useful when capturing script output for documentation, or if scree
 
 \fB*\fR Replace HANA HADR provider configuration.
 
-The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line of the section [trace] should be adapted as well. This task needs to be done at both sites. To make changes active, HANA needs to be informed about the change. This can be done by re-laoding the hook as shonw in another example. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr. 
+The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line of the section [trace] should be adapted as well. This task needs to be done at both sites. To make changes active, HANA needs to be informed about the change. This can be done by re-loading the hook as shown in another example. Do not forget to adapt the sudoers permission to match the new attribute. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr. 
 .\" TODO vi global.ini is not allowed anymore since HANA 2.0 SPS05. Use getParamter.py and setParamter.py instead.
 .PP
 .RS 4
