@@ -64,6 +64,15 @@ Usage, syntax or execution errors.
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
 .RE
 .PP
+* Example for checking the sudo permission needed by the hook script.
+.br
+All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
+Example SID is HA1.
+.PP
+.RS 2
+# su - ha1adm -c "sudo -l" | grep "NOPASSWD.*crm_attribute.*hana_"
+.RE
+.PP
 * Example for entry in SAP HANA global configuration
 /hana/shared/$SID/global/hdb/custom/config/global.ini
 .br

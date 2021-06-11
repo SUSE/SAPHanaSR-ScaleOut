@@ -94,6 +94,14 @@ Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SFAIL -t
 sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
 .RE
 .PP
+* Example for checking the sudo permission needed by the hook script.
+.br
+All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
+Example SID is HA1.
+.br
+# su - ha1adm -c "sudo -l" | grep "NOPASSWD.*crm_attribute.*hana_" 
+.RE
+.PP
 * Example for entry in SAP HANA 2.0 global configuration
 /hana/shared/$SID/global/hdb/custom/config/global.ini with multi-target aware,
 site-specific attributes.
