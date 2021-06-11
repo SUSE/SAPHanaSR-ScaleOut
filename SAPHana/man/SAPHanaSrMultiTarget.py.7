@@ -98,7 +98,8 @@ sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
 .br
 All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
 Example SID is HA1.
-.br
+.PP
+.RS 2
 # su - ha1adm -c "sudo -l" | grep "NOPASSWD.*crm_attribute.*hana_" 
 .RE
 .PP
