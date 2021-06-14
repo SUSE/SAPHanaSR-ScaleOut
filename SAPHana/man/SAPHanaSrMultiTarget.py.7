@@ -107,8 +107,9 @@ Example SID is HA1.
 /hana/shared/$SID/global/hdb/custom/config/global.ini with multi-target aware,
 site-specific attributes.
 .br
-This file is needed at both sites. The HANA has to be stopped before the files
-can be edited. Do not copy the file between nodes.
+This entry is needed at both sites that are managed by the Linux cluster.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details.
 Do not forget to adapt the sudoers permission, see examples above.
 .PP
 .RS 2
@@ -123,6 +124,48 @@ execution_order = 1
 [trace]
 .br
 ha_dr_saphanasrmultitarget = info
+.RE
+.PP
+* Example for entry in SAP HANA 2.0 global configuration
+/hana/shared/$SID/global/hdb/custom/config/global.ini to enable multi-target aware third site.
+.br
+.br
+This entry is useful at third site that is not managed by the Linux cluster.
+It is needed to allow ocf_suse_SAPHanaController(7) parameter AUTOMATED_REGISTER=true in multi-target environments.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details.
+.PP
+.RS 2
+[system_replication]
+.br
+ ...
+.br
+register_secondaries_on_takeover = true
+.br
+ ...
+.RE
+.PP
+* Example for entry in SAP HANA 2.0 nameserver configuration
+/hana/shared/$SID/global/hdb/custom/config/nameserver.ini for two-node scale-out HANA without standby nodes.
+.br
+This entry is needed at both sites that are managed by the Linux cluster.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details. Master node is suse11, worker is suse12.
+.PP
+.RS 2
+[landscape]
+ ...
+.br
+master = suse11:31001
+.br
+worker = suse11 suse12
+.br
+active_master = suse11:31001
+.br
+roles_suse11 = worker
+.br
+roles_suse12 = worker
+ ...
 .RE
 .PP
 * Example for creating the optional SAPHanaSrMultiTarget.pyc python object file manually. SID is SLE.
@@ -231,6 +274,9 @@ the old-style hook provider, if pre-compiled for the particular HANA (optional)
 .TP
 /hana/shared/$SID/global/hdb/custom/config/global.ini
 the on-disk representation of HANA global system configuration
+.TP
+/hana/shared/$SID/global/hdb/custom/config/nameserver.ini
+the on-disk representation of HANA nameserver configuration
 .TP
 /etc/sudoers , /etc/sudoers.d/
 the sudo permissions configuration
