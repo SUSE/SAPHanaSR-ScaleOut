@@ -299,6 +299,7 @@ See also section REQUIREMENTS below.
 3. Stop Linux Cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 3
+.\" TODO crm cluster stop ?
 # systemctl stop pacemaker
 .RE
 .RS 2
@@ -307,6 +308,7 @@ See also section REQUIREMENTS below.
 5. Start Linux cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 4
+.\" TODO crm cluster start ?
 # systemctl start pacemaker
 .RE
 .RS 2
@@ -324,6 +326,26 @@ See also section REQUIREMENTS below.
 .RE
 .RS 2
 8. Check status of Linux cluster and HANA, see above.
+.RE
+.PP
+\fB*\fR Overview on update procedure for the SAPHanaSR and SAPHanaSR-ScaleOut package.
+.br
+This procedure can be used to update RAs, HANA HADR provider hook scripts and related tools while HANA and Linux cluster stay online. See also SAPHanaSR-manageAttr(8) for details on reloading the HANA HADR provider.
+.PP
+.RS 2
+1. Check status of Linux cluster and HANA, see above.
+.br
+2. Set resources SAPHana (or SAPHanaController) and SAPHanaTopology to maintenance.
+.br
+3. Update RPM on all cluster nodes.
+.br
+4. Reload HANA HADR provider hook script on both sites.
+.br
+5. Refresh resources SAPHana (or SAPHanaController) and SAPHanaTopology.
+.br 
+6. Set resources SAPHana (or SAPHanaController) and SAPHanaTopology from maintenance to managed.
+.br
+7. Check status of Linux cluster and HANA, see above.
 .RE
 .PP
 \fB*\fR Remove left-over maintenance attribute from overall Linux cluster.
@@ -387,21 +409,25 @@ manual page SAPHanaSR-manageAttr(8).
 The procedure at a glance:
 .PP
 .RS 4
-1. Install multi-target aware  SAPHanaSR-ScaleOut package on all nodes.
+Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
 .br
-2. Replace HANA HADR provider configuration on both sites.
+b. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br
-3. Reload HANA HADR provider hook script on both sites.
+c. Replace HANA HADR provider configuration on both sites and adapt sudoers.
 .br
-4. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
+d. Reload HANA HADR provider hook script on both sites.
 .br
-5. Migrate srHook attribute from old-style to multi-target.
+e. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
 .br
-6. Check Linux cluster for matching defined upgrade target state.
+f. Migrate srHook attribute from old-style to multi-target.
 .br
-7. Optionally connect third HANA site via system replication outside of the Linux cluster.
+g. Check Linux cluster for matching defined upgrade target state.
 .br
-8. Finally check if everything looks fine.
+h. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed. 
+.br
+.i Optionally connect third HANA site via system replication outside of the Linux cluster.
+.br
+j. Finally check if everything looks fine.
 .RE
 .PP
 .\"
