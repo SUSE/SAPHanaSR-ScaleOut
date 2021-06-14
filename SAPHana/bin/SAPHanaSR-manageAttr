@@ -985,7 +985,7 @@ del_glob_hook() {
 chk_root
 
 # variables
-version="202106111950"
+version="202106141012"
 exe="$0"
 cmd=$(basename "$exe")
 
