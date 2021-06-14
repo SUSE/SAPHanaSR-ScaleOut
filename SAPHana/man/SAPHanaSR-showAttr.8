@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-showAttr 8 "14 Apr 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "14 Jun 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -273,12 +273,12 @@ For scale-up that four fields C:D:E:F should be master1:master:worker:master.
 .\" TODO or ":shtdown:shtdown:shtdown"
 .br
 
-Field A: return code
+Field A: return code of landscapeHostConfiguration.py
 .br
 Value: [ 4 | 3 | 2 | 1 | 0 ]
 .br
-.\"TODO This variable is determined by
-This parameter does not tell you if the secondary system is ready for a takeover.
+This field contains the return code of landscapHostConfiguration.py. The
+parameter does not tell you if the secondary system is ready for a takeover.
 The meaning is different from common Linux return codes.
 .br
 4 = OK - Everything looks perfect on the HANA primary.
@@ -291,7 +291,7 @@ The meaning is different from common Linux return codes.
 .br
 0 = FATAL - Internal script error, the state could not be determined.
 .br
-see landscapeHostConfiguration.py
+See landscapeHostConfiguration.py.
 .br
 
 Field B: HANA SR role
@@ -318,7 +318,6 @@ Field F: IndexServer Actual Role
 .br
 Value: [ master | worker | slave | standby | shtdown ]
 .br
-
 .\" TODO details for scale-up
 .\" scale-out: master1:master:worker:master | master1:slave:standby:standby | :shtdown:shtdown:shtdown | ... [ master1 | master2 | master3 | worker | slave | shtdown ]
 .PP
@@ -472,11 +471,16 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .TP
+# SAPHanaSR-showAttr
+show all SAPHanaSR attributes and relevant cluster maintenance states.
+.br
+If the roles sub-fields are 1:P:::: landscapeHostConfiguration.py has not been able to detect the HANA roles during last recent RA monitor operation. Likely HANA was down or sudo <sid>adm failed.
+.TP
 # SAPHanaSR-showAttr --sort roles
 show all SAPHanaSR attributes in the cluster and sort host table output by roles.
 .TP
 # SAPHanaSR-showAttr --sid=HA1:10 --cib=./hb_report-17-07-2019/grauenstein01/cib.xml
-show all SAPHanaSR attributes for SAP iystem ID HA1 and instance number 10 from given CIB file.
+show all SAPHanaSR attributes for SAP System ID HA1 and instance number 10 from given CIB file.
 .TP
 # SAPHanaSR-showAttr | grep -e master: -e worker: -e slave:
 show SAPHanaSR promotion scores on running nodes. 
