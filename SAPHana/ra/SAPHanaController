@@ -652,9 +652,12 @@ function HANA_CALL()
                   #
                   # on timeout ...
                   #
-                  if [ $rc -eq 124 -a -n "$onTimeOut" ]; then
-                      local second_output=""
-                      second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");
+                  if [ "$rc" -eq 124 ]; then
+                      super_ocf_log warning "RA: HANA_CALL TIMEOUT after $timeOut seconds ($cmd)"
+                      if [ -n "$onTimeOut" ]; then
+                          local second_output=""
+                          second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");
+                      fi
                   fi
                  ;;
     esac
@@ -1328,9 +1331,11 @@ function get_hana_landscape_status()
     hana_LSS_Out=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); rc=$?
     if [ $rc -eq 124 ]; then
         # landscape timeout
+        super_ocf_log warning "RA: landscapeHostConfiguration.py TIMEOUT after $HANA_CALL_TIMEOUT seconds"
         sleep 20
         hana_LSS_Out=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); rc=$?
         if [ $rc -eq 124 ]; then
+           super_ocf_log warning "RA: landscapeHostConfiguration.py second TIMEOUT after $HANA_CALL_TIMEOUT seconds"
            # TODO PRIO2: How to handle still hanging lss - current solution is to say "FATAL"
            rc=0
         fi
