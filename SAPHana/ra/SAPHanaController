@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.180.0.0521.1232"
+SAPHanaControllerVersion="0.180.0.0614.1735"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -653,7 +653,7 @@ function HANA_CALL()
                   # on timeout ...
                   #
                   if [ "$rc" -eq 124 ]; then
-                      super_ocf_log warning "RA: HANA_CALL TIMEOUT after $timeOut seconds ($cmd)"
+                      super_ocf_log warn "RA: HANA_CALL TIMEOUT after $timeOut seconds ($cmd)"
                       if [ -n "$onTimeOut" ]; then
                           local second_output=""
                           second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");
@@ -1331,11 +1331,11 @@ function get_hana_landscape_status()
     hana_LSS_Out=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); rc=$?
     if [ $rc -eq 124 ]; then
         # landscape timeout
-        super_ocf_log warning "RA: landscapeHostConfiguration.py TIMEOUT after $HANA_CALL_TIMEOUT seconds"
+        super_ocf_log warn "RA: landscapeHostConfiguration.py TIMEOUT after $HANA_CALL_TIMEOUT seconds"
         sleep 20
         hana_LSS_Out=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); rc=$?
         if [ $rc -eq 124 ]; then
-           super_ocf_log warning "RA: landscapeHostConfiguration.py second TIMEOUT after $HANA_CALL_TIMEOUT seconds"
+           super_ocf_log warn "RA: landscapeHostConfiguration.py second TIMEOUT after $HANA_CALL_TIMEOUT seconds"
            # TODO PRIO2: How to handle still hanging lss - current solution is to say "FATAL"
            rc=0
         fi
@@ -1725,7 +1725,7 @@ function saphana_start_primary()
                         set_crm_master -9000
                         rc=$OCF_SUCCESS
                     else
-                        super_ocf_log warning "LPA: OLD primary needs manual registration (AUTOMATED_REGISTER='false')"
+                        super_ocf_log warn "LPA: OLD primary needs manual registration (AUTOMATED_REGISTER='false')"
                         set_hana_attribute ${NODENAME} "WAITING4REG" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                         set_crm_master -9000
                         rc=$OCF_NOT_RUNNING
