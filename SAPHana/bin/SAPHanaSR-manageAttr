@@ -31,12 +31,14 @@ else
     exit 1
 fi
 
-# variables
-version="202105271836"
-exe="$0"
-cmd=$(basename "$exe")
-
 ##### functions
+chk_root() {
+   if [ "$(id -u)" != 0 ]; then
+      echo 1>&2 "Must be root!"
+      exit 1
+   fi
+}
+
 # USAGE
 usage() {
     echo "USAGE:    $0 --sid=<SID> [--ino=<INSTNO>] --case <use case> --migrate <resource> | --check"
@@ -259,6 +261,99 @@ chk_hook_gen_cluster() {
         fi
     done
     echo "$hookGen"
+    return $chk
+}
+
+# check, if old entries referring to '_glob_srHook' attributes are still
+# available in the sudoers configuration
+chk_sudoers() {
+    wr_info -i ""
+    wr_info -ih "Check sudoers configuration."
+    local hookGen=$1
+    local chk=0
+    local suser="${ASID}adm"
+    local wildcard="false"
+    local suglob="false"
+    local susite="false"
+
+    if sudoersOut=$(su - "$suser" -c "sudo -l" 2>/dev/null); then
+        # check for wildcard entries like '(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_ha1_*'
+        if (echo "$sudoersOut" | grep hana_"${ASID}"_\* >/dev/null 2>&1); then
+            wildcard="true"
+            wr_info -ih "Found wildcard sudoers entry for user '$suser' which will match"
+            wr_info -i "all hana attributes (global and site specific) related to the"
+            wr_info -i "sid '$SID'."
+            wr_info -i "Please check, if this is intended."
+        fi
+        # check for global attribute
+        if (echo "$sudoersOut" | grep hana_"${ASID}"_glob_srHook >/dev/null 2>&1); then
+            suglob="true"
+        fi
+        # check for site specific attribute
+        if (echo "$sudoersOut" | grep hana_"${ASID}"_site_srHook >/dev/null 2>&1); then
+            susite="true"
+        fi
+        if [[ "$hookGen" == "1.0" || -z "$hookGen" ]]; then
+            # the old srHook using the global attribute is still active
+            if [ "$suglob" == "true" ]; then
+                # needed global attribute entry available - ok
+                wr_info -ih "Found sudoers entry for user '$suser' for the global"
+                wr_info -i "srHook attribute."
+                wr_info -i "As still the old srHook version is active, this is ok."
+            else
+                # needed global attribute entry NOT available - error
+                wr_info -eh "Missing sudoers entry for user '$suser' for the"
+                wr_info -e "global srHook attribute."
+                wr_info -e "As still the old srHook version is active, the entry is mandatory."
+                if [ "$wildcard" == "true" ]; then
+                    wr_info -w "And even that a wildcard entry for the user '$suser' exists,"
+                    wr_info -w "please check."
+                else
+                    wr_info -e "Please check and add the missing entry for the old srHook."
+                fi
+                chk=1
+            fi
+            if [ "$susite" == "true" ]; then
+                # unneeded site specific attribute entry available - superfluous
+                wr_info -wh "Found sudoers entry for user '$suser' for the site"
+                wr_info -w "specific srHook attribute."
+                wr_info -w "As still the old srHook version is active, this is NOT needed."
+                wr_info -w "Please check and remove, if you do not plan to change the"
+                wr_info -w "srHook version."
+                chk=1
+            fi
+        else
+           # the new srHook using the site specific attribute is active
+            if [ "$suglob" == "true" ]; then
+                # unneeded global attribute entry available - superfluous
+                wr_info -wh "There is still a sudoers entry avalaible for user '$suser' for"
+                wr_info -w "the global srHook attribute."
+                wr_info -w "Please check and remove the entry, as the new srHook is active,"
+                wr_info -w "which uses site specific attributes."
+                chk=1
+            fi
+            if [ "$susite" == "true" ]; then
+                # needed site specific attribute entry available - ok
+                wr_info -ih "Found sudoers entry for user '$suser' for the site specific"
+                wr_info -i "srHook attribute."
+                wr_info -i "All good."
+            else
+                # needed site specific attribute entry NOT available - error
+                wr_info -eh "Missing sudoers entry for user '$suser' for the site"
+                wr_info -e "specific srHook attribute."
+                wr_info -e "As the new srHook version is active, the entry is mandatory."
+                if [ "$wildcard" == "true" ]; then
+                    wr_info -w "And even that a wildcard entry for the user '$suser' exists,"
+                    wr_info -w "please check."
+                else
+                    wr_info -e "Please check and add the missing entry for the new srHook."
+                fi
+                chk=1
+            fi
+        fi
+    else
+        wr_info -eh "Problems reading sudoers entries for user '$suser'. Please check."
+    fi
     return $chk
 }
 
@@ -673,6 +768,10 @@ chk_multi_target_requirements() {
     if ! srHookGen=$(chk_hook_gen_cluster); then
         chk=1
     fi
+    # check entry in sudoers configuration
+    if ! chk_sudoers "$srHookGen"; then
+        chk=1
+    fi
     # check multi-target Attribut in CIB
     if ! chk_mts_attr "$srHookGen"; then
         chk=1
@@ -879,6 +978,16 @@ del_glob_hook() {
 }
 
 # end function definition
+
+##### main
+
+# Make sure user is root
+chk_root
+
+# variables
+version="202106111950"
+exe="$0"
+cmd=$(basename "$exe")
 
 # parse cmdline
 if [ $# -eq 0 ]
