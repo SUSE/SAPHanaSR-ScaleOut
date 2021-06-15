@@ -104,8 +104,8 @@ j. Finally check if everything looks fine.
 As final result of this upgrade, the RAs and hook script are upgraded from
 old-style to multi-target. Further the Linux cluster's old-style global srHook
 attribute hana_${sid}_glob_srHook is replaced by site-aware attributes
-hana_${sid}_site_srHook_${SITE}. New auxiliary attributes are introduced,
-see PARAMETERS section.
+hana_${sid}_site_srHook_${SITE}. The sudoers permissions are adapted.
+New auxiliary attributes are introduced, see PARAMETERS section.
 .\" TODO what attributes
 
 \fB*\fR Overview on upgrading existing multi-target hook to new one. 
@@ -206,6 +206,48 @@ This might be useful when capturing script output for documentation, or if scree
 # SAPHanaSR-manageAttr --sid=ABR --ino=00 --case multi-target --check 2>&1 | colrm 1 6
 .RE
 
+\fB*\fR Add sudoers permission for multi-target HADR provider hook script.
+
+This needs to be done before the new multi-target HADR provider is loaded.
+Old and new permission can be set in parallel during migration phase.
+First the respective file is identified, second the new entries are added, last the effective permissions are displayed. Of course the old permission should be
+removed once the migration has been completed.
+.br
+In this example the SID is ABR - thus lowercase-sid abr, the respective file is /etc/sudoers.d/SAPHanaSR, a broad new permission is added for simplicity. 
+.br
+See SAPHanaSR.py.(7), SAPHanaSrMultiTarget.py(7) and sudo(8) for details and more secure permissions. For removing the old permission, see example below.
+.PP
+.RS 4
+# grep "NOPASSWD.*crm_attribute.*hana_" /etc/sudoers /etc/sudoers.d/*
+.br
+# visudo -f /etc/sudoers.d/SAPHanaSR
+.br
+abradm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_abr_site_srHook_*
+.br
+# sudo -U abradm -l | grep "NOPASSWD.*crm_attribute.*hana_"
+.RE
+
+\fB*\fR Remove sudoers permission for old-style HADR provider hook script.
+
+This should to be done after the new multi-target HADR provider has been loaded.
+First the respective file is identified, second the old entries are deleted, last the effective permissions are displayed. Of course the new multi-target permission needs to be added before the new HADR provider is loaded.
+.br
+In this example the SID is ABR - thus lowercase-sid abr, the respective file is /etc/sudoers.d/SAPHanaSR, the permission is just made in-active. Of course the line can be entirely removed also. 
+.br
+See SAPHanaSR.py.(7), SAPHanaSrMultiTarget.py(7) and sudo(8) for details. For adding the multi-target permission, see example above.
+.PP
+.RS 4
+# grep "NOPASSWD.*crm_attribute.*hana_" /etc/sudoers /etc/sudoers.d/*
+.br
+# visudo -f /etc/sudoers.d/SAPHanaSR
+.br
+## old-style permission is not needed anymore
+.br
+## abradm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_abr_glob_srHook_*
+.br
+# sudo -U abradm -l | grep "NOPASSWD.*crm_attribute.*hana_"
+.RE
+
 \fB*\fR Replace HANA HADR provider configuration.
 
 The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line of the section [trace] should be adapted as well. This task needs to be done at both sites. To make changes active, HANA needs to be informed about the change. This can be done by re-loading the hook as shown in another example. Do not forget to adapt the sudoers permission to match the new attribute. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr. 
@@ -261,7 +303,7 @@ details. Example lowercase-SID (sid) is abr.
 
 \fB*\fR Upgrade srHook attribute from old-style to multi-target.
 
-The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. The correct hook script needs to be already configured in HANA's global.ini. See example above and REQUIREMENTS section below. Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR_HDB00. 
+The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. The correct hook script needs to be already configured in HANA's global.ini. The correct sudoers permission need to be set already. See example above and REQUIREMENTS section below. Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR_HDB00. 
 .PP
 .RS 4
 # SAPHanaSR-showAttr
@@ -308,6 +350,9 @@ the scale-out multi-target aware hook provider, delivered with the RPM
 /hana/shared/$SID/global/hdb/custom/config/global.ini
 the on-disk representation of HANA global system configuration
 .TP 4
+/etc/sudoers, /etc/sudoers.d/
+the sudo permissions configuration
+.TP 4
 /dev/stderr
 SAPHanaSR-manageAttr writes warnings and errors to stderr
 .\"
@@ -353,7 +398,8 @@ and suggestions to feedback@suse.com.
 \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR_maintenance_examples\fP(7) ,
 \fBSAPHanaSR.py\fP(7) , \fBSAPHanaSrMultiTarget.py\fP(7) ,
 \fBcrm_simulate\fP(8) , \fBcibadmin\fP(8) , \fBcrm_mon\fP(8) ,
-\fBcs_convert_time\fP(8) , \fBcs_clusterstate\fP(8) , \fBcs_show_hana_info\fP(8)
+\fBcs_convert_time\fP(8) , \fBcs_clusterstate\fP(8) ,
+\fBcs_show_hana_info\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
