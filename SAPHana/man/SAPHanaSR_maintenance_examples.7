@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR_maintenance_examples 7 "21 Apr 2021" "" "SAPHanaSR"
+.TH SAPHanaSR_maintenance_examples 7 "14 Jun 2021" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR_maintenance_examples \- maintenance examples for SAPHana and SAPHanaController.
@@ -32,6 +32,14 @@ REQUIREMENTS below.
 # SAPHanaSR-showAttr
 .br
 # cs_clusterstate -i
+.RE
+.PP
+\fB*\fR Watch status of HANA cluster resources and system replication.
+.br
+This might be conveniant when performing administrative actions or cluster tests. It does not replace the afore mentioned checks. See also cs_show_saphanasr_status(8).
+.PP
+.RS 4
+# watch -n 10 "crm_mon -r; SAPHanaSR-showAttr; cs_clusterstate -i"
 .RE
 .PP
 \fB*\fR Initiate an administrative take-over of the HANA primary from one node to the other by using the Linux cluster. 
