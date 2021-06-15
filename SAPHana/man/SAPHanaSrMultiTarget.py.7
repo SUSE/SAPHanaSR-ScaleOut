@@ -100,7 +100,7 @@ All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
 Example SID is HA1.
 .PP
 .RS 2
-# su - ha1adm -c "sudo -l" | grep "NOPASSWD.*crm_attribute.*hana_" 
+# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_" 
 .RE
 .PP
 * Example for entry in SAP HANA 2.0 global configuration
@@ -130,7 +130,7 @@ ha_dr_saphanasrmultitarget = info
 /hana/shared/$SID/global/hdb/custom/config/global.ini to enable multi-target aware third site.
 .br
 .br
-This entry is useful at third site that is not managed by the Linux cluster.
+This entry is useful at the third site that is not managed by the Linux cluster.
 It is needed to allow ocf_suse_SAPHanaController(7) parameter AUTOMATED_REGISTER=true in multi-target environments.
 The HANA has to be stopped before the files can be edited.
 Do not copy the file between nodes. Please check SAP HANA documentation for details.
@@ -323,7 +323,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) , 
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
 \fBSAPHanaSR-manageAttr\fP(8) ,
-\fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,
+\fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5) , \fBpython\fP(8) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
