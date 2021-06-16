@@ -317,8 +317,8 @@ chk_sudoers() {
                     wr_info -w "please check."
                 else
                     wr_info -e "Please check and add the missing entry for the old srHook."
+                    chk=1
                 fi
-                chk=1
             fi
             if [ "$susite" == "true" ]; then
                 # unneeded site specific attribute entry available - superfluous
@@ -327,7 +327,6 @@ chk_sudoers() {
                 wr_info -w "As still the old srHook version is active, this is NOT needed."
                 wr_info -w "Please check and remove, if you do not plan to change the"
                 wr_info -w "srHook version."
-                chk=1
             fi
         else
            # the new srHook using the site specific attribute is active
@@ -337,7 +336,6 @@ chk_sudoers() {
                 wr_info -w "the global srHook attribute."
                 wr_info -w "Please check and remove the entry, as the new srHook is active,"
                 wr_info -w "which uses site specific attributes."
-                chk=1
             fi
             if [ "$susite" == "true" ]; then
                 # needed site specific attribute entry available - ok
@@ -354,12 +352,13 @@ chk_sudoers() {
                     wr_info -w "please check."
                 else
                     wr_info -e "Please check and add the missing entry for the new srHook."
+                    chk=1
                 fi
-                chk=1
             fi
         fi
     else
         wr_info -eh "Problems reading sudoers entries for user '$suser'. Please check."
+        chk=1
     fi
     return $chk
 }
