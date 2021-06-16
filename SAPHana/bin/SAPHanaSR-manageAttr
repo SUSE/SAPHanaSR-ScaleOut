@@ -165,6 +165,10 @@ is_master_nameserver() {
 
 # check RA update state of all cluster nodes using the RA generation
 # using the attribute hana_${ASID}_gra, which holds the RA generation
+#
+# as the function is returning the list of nodes, do NOT use a call to
+# wr_info -i as this will print the message to stdout instead of stderr and
+# will interfere with the needed return value
 chk_ra_upd_state() {
     local chk=0
     local nlist=""
@@ -221,6 +225,9 @@ chk_cluster_upd_state() {
 }
 
 # check which Hook generation is used on all master name server nodes
+# as the function is returning the Hook generation, do NOT use a call to
+# wr_info -i as this will print the message to stdout instead of stderr and
+# will interfere with the needed return value
 chk_hook_gen_cluster() {
     local hookGen=""
     local refNode=""
@@ -244,7 +251,7 @@ chk_hook_gen_cluster() {
             chk=1
             continue
         fi
-        wr_info -i "On cluster node '$onode' the srHook generation is '$onodeHookGen'."
+        wr_info -w "On cluster node '$onode' the srHook generation is '$onodeHookGen'."
         if [ -z "$hookGen" ]; then
             # to get the following comparison to work properly, initialize
             # 'hookGen' with the first non-zero attribute value of the loop
@@ -985,7 +992,7 @@ del_glob_hook() {
 chk_root
 
 # variables
-version="202106141012"
+version="202106161703"
 exe="$0"
 cmd=$(basename "$exe")
 
