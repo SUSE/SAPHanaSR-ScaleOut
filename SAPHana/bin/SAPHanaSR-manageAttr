@@ -1036,7 +1036,7 @@ del_glob_hook() {
     if [ $rc -ne 0 ] || [ -n "$tstGlobHook" ]; then
         wr_info -wh "Problems deleting globale SRHook attribute (rc=$rc). Please check."
     fi
-    echo $rc
+    return $rc
 }
 
 # end function definition
@@ -1047,7 +1047,7 @@ del_glob_hook() {
 chk_root
 
 # variables
-version="202106171037"
+version="202106171441"
 exe="$0"
 cmd=$(basename "$exe")
 
@@ -1232,7 +1232,7 @@ if [ "$MFlag" == "true" ]; then
         # use case handling
         case "$USECASE" in
         "multi-target")
-            rc=$(del_glob_hook)
+            del_glob_hook; rc=$?
             ;;
         *)
             wr_info -wh "Unsupported use case."
