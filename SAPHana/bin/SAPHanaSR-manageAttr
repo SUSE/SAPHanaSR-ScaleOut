@@ -165,6 +165,10 @@ is_master_nameserver() {
 
 # check RA update state of all cluster nodes using the RA generation
 # using the attribute hana_${ASID}_gra, which holds the RA generation
+#
+# as the function is returning the list of nodes, do NOT use a call to
+# wr_info -i as this will print the message to stdout instead of stderr and
+# will interfere with the needed return value
 chk_ra_upd_state() {
     local chk=0
     local nlist=""
@@ -221,6 +225,9 @@ chk_cluster_upd_state() {
 }
 
 # check which Hook generation is used on all master name server nodes
+# as the function is returning the Hook generation, do NOT use a call to
+# wr_info -i as this will print the message to stdout instead of stderr and
+# will interfere with the needed return value
 chk_hook_gen_cluster() {
     local hookGen=""
     local refNode=""
@@ -244,7 +251,7 @@ chk_hook_gen_cluster() {
             chk=1
             continue
         fi
-        wr_info -i "On cluster node '$onode' the srHook generation is '$onodeHookGen'."
+        wr_info -w "On cluster node '$onode' the srHook generation is '$onodeHookGen'."
         if [ -z "$hookGen" ]; then
             # to get the following comparison to work properly, initialize
             # 'hookGen' with the first non-zero attribute value of the loop
@@ -310,8 +317,8 @@ chk_sudoers() {
                     wr_info -w "please check."
                 else
                     wr_info -e "Please check and add the missing entry for the old srHook."
+                    chk=1
                 fi
-                chk=1
             fi
             if [ "$susite" == "true" ]; then
                 # unneeded site specific attribute entry available - superfluous
@@ -320,7 +327,6 @@ chk_sudoers() {
                 wr_info -w "As still the old srHook version is active, this is NOT needed."
                 wr_info -w "Please check and remove, if you do not plan to change the"
                 wr_info -w "srHook version."
-                chk=1
             fi
         else
            # the new srHook using the site specific attribute is active
@@ -330,7 +336,6 @@ chk_sudoers() {
                 wr_info -w "the global srHook attribute."
                 wr_info -w "Please check and remove the entry, as the new srHook is active,"
                 wr_info -w "which uses site specific attributes."
-                chk=1
             fi
             if [ "$susite" == "true" ]; then
                 # needed site specific attribute entry available - ok
@@ -347,12 +352,13 @@ chk_sudoers() {
                     wr_info -w "please check."
                 else
                     wr_info -e "Please check and add the missing entry for the new srHook."
+                    chk=1
                 fi
-                chk=1
             fi
         fi
     else
         wr_info -eh "Problems reading sudoers entries for user '$suser'. Please check."
+        chk=1
     fi
     return $chk
 }
@@ -569,6 +575,7 @@ chk_hook_from_global_ini() {
     smatch=0
     samePath="true"
     sameName="true"
+    samePFQN="true"
 
     if ! chk_presence_of_file "$globalIni" "DM"; then
         chk=1
@@ -579,6 +586,9 @@ chk_hook_from_global_ini() {
     if [ "${#gini[*]}" == "0" ]; then
         wr_info -wh "No ha/dr provider entries found in global.ini. Please check."
         return 1
+    else
+        wr_info -i "Check ha/dr provider entries in global.ini file"
+        wr_info -i "'$globalIni'."
     fi
     # simple start - check values from Site 1 with values from Site 2
     # if needed enhance to more than 2 sites.
@@ -607,13 +617,15 @@ chk_hook_from_global_ini() {
         wr_info -w "Please check."
     fi
     for values in $(get_site_values "$site1"); do
+        order=$(echo "$values" | awk -F":" '{ print $1 }')
+        section=$(echo "$values" | awk -F":" '{ print $2 }')
+        providerName=$(echo "$values" | awk -F":" '{ print $3 }')
+        provider="ha_dr_provider_$providerName"
+        providerPath=$(echo "$values" | awk -F":" '{ print $4 }')
+        wr_info -ih "Found section '$section' on site '$site1Name'."
+
         for vals in $(get_site_values "$site2"); do
-            if [ "$values" == "$vals" ]; then
-                ((smatch+=1)) #?
-                break #?
-            fi
             # check order, must be the same on both sites
-            order=$(echo "$values" | awk -F":" '{ print $1 }')
             ord=$(echo "$vals" | awk -F":" '{ print $1 }')
             if [ "$order" != "$ord" ]; then
                 # read next section of site 2
@@ -621,26 +633,22 @@ chk_hook_from_global_ini() {
             fi
             # check section name, needs be the same on both sites
             # Attention - ignore case
-            section=$(echo "$values" | awk -F":" '{ print $2 }')
-            sect=$(echo "$vals" | awk -F":" '{ print $2 }')
-            providerName=$(echo "$values" | awk -F":" '{ print $3 }')
-            provider="ha_dr_provider_$providerName"
             if [ "${section^^}" != "${provider^^}" ]; then
                 chk=1
                 wr_info -wh "On site '$site1Name' for execution order '$order' the ha/dr provider section name"
                 wr_info -w "'$section' does not fit the provider name '$providerName'."
                 wr_info -w "Please check."
             fi
+            sect=$(echo "$vals" | awk -F":" '{ print $2 }')
             provName=$(echo "$vals" | awk -F":" '{ print $3 }')
             prov="ha_dr_provider_$provName"
+            wr_info -ih "Check against section '$sect' from site '$site2Name'."
             if [ "${sect^^}" != "${prov^^}" ]; then
                 chk=1
                 wr_info -wh "On site '$site2Name' for execution order '$ord' the ha/dr provider section name"
                 wr_info -w "'$sect' does not fit the provider name '$provName'."
                 wr_info -w "Please check."
             fi
-            wr_info -ih "Checking section '$section' from site '$site1Name'"
-            wr_info -i "against section '$sect' from site '$site2Name'."
             if [ "${section^^}" != "${sect^^}" ]; then
                 chk=1
                 wr_info -wh "For the execution order '$order' the name of the ha/dr provider section"
@@ -656,7 +664,6 @@ chk_hook_from_global_ini() {
                     wr_info -w "Please check."
                     sameName="false"
                 fi
-                providerPath=$(echo "$values" | awk -F":" '{ print $4 }')
                 provPath=$(echo "$vals" | awk -F":" '{ print $4 }')
                 if [ "$providerPath" != "$provPath" ]; then
                     chk=1
@@ -666,6 +673,10 @@ chk_hook_from_global_ini() {
                     samePath="false"
                 fi
                 if [ "$sameName" == "true" ] && [ "$samePath" == "true" ]; then
+                    wr_info -ih "For site '$site1Name' and site '$site2Name'"
+                    wr_info -i "we found the same name of the ha/dr provider section '$section'"
+                    wr_info -i "with the same provider name '$providerName' and"
+                    wr_info -i "the same provider path '$providerPath' in the global.ini file."
                     ((smatch+=1))
                     # ANGI TODO - do we always have '.py' as extention of hook?
                     providerFQN="${providerPath}/${providerName}.py"
@@ -674,6 +685,7 @@ chk_hook_from_global_ini() {
                         chk=1
                         wr_info -wh "The ha/dr provider '$providerFQN' is not available on all cluster nodes."
                         wr_info -w "Please check."
+                        samePFQN="false"
                     fi
                     # check md5sum of hook files only, if all cluster nodes have
                     # the same ha/dr provider configuration
@@ -682,10 +694,12 @@ chk_hook_from_global_ini() {
                         chk=1
                         wr_info -wh "The md5 checksum of the ha/dr provider '$providerFQN' differs between the cluster nodes."
                         wr_info -w "Please check."
+                        samePFQN="false"
                     fi
                     # check if the same hook file version is available on all nodes
                     if ! chk_hook_vers_on_node "$providerFQN"; then
                         chk=1
+                        samePFQN="false"
                     fi
                 fi
             fi
@@ -694,6 +708,14 @@ chk_hook_from_global_ini() {
     if [ "$noExpSect" != "$smatch" ]; then
         wr_info -wh "Entries in global.ini of site '$site1Name' do not fully match the entries of the other site '$site2Name'."
         chk=1
+    else
+        wr_info -i ""
+        wr_info -ih "Entries in global.ini of site '$site1Name' fully match the entries of the other site '$site2Name'."
+        if [ "$samePFQ" != "false" ]; then
+            wr_info -i "The ha/dr provider files are available and the same on all nodes of the sites."
+            wr_info -i "All good."
+        fi
+        wr_info -i ""
     fi
     return $chk
 }
@@ -713,7 +735,8 @@ chk_hook_vers_on_node() {
             wr_info -e "Please check."
             chk=1
         else
-            wr_info -ih "File '$hFQN' on node '$node' is a '$hvers' generation hook."
+            wr_info -ih "File '$hFQN' on node '$node'"
+            wr_info -i "is a '$hvers' generation hook."
         fi
     done
     return $chk
@@ -985,7 +1008,7 @@ del_glob_hook() {
 chk_root
 
 # variables
-version="202106141012"
+version="202106162100"
 exe="$0"
 cmd=$(basename "$exe")
 
