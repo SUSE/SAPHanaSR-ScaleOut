@@ -417,25 +417,29 @@ manual page SAPHanaSR-manageAttr(8).
 The procedure at a glance:
 .PP
 .RS 4
-Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+a. Initially check if everything looks fine.
 .br
-b. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+b. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
 .br
-c. Replace HANA HADR provider configuration on both sites and adapt sudoers.
+c. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br
-d. Reload HANA HADR provider hook script on both sites.
+d. Replace HANA HADR provider configuration on both sites.
 .br
-e. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
+e. Adapt sudoers permission on all nodes.
 .br
-f. Migrate srHook attribute from old-style to multi-target.
+f. Reload HANA HADR provider hook script on both sites.
 .br
-g. Check Linux cluster for matching defined upgrade target state.
+g. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
 .br
-h. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed. 
+h. Migrate srHook attribute from old-style to multi-target.
 .br
-.i Optionally connect third HANA site via system replication outside of the Linux cluster.
+i. Check Linux cluster for matching defined upgrade target state.
 .br
-j. Finally check if everything looks fine.
+j. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed. 
+.br
+k. Optionally connect third HANA site via system replication outside of the Linux cluster.
+.br
+l. Finally check if everything looks fine.
 .RE
 .PP
 .\"

@@ -81,30 +81,36 @@ REQUIREMENTS section below for defined states.
 
 The procedure at a glance:
 .br
-a. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+a. Initially check if everything looks fine.
 .br
-b. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+b. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+.br
+c. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br 
-c. Replace HANA HADR provider configuration on both sites and adapt sudoers.
+d. Replace HANA HADR provider configuration on both sites.
 .br
-d. Reload HANA HADR provider hook script on both sites.
+e. Adapt sudoers permission on all nodes.
 .br
-e. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
+f. Reload HANA HADR provider hook script on both sites.
 .br
-f. Migrate srHook attribute from old-style to multi-target.
+g. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
 .br
-g. Check Linux cluster for matching defined upgrade target state.
+h. Migrate srHook attribute from old-style to multi-target.
 .br
-h. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+i. Check Linux cluster for matching defined upgrade target state.
 .br
-i. Optionally connect third HANA site via system replication outside of the Linux cluster.
+j. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
 .br
-j. Finally check if everything looks fine.
+k. Optionally connect third HANA site via system replication outside of the Linux cluster.
+.br
+l. Finally check if everything looks fine.
 
 As final result of this upgrade, the RAs and hook script are upgraded from
 old-style to multi-target. Further the Linux cluster's old-style global srHook
 attribute hana_${sid}_glob_srHook is replaced by site-aware attributes
-hana_${sid}_site_srHook_${SITE}. The sudoers permissions are adapted.
+hana_${sid}_site_srHook_${SITE}. The new attributes might stay empty until
+HANA raises srConnectionChanged() events and triggers the new hook script
+for the first time. The sudoers permissions are adapted.
 New auxiliary attributes are introduced, see PARAMETERS section.
 .\" TODO what attributes
 
@@ -119,17 +125,21 @@ REQUIREMENTS section below for defined states.
 
 The procedure at a glance:
 .br
-a. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+a. Initially check if everything looks fine.
 .br
-b. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+b. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
 .br
-c. Check Linux cluster for matching defined upgrade entry state.
+c. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br
-d. Reload HANA HADR provider hook script on both sites.
+d. Check Linux cluster for matching defined upgrade entry state.
 .br
-e. Check Linux cluster for matching defined upgrade target state.
+e. Reload HANA HADR provider hook script on both sites.
 .br
-f. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+f. Check Linux cluster for matching defined upgrade target state.
+.br
+g. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+.br
+h. Finally check if everything looks fine.
 
 As final result of this upgrade, the already multi-target aware RAs and hook
 script are updated to an new version. The existing site-aware attributes
@@ -148,15 +158,19 @@ states.
 
 The procedure at a glance:
 .br
-a. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+a. Initially check if everything looks fine.
 .br
-b. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
+b. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
 .br
-c. Reload HANA HADR provider hook script on both sites.
+c. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br
-d. Check Linux cluster for matching defined upgrade target state.
+d. Reload HANA HADR provider hook script on both sites.
 .br
-e. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+e. Check Linux cluster for matching defined upgrade target state.
+.br
+f. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+.br
+g. Finally check if everything looks fine.
 
 As final result of this upgrade, the RAs and hook script are updated to an new
 version. The existing old-style global attribute hana_${sid}_glob_srHook is
@@ -220,9 +234,9 @@ See SAPHanaSR.py.(7), SAPHanaSrMultiTarget.py(7) and sudo(8) for details and mor
 .RS 4
 # grep "NOPASSWD.*crm_attribute.*hana_" /etc/sudoers /etc/sudoers.d/*
 .br
-# visudo -f /etc/sudoers.d/SAPHanaSR
+# cp /etc/sudoers.d/SAPHanaSR /etc/sudoers.d/SAPHanaSR.BAK
 .br
-abradm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_abr_site_srHook_*
+# echo "abradm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_abr_site_srHook_*" >/etc/sudoers.d/SAPHanaSR
 .br
 # sudo -U abradm -l | grep "NOPASSWD.*crm_attribute.*hana_"
 .RE
@@ -239,7 +253,7 @@ See SAPHanaSR.py.(7), SAPHanaSrMultiTarget.py(7) and sudo(8) for details. For ad
 .RS 4
 # grep "NOPASSWD.*crm_attribute.*hana_" /etc/sudoers /etc/sudoers.d/*
 .br
-# visudo -f /etc/sudoers.d/SAPHanaSR
+# visudo -f /etc/sudoers
 .br
 ## old-style permission is not needed anymore
 .br
@@ -250,35 +264,26 @@ See SAPHanaSR.py.(7), SAPHanaSrMultiTarget.py(7) and sudo(8) for details. For ad
 
 \fB*\fR Replace HANA HADR provider configuration.
 
-The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line of the section [trace] should be adapted as well. This task needs to be done at both sites. To make changes active, HANA needs to be informed about the change. This can be done by re-loading the hook as shown in another example. Do not forget to adapt the sudoers permission to match the new attribute. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr. 
-.\" TODO vi global.ini is not allowed anymore since HANA 2.0 SPS05. Use getParamter.py and setParamter.py instead.
+The Linux cluster and HANA have to be checked for matching the entry state prior to replacing the HANA HADR provider configuration. The section [ha_dr_provider_saphanasr] needs to be replaced by the new section [ha_dr_provider_saphanasrmultitarget]. The respective line of the section [trace] should be adapted as well. This task needs to be done at both sites. To make changes active, HANA needs to be informed about the change. This can be done by re-loading the hook as shown in another example. Do not forget to adapt the sudoers permission to match the new attribute. See also SAPHanaSrMultiTarget.py(7) and REQUIREMENTS section below. Example lowercase-SID is abr.
+.br
+The global.ini should be handled by SAP tools like HANA Cockpit.
+This example on changing the file directly is for test clusters only. It should not be applied on production systems. 
+.\" TODO Use getParamter.py and setParamter.py instead.
 .PP
 .RS 4
 # su - abradm
 .br
 ~> cdcoc
 .br
-~> cp global.ini global.ini.$RANDOM
+~> cp global.ini global.ini.BAK
 .br
-~> vi global.ini
+~> sed -e s/saphanasr/saphanasrmultitarget/g -e s/\\ SAPHanaSR$/\\ SAPHanaSrMultiTarget/g <global.ini.BAK >global.ini.NEW
 .br
- ...
+~> cp global.ini.NEW global.ini
 .br
-[ha_dr_provider_saphanasrmultitarget]
+~> cat global.ini
 .br
-provider = SAPHanaSrMultiTarget
-.br
-path = /usr/share/SAPHanaSR-ScaleOut/
-.br
-execution_order = 1
-.br
- ...
-.br
-[trace]
-.br
-ha_dr_saphanasrmultitarget = info
-.br
- ...
+~> exit
 .RE
 
 \fB*\fR Reload hook script from persistence into running HANA.
@@ -350,7 +355,7 @@ the scale-out multi-target aware hook provider, delivered with the RPM
 /hana/shared/$SID/global/hdb/custom/config/global.ini
 the on-disk representation of HANA global system configuration
 .TP 4
-/etc/sudoers, /etc/sudoers.d/
+/etc/sudoers, /etc/sudoers.d/SAPHanaSR
 the sudo permissions configuration
 .TP 4
 /dev/stderr
