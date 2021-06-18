@@ -376,7 +376,9 @@ chk_mts_attr() {
         # cluster attribute 'hana_${ASID}_glob_mts', which should trigger
         # the migration, not set yet / no customer choice for now
         wr_info -wh "Attribute 'hana_${ASID}_glob_mts' not set yet."
-        wr_info -w "For migration you need to set the attribute manually to 'true'."
+        wr_info -w "For migration you need either to set the attribute manually to 'true'."
+        wr_info -w "or configure and reload a multi-target enabled srHook"
+        wr_info -w "in the ha/dr provider section."
         wr_info -w "Please see man page SAPHanaSR-manageAttr(8) for additional information and help."
         chk=1
     else
@@ -859,6 +861,7 @@ get_res() {
                 # INO does not match, skipping
                 continue
             fi
+            INO_match="true"
         fi
         rname=$(cibadmin -Q | xmllint -xpath "string(//*[primitive[@id='$ps']]/@id)" -)
         rtype=$(cibadmin -Q | xmllint -xpath "name(//*[@id='$rname'])" -)
@@ -1047,7 +1050,7 @@ del_glob_hook() {
 chk_root
 
 # variables
-version="202106171441"
+version="202106181433"
 exe="$0"
 cmd=$(basename "$exe")
 
@@ -1150,8 +1153,15 @@ runCmd="crm cluster run"
 cluInMaint="false"
 mslInMaint="false"
 clnInMaint="false"
+INO_match="false"
 
 chk_for_maintenance
+if [[ -n "$INO" && "$INO_match" == "false" ]]; then
+    wr_info -eh "No HANA instance found with INO '$INO'."
+    wr_info -e "Please check. Exiting...."
+    exit 1
+fi
+
 
 wr_info -ih "Start checking...."
 # check, if all migration requirements for use case '$USECASE' are fulfilled
