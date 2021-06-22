@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "6 Jun 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "21 Jun 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -272,17 +272,23 @@ that one does not interfere with the Linux cluster. All three clusters
 11. The RAs SAPHanaController and SAPHanaToplogy need to be installed on all
 cluster nodes, even the majority maker.
 .PP
-12. The Linux cluster needs to be up and running to allow HA/DR provider events
+12. Colocation constraints between the SAPHanaController or SAPHana RA and
+other resources are allowed only if they do not affect the RA's scoring.
+The location scoring finally depends on system replication status an must not
+be over-ruled by additional constraints. Thus it is not allowed to define rules
+forcing a SAPHanaController or SAPHana master to follow another resource.
+.PP
+13. The Linux cluster needs to be up and running to allow HA/DR provider events
 being written into CIB attributes. The current HANA SR status might differ
 from CIB srHook attribute after cluster maintenance.
 .PP
-13. In two-node HANA scale-out systems only one master nameserver candidate is
+14. In two-node HANA scale-out systems only one master nameserver candidate is
 configured.
 .PP
-14. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
+15. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
 Linux cluster.
 .PP
-15. HANA feature Secondary Time Travel is not supported.
+16. HANA feature Secondary Time Travel is not supported.
 .\"
 .SH BUGS
 .\" TODO
