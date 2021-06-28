@@ -749,7 +749,7 @@ chk_hook_from_global_ini() {
         wr_info -i ""
         wr_info -ih "Entries in global.ini of site '$site1Name' fully match the entries"
         wr_info -i "of the other site '$site2Name'."
-        if [ "$samePFQ" != "false" ]; then
+        if [ "$samePFQN" != "false" ]; then
             wr_info -i "The ha/dr provider files are available and the same on all"
             wr_info -i "nodes of the sites."
         fi
