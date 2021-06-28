@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.180.0.0614.1735"
+SAPHanaControllerVersion="0.180.0.0628.1823"
 # Resource Agent Generation
 RAG="2.0"
 
