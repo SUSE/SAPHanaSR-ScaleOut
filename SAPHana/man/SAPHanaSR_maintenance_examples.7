@@ -175,6 +175,25 @@ If everything looks fine, proceed.
 # cs_clusterstate -i
 .RE
 .PP
+\fB*\fR Check the two site names that are known to the Linux cluster. 
+.br
+This is useful in case AUTOMATED_REGISTER is not yet set. In that case a former
+primary needs to be registered manually with the former site name as new secondary. The interesting point is finding the exact site name to be used. See also REQUIREMENTS of SAPHanaSR(7) and SAPHanaSR-ScaleOut(7).
+.br
+In this example, node is suse11 on the future secondary site to be registered. Remote HANA Master Name Server is suse21 on current primary site. Lowercase-SID is ha1.
+.PP
+.RS 4
+# crm configure show suse11 suse21
+.br
+# crm configure show SAPHanaSR | grep hana_ha1_site_mns
+.br
+# ssh suse21
+.br
+# su - ha1adm -c "hdbnsutil -sr_state; echo rc: $?"
+.br
+# exit
+.RE
+.PP
 \fB*\fR Manually start the HANA primary if only one site is available.
 .br
 This might be necessary in case the cluster can not detect the status of both sites.
