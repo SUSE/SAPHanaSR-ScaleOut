@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "14 Apr 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "14 Jun 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -74,7 +74,7 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .PP
-* Simple example for permissions in /etc/sudoers, SID is SLE.
+* Simple example for permission in /etc/sudoers, SID is SLE.
 .PP
 .RS 2
 # SAPHanaSR needs for srHook
@@ -82,7 +82,7 @@ Usage, syntax or execution errors.
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_site_srHook_*
 .RE
 .PP
-* More restricted example for sudo permissions, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
+* More restricted example for sudo permission, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
 .PP
 .RS 2
 # SAPHanaSR needs for srHook
@@ -94,12 +94,23 @@ Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SFAIL -t
 sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
 .RE
 .PP
+* Example for looking up the sudo permission for the srHook script.
+.br
+All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
+Example SID is HA1.
+.PP
+.RS 2
+# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_" 
+.RE
+.PP
 * Example for entry in SAP HANA 2.0 global configuration
 /hana/shared/$SID/global/hdb/custom/config/global.ini with multi-target aware,
 site-specific attributes.
 .br
-This file is needed at both sites. The HANA has to be stopped before the files
-can be edited. Do not copy the file between nodes.
+This entry is needed at both sites that are managed by the Linux cluster.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details.
+Do not forget to adapt the sudoers permission, see examples above.
 .PP
 .RS 2
 [ha_dr_provider_saphanasrmultitarget]
@@ -113,6 +124,48 @@ execution_order = 1
 [trace]
 .br
 ha_dr_saphanasrmultitarget = info
+.RE
+.PP
+* Example for entry in SAP HANA 2.0 global configuration
+/hana/shared/$SID/global/hdb/custom/config/global.ini to enable multi-target aware third site.
+.br
+.br
+This entry is useful at the third site that is not managed by the Linux cluster.
+It is needed to allow ocf_suse_SAPHanaController(7) parameter AUTOMATED_REGISTER=true in multi-target environments.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details.
+.PP
+.RS 2
+[system_replication]
+.br
+ ...
+.br
+register_secondaries_on_takeover = true
+.br
+ ...
+.RE
+.PP
+* Example for entry in SAP HANA 2.0 nameserver configuration
+/hana/shared/$SID/global/hdb/custom/config/nameserver.ini for two-node scale-out HANA without standby nodes.
+.br
+This entry is needed at both sites that are managed by the Linux cluster.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details. In this example the master node is suse11, the worker is suse12.
+.PP
+.RS 2
+[landscape]
+ ...
+.br
+master = suse11:31001
+.br
+worker = suse11 suse12
+.br
+active_master = suse11:31001
+.br
+roles_suse11 = worker
+.br
+roles_suse12 = worker
+ ...
 .RE
 .PP
 * Example for creating the optional SAPHanaSrMultiTarget.pyc python object file manually. SID is SLE.
@@ -160,7 +213,7 @@ ha_dr_saphanasrmultitarget = info
 .br
 ~> cdtrace
 .br
-~> grep HADR.*loading.*SAPHanaS nameserver_*.trc
+~> grep HADR.*load.*SAPHanaS nameserver_*.trc
 .RE
 .PP
 * Example for comparing Linux cluster srHook attribute with current HANA SR state. SID is HA1. To be executed on current HANA primary site.
@@ -222,6 +275,9 @@ the old-style hook provider, if pre-compiled for the particular HANA (optional)
 /hana/shared/$SID/global/hdb/custom/config/global.ini
 the on-disk representation of HANA global system configuration
 .TP
+/hana/shared/$SID/global/hdb/custom/config/nameserver.ini
+the on-disk representation of HANA nameserver configuration
+.TP
 /etc/sudoers , /etc/sudoers.d/
 the sudo permissions configuration
 .TP
@@ -267,7 +323,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) , 
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
 \fBSAPHanaSR-manageAttr\fP(8) ,
-\fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,
+\fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5) , \fBpython\fP(8) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
@@ -277,7 +333,9 @@ https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
 https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
 .br
-https://www.susecon.com/archive-2020.html
+https://www.susecon.com/archive-2019.html ,
+.br
+https://www.susecon.com/archive-2020.html ,
 .br
 http://help.sap.com/saphelp_hanaplatform/helpdata/en/13/67c8fdefaa4808a7485b09815ae0f3/content.htm ,
 .br

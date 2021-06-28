@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR_maintenance_examples 7 "21 Apr 2021" "" "SAPHanaSR"
+.TH SAPHanaSR_maintenance_examples 7 "14 Jun 2021" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR_maintenance_examples \- maintenance examples for SAPHana and SAPHanaController.
@@ -32,6 +32,14 @@ REQUIREMENTS below.
 # SAPHanaSR-showAttr
 .br
 # cs_clusterstate -i
+.RE
+.PP
+\fB*\fR Watch status of HANA cluster resources and system replication.
+.br
+This might be conveniant when performing administrative actions or cluster tests. It does not replace the afore mentioned checks. See also cs_show_saphanasr_status(8).
+.PP
+.RS 4
+# watch -n 11 "crm_mon -r; SAPHanaSR-showAttr; cs_clusterstate -i"
 .RE
 .PP
 \fB*\fR Initiate an administrative take-over of the HANA primary from one node to the other by using the Linux cluster. 
@@ -74,7 +82,7 @@ The status of HANA databases, system replication and Linux cluster has to be
 checked. The SAP HANA resources are set into maintenance, an sr_takeover is
 performed, the old primary is registered as new secondary and finally the SAP
 HANA resources are given back to the Linux cluster. See also section
-REQUIREMENTS below.
+REQUIREMENTS below and later example on determing the correct site name.
 .PP
 .RS 2
 1. On either node
@@ -165,6 +173,24 @@ If everything looks fine, proceed.
 # crm_mon -1r
 .br
 # cs_clusterstate -i
+.RE
+.PP
+\fB*\fR Check the two site names that are known to the Linux cluster. 
+.br
+This is useful in case AUTOMATED_REGISTER is not yet set. In that case a former  primary needs to be registered manually with the former site name as new secondary. The point is finding the site name that already is in use by the Linux cluster. That exact site name has to be used for registration of the new secondary. See also REQUIREMENTS of SAPHanaSR(7) and SAPHanaSR-ScaleOut(7).
+.br
+In this example, node is suse11 on the future secondary site to be registered. Remote HANA Master Name Server is suse21 on current primary site. Lowercase-SID is ha1.
+.PP
+.RS 4
+# crm configure show suse11 suse21
+.br
+# crm configure show SAPHanaSR | grep hana_ha1_site_mns
+.br
+# ssh suse21
+.br
+# su - ha1adm -c "hdbnsutil -sr_state; echo rc: $?"
+.br
+# exit
 .RE
 .PP
 \fB*\fR Manually start the HANA primary if only one site is available.
@@ -299,6 +325,7 @@ See also section REQUIREMENTS below.
 3. Stop Linux Cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 3
+.\" TODO crm cluster stop ?
 # systemctl stop pacemaker
 .RE
 .RS 2
@@ -307,6 +334,7 @@ See also section REQUIREMENTS below.
 5. Start Linux cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 4
+.\" TODO crm cluster start ?
 # systemctl start pacemaker
 .RE
 .RS 2
@@ -324,6 +352,26 @@ See also section REQUIREMENTS below.
 .RE
 .RS 2
 8. Check status of Linux cluster and HANA, see above.
+.RE
+.PP
+\fB*\fR Overview on update procedure for the SAPHanaSR and SAPHanaSR-ScaleOut package.
+.br
+This procedure can be used to update RAs, HANA HADR provider hook scripts and related tools while HANA and Linux cluster stay online. See also SAPHanaSR-manageAttr(8) for details on reloading the HANA HADR provider.
+.PP
+.RS 2
+1. Check status of Linux cluster and HANA, see above.
+.br
+2. Set resources SAPHana (or SAPHanaController) and SAPHanaTopology to maintenance.
+.br
+3. Update RPM on all cluster nodes.
+.br
+4. Reload HANA HADR provider hook script on both sites.
+.br
+5. Refresh resources SAPHana (or SAPHanaController) and SAPHanaTopology.
+.br 
+6. Set resources SAPHana (or SAPHanaController) and SAPHanaTopology from maintenance to managed.
+.br
+7. Check status of Linux cluster and HANA, see above.
 .RE
 .PP
 \fB*\fR Remove left-over maintenance attribute from overall Linux cluster.
@@ -387,21 +435,29 @@ manual page SAPHanaSR-manageAttr(8).
 The procedure at a glance:
 .PP
 .RS 4
-1. Install multi-target aware  SAPHanaSR-ScaleOut package on all nodes.
+a. Initially check if everything looks fine.
 .br
-2. Replace HANA HADR provider configuration on both sites.
+b. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
 .br
-3. Reload HANA HADR provider hook script on both sites.
+c. Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 .br
-4. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
+d. Adapt sudoers permission on all nodes.
 .br
-5. Migrate srHook attribute from old-style to multi-target.
+e. Replace HANA HADR provider configuration on both sites.
 .br
-6. Check Linux cluster for matching defined upgrade target state.
+f. Reload HANA HADR provider hook script on both sites.
 .br
-7. Optionally connect third HANA site via system replication outside of the Linux cluster.
+g. Check Linux cluster and HANA HADR provider for matching defined upgrade entry state.
 .br
-8. Finally check if everything looks fine.
+h. Migrate srHook attribute from old-style to multi-target.
+.br
+i. Check Linux cluster for matching defined upgrade target state.
+.br
+j. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed. 
+.br
+k. Optionally connect third HANA site via system replication outside of the Linux cluster.
+.br
+l. Finally check if everything looks fine.
 .RE
 .PP
 .\"
