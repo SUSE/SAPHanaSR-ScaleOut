@@ -845,7 +845,9 @@ chk_multi_target_requirements() {
 
 # get resource name from cib
 get_res() {
+    local ino_match="false"
     local resType=$1
+    local ret=0
     # get primitives
     prims="$(cibadmin -Q | xmllint -xpath "//*/primitive[@class='ocf' and @provider='suse']/@id" - | sed -e 's/id=//g' -e 's/"//g')"
     for ps in $prims; do
@@ -861,7 +863,7 @@ get_res() {
                 # INO does not match, skipping
                 continue
             fi
-            INO_match="true"
+            ino_match="true"
         fi
         rname=$(cibadmin -Q | xmllint -xpath "string(//*[primitive[@id='$ps']]/@id)" -)
         rtype=$(cibadmin -Q | xmllint -xpath "name(//*[@id='$rname'])" -)
@@ -871,6 +873,10 @@ get_res() {
              echo "$rname"
         fi
     done
+    if [ "$ino_match" == "true" ]; then
+        ret=42
+    fi
+    return $ret
 }
 
 # check, if the cluster or the msl and cln resource is in maintenance
@@ -883,11 +889,17 @@ chk_for_maintenance() {
     # check maintenance mode of ms and cln resource
     # Attention: if the keyword in the cib will change from 'master' to 'multistate'
     # or something else, we need to adapt the following line
-    resM="$(get_res master)"
+    resM="$(get_res master)"; answer=$?
+    if [ "$answer" == "42" ]; then
+        INO_match="true"
+    fi
     if [ -z "$resM" ]; then
             mmaint="false"
     fi
-    resC="$(get_res clone)"
+    resC="$(get_res clone)"; answer=$?
+    if [ "$answer" == "42" ]; then
+        INO_match="true"
+    fi
     if [ -z "$resC" ]; then
             cmaint="false"
     fi
