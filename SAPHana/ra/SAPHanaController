@@ -286,6 +286,7 @@ The resource agent uses the following four interfaces provided by SAP:
     <action name="validate-all" timeout="5" />
     <action name="meta-data" timeout="5" />
     <action name="methods" timeout="5" />
+    <action name="reload" timeout="5" />
 </actions>
 </resource-agent>
 END
