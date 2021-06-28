@@ -56,12 +56,21 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .PP
-* Simple example for permissions in /etc/sudoers. HANA 1.0 Scale-Out, SID is SLE.
+* Simple example for permission in /etc/sudoers. HANA 1.0 Scale-Out, SID is SLE.
 .PP
 .RS 2
-# SAPHanaSR-ScaleOut old-style needs for srHook
+# SAPHanaSR-ScaleOut old-style needs for the srHook script.
 .br
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
+.RE
+.PP
+* Example for looking up the sudo permission for the srHook script.
+.br
+All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
+Example SID is HA1.
+.PP
+.RS 2
+# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_"
 .RE
 .PP
 * Example for entry in SAP HANA global configuration
@@ -172,7 +181,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-manageAttr\fP(8) ,
 \fBSAPHanaSR-showAttr\fP(8) ,
-\fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5), \fBpython\fP(8) ,
+\fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5) , \fBpython\fP(8) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br

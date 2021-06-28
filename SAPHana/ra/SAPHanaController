@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.180.0.0614.1735"
+SAPHanaControllerVersion="0.180.0.0628.1823"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -286,6 +286,7 @@ The resource agent uses the following four interfaces provided by SAP:
     <action name="validate-all" timeout="5" />
     <action name="meta-data" timeout="5" />
     <action name="methods" timeout="5" />
+    <action name="reload" timeout="5" />
 </actions>
 </resource-agent>
 END
@@ -653,7 +654,7 @@ function HANA_CALL()
                   # on timeout ...
                   #
                   if [ "$rc" -eq 124 ]; then
-                      super_ocf_log warn "RA: HANA_CALL TIMEOUT after $timeOut seconds ($cmd)"
+                      super_ocf_log warn "RA: HANA_CALL TIMEOUT after $timeOut seconds running command '$cmd'"
                       if [ -n "$onTimeOut" ]; then
                           local second_output=""
                           second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");

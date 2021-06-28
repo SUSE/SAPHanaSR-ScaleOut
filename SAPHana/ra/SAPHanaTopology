@@ -26,7 +26,7 @@
 #
 #######################################################################
 # DONE PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
-SAPHanaTopologyVersion="0.180.0.0330.1811"
+SAPHanaTopologyVersion="0.180.0.0628.1824"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -896,6 +896,10 @@ function sht_monitor_clone() {
        vName=${NODENAME}
     fi
     hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+    if [ "$hanalrc" -eq 124 ]; then
+        # landscape timeout
+        super_ocf_log warn "RA: landscapeHostConfiguration.py TIMEOUT after $HANA_CALL_TIMEOUT seconds"
+    fi
     #
     # scan with and without host prefix to allow also single instances (scaleup) for smaller test environments
     #
