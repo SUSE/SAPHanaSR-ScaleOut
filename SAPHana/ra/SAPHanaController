@@ -653,7 +653,7 @@ function HANA_CALL()
                   # on timeout ...
                   #
                   if [ "$rc" -eq 124 ]; then
-                      super_ocf_log warn "RA: HANA_CALL TIMEOUT after $timeOut seconds ($cmd)"
+                      super_ocf_log warn "RA: HANA_CALL TIMEOUT after $timeOut seconds running command '$cmd'"
                       if [ -n "$onTimeOut" ]; then
                           local second_output=""
                           second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");
