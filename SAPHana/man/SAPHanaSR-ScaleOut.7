@@ -282,13 +282,16 @@ forcing a SAPHanaController or SAPHana master to follow another resource.
 being written into CIB attributes. The current HANA SR status might differ
 from CIB srHook attribute after cluster maintenance.
 .PP
-14. In two-node HANA scale-out systems only one master nameserver candidate is
+14. Once an HANA system replication site is known to the Linux cluster, that
+exact site name has to be used whenever the site is registered manually.
+.PP
+15. In two-node HANA scale-out systems only one master nameserver candidate is
 configured.
 .PP
-15. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
+16. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
 Linux cluster.
 .PP
-16. HANA feature Secondary Time Travel is not supported.
+17. HANA feature Secondary Time Travel is not supported.
 .\"
 .SH BUGS
 .\" TODO
