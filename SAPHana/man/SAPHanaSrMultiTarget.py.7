@@ -36,6 +36,13 @@ ha_dr_provider_saphanasrmultitarget section:
 \fBpath = /usr/share/SAPHanaSR-ScaleOut/\fP
 .TP
 \fBexecution_order = 1\fP
+.\"
+.PP
+The "HA/DR providers" API accepts the following parameter for the system_replication section:
+.TP
+[system_replication]
+.TP
+\fBregister_secondaries_on_takeover = [ true | false ]\fP
 .PP
 The "HA/DR providers" API accepts the following parameter for the trace section:
 .TP
@@ -129,9 +136,7 @@ ha_dr_saphanasrmultitarget = info
 * Example for entry in SAP HANA 2.0 global configuration
 /hana/shared/$SID/global/hdb/custom/config/global.ini to enable multi-target aware third site.
 .br
-.br
-This entry is useful at the third site that is not managed by the Linux cluster.
-It is needed to allow ocf_suse_SAPHanaController(7) parameter AUTOMATED_REGISTER=true in multi-target environments.
+This entry is needed to allow ocf_suse_SAPHanaController(7) parameter AUTOMATED_REGISTER=true in multi-target environments.
 The HANA has to be stopped before the files can be edited.
 Do not copy the file between nodes. Please check SAP HANA documentation for details.
 .PP
