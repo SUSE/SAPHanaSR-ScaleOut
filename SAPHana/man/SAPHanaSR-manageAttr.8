@@ -205,10 +205,10 @@ l. Finally check if everything looks fine.
 
 As final result of this procedure, the RAs and hook script are downgraded from multi-target to old-style. Further the Linux cluster's multi-target attributes are removed and old-style attributes are added, particularly the global srHook. The HANA global configuration and Linux sudoers permissions are adapted.
 
-\fB*\fR Overview on upgrade procedure for the SAPHanaSR-ScaleOut package.
+\fB*\fR Overview on upgrading the SAPHanaSR-ScaleOut package.
 
 This procedure can be used to upgrade RAs, HANA HADR provider hook scripts and
-related tools while HANA and Linux cluster stay online. For details see
+related tools while HANA and Linux cluster are staying online. For details see
 SAPHanaSR_maintenance_examples(7).
 
 The procedure at a glance:
@@ -221,7 +221,9 @@ The procedure at a glance:
 .br
 4. Refresh resources SAPHanaController and SAPHanaTopology.
 .br
-5. Check status of Linux cluster and HANA.
+5. Optionally set resources SAPHanaController and SAPHanaTopology out of maintenance.
+.br
+6. Check status of Linux cluster and HANA.
 
 \fB*\fR Check Linux cluster for matching defined upgrade state.
 
