@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-manageAttr 8 "14 Jun 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-manageAttr 8 "21 Jun 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-manageAttr \- Helps managing Linux cluster attributes for SAP HANA system replication.
@@ -103,13 +103,14 @@ k. Optionally connect third HANA site via system replication outside of the Linu
 .br
 l. Finally check if everything looks fine.
 
-As final result of this upgrade, the RAs and hook script are upgraded from
+As final result of this procedure, the RAs and hook script are upgraded from
 old-style to multi-target. Further the Linux cluster's old-style global srHook
 attribute hana_${sid}_glob_srHook is replaced by site-aware attributes
 hana_${sid}_site_srHook_${SITE}. The new attributes might stay empty until
 HANA raises srConnectionChanged() events and triggers the new hook script
-for the first time. The sudoers permissions are adapted.
-New auxiliary attributes are introduced, see PARAMETERS section.
+for the first time. Alternatively the new attribute values can be set manually.
+The HANA global configuration and Linux sudoers permissions are adapted.
+New auxiliary Linux cluster attributes are introduced, see PARAMETERS section.
 .\" TODO what attributes
 
 \fB*\fR Overview on upgrading existing multi-target hook to new one. 
@@ -174,9 +175,39 @@ As final result of this upgrade, the RAs and hook script are updated to an new
 version. The existing old-style global attribute hana_${sid}_glob_srHook is
 kept. New auxiliary attributes are introduced, see PARAMETERS section.
 
-\fB*\fR Overview on update procedure for the SAPHanaSR-ScaleOut package.
+\fB*\fR Overview on downgrade from multi-target hook to old-style hook.
 
-This procedure can be used to update RAs, HANA HADR provider hook scripts and
+Unsupported downgrade procedure from defined entry state with multi-target hook back into defined target state with old-style hook. This might be useful when repeating tests for an upgrade procedure. All downgrade steps and checks need to be done manually.
+
+The procedure at a glance:
+.br
+a. Initially check if everything looks fine.
+.br
+b. Disconnect third system replication HANA from the two sites inside the Linux cluster.
+.br
+c. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+.br
+d. Downgrade SAPHanaSR-ScaleOut package on all nodes.
+.br
+e. Adapt sudoers permission on all nodes.
+.br
+f. Replace HANA HADR provider configuration on both sites.
+.br
+g. Remove multi-target attributes from CIB.
+.br
+h. Add old-style attributes into CIB. 
+.br
+i. Check Linux cluster for matching defined downgrade target state.
+.br
+j. Set Linux cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
+.br
+l. Finally check if everything looks fine.
+
+As final result of this procedure, the RAs and hook script are downgraded from multi-target to old-style. Further the Linux cluster's multi-target attributes are removed and old-style attributes are added, particularly the global srHook. The HANA global configuration and Linux sudoers permissions are adapted.
+
+\fB*\fR Overview on upgrade procedure for the SAPHanaSR-ScaleOut package.
+
+This procedure can be used to upgrade RAs, HANA HADR provider hook scripts and
 related tools while HANA and Linux cluster stay online. For details see
 SAPHanaSR_maintenance_examples(7).
 
@@ -208,7 +239,7 @@ This should be always the first step during upgrade procedure, after having the 
 
 \fB*\fR Check HANA HADR provider configuration and related script.
 
-Manual checks can be done in addition to the built-in checks of SAPHanaSR-manageAttr. The check should be done at both sites. See below examples on HANA HADR provider configuration and hook script as well SAPHanaSrMultiTarget.py(7) for details.
+Manual checks can be done in addition to the built-in checks of SAPHanaSR-manageAttr. The check should be done at both sites. See below examples on HANA HADR provider configuration and hook script as well as SAPHanaSrMultiTarget.py(7) for details.
 
 \fB*\fR Remove pretty ornaments from script output.
 
@@ -362,7 +393,7 @@ SAPHanaSR-manageAttr writes warnings and errors to stderr
 .SH REQUIREMENTS
 \fB*\fR For upgrading resource agents, hook script and related attributes, Linux cluster and HANA are in one of the defined upgrade entry states. Defined entry states are:
 .PP
-.RS 4 
+.RS 4
 1. The cluster is using old-style global srHook status attribute. All cluster nodes are online in the cluster and there are no current errors in the cluster or HANA. No third HANA site is attached. Main use case for SAPHanaSR-manageAttr.
 .PP
 2. The site-based srHook attributes are already in correct use, no old-style global attribute is in use. A third HANA site might be attached. Can be found at early adopters.
@@ -389,12 +420,8 @@ SAPHanaSR-manageAttr writes warnings and errors to stderr
 .\"
 .SH BUGS
 \fB*\fR Formatting  and  content of this script's output will change, since this script is under development. This script is not intended to be called from tools.
-.\" .br
-.\" \fB*\fR The resources SAPHanaController and SAPHanaTopology have to be named according to a given schema.
-.br
 \fB*\fR In case of any problem, please use your favourite SAP support process to
-open a request for the component BC-OP-LNX-SUSE. Please report any other feedback
-and suggestions to feedback@suse.com.
+open a request for the component BC-OP-LNX-SUSE. Please report any other feedback and suggestions to feedback@suse.com.
 .\"
 .SH SEE ALSO
 \fBocf_suse_SAPHanaController\fP(7) , \fBSAPHanaSR-ScaleOut\fP(7) ,
