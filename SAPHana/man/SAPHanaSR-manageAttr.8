@@ -337,7 +337,7 @@ details. Example lowercase-SID (sid) is abr.
 
 \fB*\fR Upgrade srHook attribute from old-style to multi-target.
 
-The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. The correct hook script needs to be already configured in HANA's global.ini. The correct sudoers permission need to be set already. See example above and REQUIREMENTS section below. Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR_HDB00. 
+The Linux cluster and HANA have to be checked for matching the entry state prior to migrating the srHook attribute. The new attributes might stay empty until HANA raises srConnectionChanged() events and triggers the new hook script for the first time. The correct hook script needs to be already configured in HANA's global.ini. The correct sudoers permission need to be set already. See example above and REQUIREMENTS section below and also SAPHanaSR_maintenance_examples(7). Example SID is ABR, lowercase-SID is abr, instance number is 00, SAPHanaController m/s resource is msl_SAPHanaCon_ABR_HDB00. 
 .PP
 .RS 4
 # SAPHanaSR-showAttr
