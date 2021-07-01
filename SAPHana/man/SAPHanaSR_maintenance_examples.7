@@ -40,7 +40,7 @@ REQUIREMENTS below.
 This might be conveniant when performing administrative actions or cluster tests. It does not replace the afore mentioned checks. See also cs_show_saphanasr_status(8).
 .PP
 .RS 4
-# watch -n 11 "(crm_mon -r; SAPHanaSR-showAttr; cs_clusterstate -i)|grep -v ^$"
+# watch -n 9 "(crm_mon -1r;SAPHanaSR-showAttr;cs_clusterstate -i)|egrep -v'(^$|configured|###)'"
 .RE
 .PP
 \fB*\fR Initiate an administrative take-over of the HANA primary from one node to the other by using the Linux cluster. 
@@ -405,6 +405,19 @@ Before doing so for all nodes, check for node attribute standby="off" on all nod
 # crm_attribute --query -t node -N node1 -n standby
 .br
 # crm_attribute --delete -t node -N node1 -n standby
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
+\fB*\fR Remove left-over maintenance attribute from resource.
+
+This should usually not be needed.
+See above overview on maintenance procedures whith running Linux cluster.
+.PP
+.RS 4
+# SAPHanaSR-showAttr
+.br
+# crm_resource --resource cln_SAPHanaTop_HA1_HDB00 --delete-parameter maintenance --meta
 .br
 # SAPHanaSR-showAttr
 .RE
