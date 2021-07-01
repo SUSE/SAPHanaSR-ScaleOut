@@ -1707,12 +1707,14 @@ function saphana_start_primary()
         wait )  # process a WAIT
             set_SRHOOK "$sr_name" "PRIM"; my_sync="PRIM"
             case "$lss" in
-                2 | 3 | 4 ) # as we ARE up we just keep it up
+                2 | 3 | 4 ) # TODO: PRIO3: as we ARE up we just keep it up
                     # TODO: PRIO3: I now change from "just keep it up to take that down"
-# TODO: PRIO1 differ lpt_advice!!
-# 2 => DOWN
-# 3 => KEEP
+                    # TODO: PRIO3: differ lpt_advice, if rc=3 will get implemted
+                    # 2 => DOWN
+                    # 3 => KEEP
                     # TODO: PRIO3: OCF_SUCCESS, OCF_NOT_RUNNING or OCF_ERR_xxxx ?
+                    # lpa_dec
+                    super_ocf_log err "LPA: Timestamp (lpt) attribute inconsistency detected"
                     set_crm_master -9000
                     #scoring_crm_master "$my_role" "$my_sync"
                     rc=$OCF_ERR_GENERIC
