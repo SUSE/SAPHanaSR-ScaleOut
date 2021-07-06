@@ -999,9 +999,13 @@ chk_cluster_health() {
     if [ -n "$ResID" ]; then
         res2chk="$ResID"
     fi
-    #rs=$(crm_mon -r1 2>/dev/null | awk '/Clone Set:/ { print $3 }')
+
+    # rs=$(crm_mon -r1 2>/dev/null | awk '/Clone Set:/ { print $3 }')
     # 'Clone Set:' or 'Master/Slave Set:' (on older pacemaker-cli versions)
-    rs=$(crm_mon -r1 2>/dev/null | awk '/[A-Za-z/ ][[:space:]]Set:/ { print $3 }')
+    # rs=$(crm_mon -r1 2>/dev/null | awk '/[A-Za-z/ ][[:space:]]Set:/ { print $3 }')
+    # if crm_mon output will change, awk's 'print $3' will no longer work correctly
+    # switch to cibadmin and xmllint instead.
+    rs=$(cibadmin -Q | xmllint -xpath "(//*[primitive[@*]]/@id)" - | sed -e 's/id=//g' -e 's/"//g')
     if [ -z "$res2chk" ]; then
         res2chk="$rs"
     else
@@ -1062,7 +1066,7 @@ del_glob_hook() {
 chk_root
 
 # variables
-version="202106181433"
+version="202107061515"
 exe="$0"
 cmd=$(basename "$exe")
 

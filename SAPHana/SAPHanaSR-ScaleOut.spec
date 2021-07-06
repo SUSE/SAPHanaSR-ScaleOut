@@ -33,6 +33,7 @@ Requires:       pacemaker > 1.1.1
 Requires:       resource-agents
 Requires:       perl
 Requires:       python3
+Requires:       /usr/bin/xmllint
 Conflicts:      SAPHanaSR
 
 %package doc
