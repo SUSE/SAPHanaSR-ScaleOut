@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+##########################################################################
+#
+# SAPHanaSR-call_monitor
+#
+# Author:       Fabian Herschel, July 2021
+# Support:      linux@sap.com
+# License:      GNU General Public License 2 (GPLv2)
+# Copyright (c) 2021 SUSE LLC.
+#
+##########################################################################
+#
+# SAPHanaSR-call_monitor allows to call a manual triggered "regular" monitor action for the SAPHanaController resource
+# it is to repair damaged attributes during msl-resource is in maintenence. "regular" monitor
+# means it is not a pobe only. This is done by setting the meta variable interval unequal to zero.
+#
+# Syntax:
+# SAPHanaSR-call_monitor <primitive_saphana_controller>
+#
+# This script must not be called in a productive cluster without beeing adviced by customer support or services
+#
+# version 20210707-1152
+
+function usage()
+{
+    echo "usage:"
+    echo "SAPHanaSR-call_monitor <primitive_saphana_controller>"
+    return 0
+}
+
+rsc="$1"
+if [ -z "$rsc" ]; then
+    usage
+    exit 20
+fi
+
+rsc_provider="suse"
+rsc_type="SAPHanaController"
+
+OCF_ROOT="/usr/lib/ocf"
+OCF_PAR_PREFIX="OCF_RESKEY_"
+OCF_PARAMETER_LIST=""
+
+OCF_META_PREFIX="OCF_RESKEY_CRM_meta_"
+
+OCF_META_LIST="interval=600 clone_max=4 clone_node_max=1 master_max=1 master_node_max=1"
+
+#
+# check, if multi-state resource of the given primitive is been set to maintenance mode
+#
+is_in_maintenance=$(cibadmin -Q | xmllint -xpath 'string(//*[primitive[@id="'"$rsc"'"]]/meta_attributes/nvpair[@name="maintenance"]/@value)' -)
+
+if [ "$is_in_maintenance" != "true" ]; then
+    echo "Multi-State resource of $rsc is not set to maintenance mode"
+    exit 20
+fi
+
+#
+# get a list of resource parameters (instance_attributes nvpair name)
+#
+params=$(cibadmin -Ql | xmllint --xpath '(//primitive[@id="'"$rsc"'"]/instance_attributes/nvpair/@name)' - | \
+         sed -e 's/name="//g' -e 's/"//g' )
+
+if [ -z "$params" ]; then
+    echo "No parameters found for resource $rsc"
+    exit 20
+fi
+
+#
+# for each known parameter get the assigned value - the is only one value per param expected, so we can use "string"
+#
+for par in $params; do
+    value=$(cibadmin -Ql | xmllint --xpath 'string(//primitive[@id="'"$rsc"'"]/instance_attributes/nvpair[@name="'"$par"'"]/@value)' - )
+    echo "$par -> $value"
+    OCF_PARAMETER_LIST="${OCF_PARAMETER_LIST} ${OCF_PAR_PREFIX}${par}=\"$value\""
+done
+    
+OCF_META_LIST=$(echo "$OCF_META_LIST" | sed -e 's/\([a-z0-9_]*\)=/'$OCF_META_PREFIX'\1=/g')
+
+#
+# call the monitor and report return code
+#
+eval OCF_ROOT=$OCF_ROOT OCF_RESOURCE_INSTANCE=$rsc $OCF_PARAMETER_LIST $OCF_META_LIST $OCF_ROOT/resource.d/$rsc_provider/$rsc_type monitor; rc=$?
+echo "rc=$rc"
+exit "$rc"
