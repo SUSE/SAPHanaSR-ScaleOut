@@ -20,7 +20,7 @@
 #
 # This script must not be called in a productive cluster without beeing adviced by customer support or services
 #
-# version 20210707-1152
+# version 20210707-1214
 
 function usage()
 {
@@ -35,9 +35,6 @@ if [ -z "$rsc" ]; then
     exit 20
 fi
 
-rsc_provider="suse"
-rsc_type="SAPHanaController"
-
 OCF_ROOT="/usr/lib/ocf"
 OCF_PAR_PREFIX="OCF_RESKEY_"
 OCF_PARAMETER_LIST=""
@@ -45,6 +42,29 @@ OCF_PARAMETER_LIST=""
 OCF_META_PREFIX="OCF_RESKEY_CRM_meta_"
 
 OCF_META_LIST="interval=600 clone_max=4 clone_node_max=1 master_max=1 master_node_max=1"
+
+#
+# get type and provider of given primitive
+# 
+rsc_type=$(cibadmin -Ql | xmllint --xpath 'string(//primitive[@id="'"$rsc"'"]/@type)' -)
+rsc_provider=$(cibadmin -Ql | xmllint --xpath 'string(//primitive[@id="'"$rsc"'"]/@provider)' -)
+
+#
+# check, if rsc_type and rsc_provider are as expected
+#
+case "$rsc_type" in
+    SAPHanaTopology ) # clone
+        echo "Checking clone resource of $src"
+                      ;;
+    SAPHana | SAPHanaController ) # multi-state
+        echo "Checking multi-state resource of $src"
+                      ;;
+    * ) # other, unexpected type
+        echo "Primitive type $rsc_type does not match SAPHanaTopology, SAPHana or SAPHanaController"
+        exit 20
+        ;;
+esac
+
 
 #
 # check, if multi-state resource of the given primitive is been set to maintenance mode
@@ -82,5 +102,6 @@ OCF_META_LIST=$(echo "$OCF_META_LIST" | sed -e 's/\([a-z0-9_]*\)=/'$OCF_META_PRE
 # call the monitor and report return code
 #
 eval OCF_ROOT=$OCF_ROOT OCF_RESOURCE_INSTANCE=$rsc $OCF_PARAMETER_LIST $OCF_META_LIST $OCF_ROOT/resource.d/$rsc_provider/$rsc_type monitor; rc=$?
+#echo OCF_ROOT=$OCF_ROOT OCF_RESOURCE_INSTANCE=$rsc $OCF_PARAMETER_LIST $OCF_META_LIST $OCF_ROOT/resource.d/$rsc_provider/$rsc_type monitor; rc=$?
 echo "rc=$rc"
 exit "$rc"
