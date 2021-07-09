@@ -96,6 +96,9 @@ install -Dm 0444 test/SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}/SAPHanaSRTo
 # sample configurations
 install -m 0444 crmconfig/* %{buildroot}/usr/share/%{name}/samples
 
+# sample scripts
+install -m 0755 test/SAPHanaSR-call_monitor %{buildroot}/usr/share/%{name}/samples
+
 # HAWK components
 install -Dm 0444 wizard/templates/SAPHanaSR-ScaleOut.xml %{buildroot}/srv/www/hawk/config/wizard/templates/SAPHanaSR-ScaleOut.xml
 install -Dm 0444 wizard/workflows/90-SAPHanaSR-ScaleOut.xml  %{buildroot}/srv/www/hawk/config/wizard/workflows/90-SAPHanaSR-ScaleOut.xml
