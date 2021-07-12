@@ -312,9 +312,8 @@ before proceeding with the new procedure for pacemaker-2.0.
 .PP
 \fB*\fR Overview on maintenance procedure for Linux, HANA remains running, on pacemaker-2.0.
 
-See also section REQUIREMENTS below.
+See also section REQUIREMENTS below and example on checking status of HANA and cluster above.
 .\" TODO details
-.\" TODO formatting
 .PP
 .RS 2
 1. Check status of Linux cluster and HANA, see above.
@@ -328,7 +327,7 @@ See also section REQUIREMENTS below.
 3. Stop Linux Cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 3
-.\" TODO crm cluster stop ?
+.\" TODO crm cluster stop?
 # systemctl stop pacemaker
 .RE
 .RS 2
@@ -337,13 +336,15 @@ See also section REQUIREMENTS below.
 5. Start Linux cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 4
-.\" TODO crm cluster start ?
+.\" TODO crm cluster start?
 # systemctl start pacemaker
 .RE
 .RS 2
 6. Let Linux cluster detect status of HANA resource, on either node.
 .RE
 .RS 4
+# crm resource refresh cln_...
+.br
 # crm resource refresh msl_...
 .RE
 .RS 2
