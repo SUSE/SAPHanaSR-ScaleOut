@@ -2703,7 +2703,7 @@ function saphana_monitor_primary()
 		#
 		# second check, if we have a pending HA/DR provider attribute in the interface files of "other" (cluster external) sites
 		#
-		for rFile in $(ls "/hana/shared/$SID/$InstanceName/.crm_attribute."*); do
+		for rFile in $(ls "/hana/shared/$SID/$InstanceName/.crm_attribute."* 2>/dev/null); do
 			recover_site_attributes_from_file "$rFile"
 		done
                 #
