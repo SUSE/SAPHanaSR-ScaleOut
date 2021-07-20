@@ -33,6 +33,7 @@ Requires:       pacemaker > 1.1.1
 Requires:       resource-agents
 Requires:       perl
 Requires:       python3
+Requires:       /usr/bin/xmllint
 Conflicts:      SAPHanaSR
 
 %package doc
@@ -94,6 +95,9 @@ install -Dm 0444 test/SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}/SAPHanaSRTo
 
 # sample configurations
 install -m 0444 crmconfig/* %{buildroot}/usr/share/%{name}/samples
+
+# sample scripts
+install -m 0755 test/SAPHanaSR-call_monitor %{buildroot}/usr/share/%{name}/samples
 
 # HAWK components
 install -Dm 0444 wizard/templates/SAPHanaSR-ScaleOut.xml %{buildroot}/srv/www/hawk/config/wizard/templates/SAPHanaSR-ScaleOut.xml
