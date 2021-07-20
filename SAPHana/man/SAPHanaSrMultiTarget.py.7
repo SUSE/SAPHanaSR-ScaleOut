@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "14 Jun 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "20 Jul 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -82,25 +82,28 @@ Usage, syntax or execution errors.
 .SH EXAMPLES
 .PP
 * Simple example for permission in /etc/sudoers, SID is SLE.
+.br
+All needed attributes (..._srHook, ..._gsh, ..._mts) are covered.
 .PP
 .RS 2
 # SAPHanaSR needs for srHook
 .br
-sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_site_srHook_*
+sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_site_*
 .RE
 .PP
-* More restricted example for sudo permission, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
-.PP
-.RS 2
-# SAPHanaSR needs for srHook
-.br
-Cmnd_Alias SOK = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SOK -t crm_config -s SAPHanaSR
-.br
-Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SFAIL -t crm_config -s SAPHanaSR
-.br
-sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
-.RE
-.PP
+.\" TODO define what attributes are needed: _srHook _gsh _mts?
+.\"* More restricted example for sudo permission, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
+.\".PP
+.\".RS 2
+.\"# SAPHanaSR needs for srHook
+.\".br
+.\"Cmnd_Alias SOK = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SOK -t crm_config -s SAPHanaSR
+.\".br
+.\"Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SFAIL -t crm_config -s SAPHanaSR
+.\".br
+.\"sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
+.\".RE
+.\".PP
 * Example for looking up the sudo permission for the srHook script.
 .br
 All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
