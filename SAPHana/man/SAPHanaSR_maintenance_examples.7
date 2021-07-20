@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR_maintenance_examples 7 "14 Jun 2021" "" "SAPHanaSR"
+.TH SAPHanaSR_maintenance_examples 7 "21 Jun 2021" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR_maintenance_examples \- maintenance examples for SAPHana and SAPHanaController.
@@ -10,14 +10,15 @@ SAPHanaSR_maintenance_examples \- maintenance examples for SAPHana and SAPHanaCo
 .PP
 Maintenance examples for SAPHana and SAPHanaController.
 Please see ocf_suse_SAPHana(7) respectively ocf_suse_SAPHanaController(7),
-SAPHanaSR.py(7), SAPHanaSrMultiTarget.py(7) for more examples and read the REQUIREMENTS section below.
+SAPHanaSR.py(7), SAPHanaSrMultiTarget.py(7), SAPHanaSR-manageAttr(8)
+for more examples and read the REQUIREMENTS section below.
 .RE
 .PP
 .\"
 .SH EXAMPLES
 .PP
 \fB*\fR Check status of Linux cluster and HANA system replication pair.
-.br
+
 This steps should be performed before doing anything with the cluster, and
 after something has been done. See also cs_show_saphanasr_status(8) and section
 REQUIREMENTS below.
@@ -35,15 +36,15 @@ REQUIREMENTS below.
 .RE
 .PP
 \fB*\fR Watch status of HANA cluster resources and system replication.
-.br
+
 This might be conveniant when performing administrative actions or cluster tests. It does not replace the afore mentioned checks. See also cs_show_saphanasr_status(8).
 .PP
 .RS 4
-# watch -n 11 "crm_mon -r; SAPHanaSR-showAttr; cs_clusterstate -i"
+# watch -n 9 "(crm_mon -1r;SAPHanaSR-showAttr;cs_clusterstate -i)|egrep -v'(^$|configured|###)'"
 .RE
 .PP
 \fB*\fR Initiate an administrative take-over of the HANA primary from one node to the other by using the Linux cluster. 
-.br
+
 This procedure does not work for scale-out.
 If the cluster should also register the former primary as secondary, AUTOMATED_REGISTER="true" is needed. Before the take-over will be initiated, the status of the Linux cluster and the HANA system replication has to be checked. The take-over should be initiated as forced migration of the multi-state SAPHana resource.
 .br
@@ -76,13 +77,15 @@ After take-over of the primary has been finished, the migration rule has to be d
 Note: Former versions of the Linux cluster used "migrate" instead of "move" and "unmigrate" instead of "clear".
 .PP
 \fB*\fR Perform an SAP HANA take-over by using SAP tools. 
-.br
+
 The procedures is described here for scale-out. It works for scale-up as well. 
 The status of HANA databases, system replication and Linux cluster has to be
-checked. The SAP HANA resources are set into maintenance, an sr_takeover is
-performed, the old primary is registered as new secondary and finally the SAP
-HANA resources are given back to the Linux cluster. See also section
-REQUIREMENTS below and later example on determing the correct site name.
+checked.
+The SAP HANA resources are set into maintenance, an sr_takeover is performed,
+the old primary is registered as new secondary.
+Therefor the correct secondary site name has to be used, see later example.
+Finally the SAP HANA resources are given back to the Linux cluster.
+See also section REQUIREMENTS below and later example on determing the correct site name.
 .PP
 .RS 2
 1. On either node
@@ -176,7 +179,7 @@ If everything looks fine, proceed.
 .RE
 .PP
 \fB*\fR Check the two site names that are known to the Linux cluster. 
-.br
+
 This is useful in case AUTOMATED_REGISTER is not yet set. In that case a former  primary needs to be registered manually with the former site name as new secondary. The point is finding the site name that already is in use by the Linux cluster. That exact site name has to be used for registration of the new secondary. See also REQUIREMENTS of SAPHanaSR(7) and SAPHanaSR-ScaleOut(7).
 .br
 In this example, node is suse11 on the future secondary site to be registered. Remote HANA Master Name Server is suse21 on current primary site. Lowercase-SID is ha1.
@@ -194,7 +197,7 @@ In this example, node is suse11 on the future secondary site to be registered. R
 .RE
 .PP
 \fB*\fR Manually start the HANA primary if only one site is available.
-.br
+
 This might be necessary in case the cluster can not detect the status of both sites.
 This is an advanced task.
 .PP
@@ -209,11 +212,11 @@ This is an advanced task.
 .br
 4. Wait and check for HANA is running.
 .br
-5. In case the cluster does not promote the HANA to primary, instruct the cluster to migrate the IP adress to that node.
+5. In case the cluster does not promote the HANA to primary, instruct the cluster to migrate the IP address to that node.
 .br
 6. Wait and check for HANA has been promoted to primary by the cluster.
 .br
-7. Remove the migration rule from the IP adress.
+7. Remove the migration rule from the IP address.
 .br
 8. Check if cluster is in status idle.
 .br
@@ -224,7 +227,7 @@ This is an advanced task.
 .PP
 .\"
 \fB*\fR Overview on maintenance procedure for HANA, the Linux cluster remains running, on pacemaker-1.0.
-.br
+
 See also section REQUIREMENTS below.
 .PP
 .RS 2
@@ -308,10 +311,9 @@ been used, left-over maintenance attribute have to be removed from the CIB
 before proceeding with the new procedure for pacemaker-2.0.
 .PP
 \fB*\fR Overview on maintenance procedure for Linux, HANA remains running, on pacemaker-2.0.
-.br
-See also section REQUIREMENTS below.
+
+See also section REQUIREMENTS below and example on checking status of HANA and cluster above.
 .\" TODO details
-.\" TODO formatting
 .PP
 .RS 2
 1. Check status of Linux cluster and HANA, see above.
@@ -325,7 +327,7 @@ See also section REQUIREMENTS below.
 3. Stop Linux Cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 3
-.\" TODO crm cluster stop ?
+.\" TODO crm cluster stop?
 # systemctl stop pacemaker
 .RE
 .RS 2
@@ -334,13 +336,15 @@ See also section REQUIREMENTS below.
 5. Start Linux cluster on all nodes. Make sure to do that on all nodes.
 .RE
 .RS 4
-.\" TODO crm cluster start ?
+.\" TODO crm cluster start?
 # systemctl start pacemaker
 .RE
 .RS 2
 6. Let Linux cluster detect status of HANA resource, on either node.
 .RE
 .RS 4
+# crm resource refresh cln_...
+.br
 # crm resource refresh msl_...
 .RE
 .RS 2
@@ -355,7 +359,7 @@ See also section REQUIREMENTS below.
 .RE
 .PP
 \fB*\fR Overview on update procedure for the SAPHanaSR and SAPHanaSR-ScaleOut package.
-.br
+
 This procedure can be used to update RAs, HANA HADR provider hook scripts and related tools while HANA and Linux cluster stay online. See also SAPHanaSR-manageAttr(8) for details on reloading the HANA HADR provider.
 .PP
 .RS 2
@@ -375,7 +379,7 @@ This procedure can be used to update RAs, HANA HADR provider hook scripts and re
 .RE
 .PP
 \fB*\fR Remove left-over maintenance attribute from overall Linux cluster.
-.br
+
 This could be done to avoid confusion caused by different maintenance procedures.
 See above overview on maintenance procedures whith running Linux cluster.
 Before doing so, check for cluster attribute maintenance-mode="false".
@@ -391,7 +395,7 @@ Before doing so, check for cluster attribute maintenance-mode="false".
 .RE
 .PP
 \fB*\fR Remove left-over standby attribute from Linux cluster nodes.
-.br
+
 This could be done to avoid confusion caused by different maintenance procedures.
 See above overview on maintenance procedures whith running Linux cluster.
 Before doing so for all nodes, check for node attribute standby="off" on all nodes.
@@ -406,8 +410,21 @@ Before doing so for all nodes, check for node attribute standby="off" on all nod
 # SAPHanaSR-showAttr
 .RE
 .PP
-\fB*\fR Manually update global site attribute.
+\fB*\fR Remove left-over maintenance attribute from resource.
+
+This should usually not be needed.
+See above overview on maintenance procedures whith running Linux cluster.
+.PP
+.RS 4
+# SAPHanaSR-showAttr
 .br
+# crm_resource --resource cln_SAPHanaTop_HA1_HDB00 --delete-parameter maintenance --meta
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
+\fB*\fR Manually update global site attribute.
+
 In rare cases the global site attribute hana_<sid>_glob_prim or
 hana_<sid>_glob_sec is not updated automatically after successful take-over,
 while all other attributes are updated correctly. The global site attribute
@@ -425,16 +442,17 @@ been updated. Updating hana_<sid>_glob_sec for SID HA1 with site name VOLKACH:
 .RE
 .PP
 \fB*\fR Upgrade scale-out srHook attribute from old-style to multi-target.
-.br
+
 As final result of this upgrade, the RAs and hook script are upgraded from
 old-style to multi-target. Further the Linux cluster's old-style global srHook
 attribute hana_${sid}_glob_srHook is replaced by site-aware attributes
 hana_${sid}_site_srHook_${SITE}. New auxiliary attributes are introduced.
 The complete procedure and related requirements are described in detail in
 manual page SAPHanaSR-manageAttr(8).
+.br
 The procedure at a glance:
 .PP
-.RS 4
+.RS 2
 a. Initially check if everything looks fine.
 .br
 b. Set Linux cluster resources SAPHanaController and SAPHanaTopology into maintenance.
@@ -497,6 +515,7 @@ In case of any problem, please use your favourite SAP support process to open a 
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHana\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR\fP(7) , \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-manageAttr\fP(8) ,
 \fBcs_clusterstate\fP(8) , \fBcs_show_saphanasr_status\fP(8) ,
+\fBcs_wait_for_idle\fP(8) ,
 \fBcrm\fP(8) , \fBcrm_simulate\fP(8) , \fBcrm_mon\fP(8) ,  \fBcrm_attribute\fP(8)
 .br
 https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
