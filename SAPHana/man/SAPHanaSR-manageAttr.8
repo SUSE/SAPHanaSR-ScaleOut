@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-manageAttr 8 "21 Jun 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-manageAttr 8 "20 Jul 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-manageAttr \- Helps managing Linux cluster attributes for SAP HANA system replication.
@@ -267,7 +267,7 @@ See SAPHanaSR.py.(7), SAPHanaSrMultiTarget.py(7) and sudo(8) for details and mor
 .br
 # cp /etc/sudoers.d/SAPHanaSR /etc/sudoers.d/SAPHanaSR.BAK
 .br
-# echo "abradm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_abr_site_srHook_*" >/etc/sudoers.d/SAPHanaSR
+# echo "abradm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_abr_site_*" >/etc/sudoers.d/SAPHanaSR
 .br
 # sudo -U abradm -l | grep "NOPASSWD.*crm_attribute.*hana_"
 .RE
