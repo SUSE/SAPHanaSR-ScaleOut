@@ -85,7 +85,9 @@ HANA 2.0 Scale-Out, SID is SLE. The attribute contains the lowercase-SID.
 The main srHook attribute and all auxiliary host- and site-attributes are covered (..._gsh, ..._mts). Access should be always limited to the specific SID.
 .PP
 .RS 2
-# SAPHanaSR needs for srHook
+# Comments need a blank after the hash.
+.br
+# SAPHanaSR needs for srHook:
 .br
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_*
 .RE
@@ -119,7 +121,7 @@ site-specific attributes.
 This entry is needed at both sites that are managed by the Linux cluster.
 The HANA has to be stopped before the files can be edited.
 Do not copy the file between nodes. Please check SAP HANA documentation for details.
-Do not forget to adapt the sudoers permission, see examples above.
+Do not forget to adapt the sudo permission, see examples above.
 .PP
 .RS 2
 [ha_dr_provider_saphanasrmultitarget]
@@ -286,7 +288,7 @@ the on-disk representation of HANA global system configuration
 the on-disk representation of HANA nameserver configuration
 .TP
 /etc/sudoers , /etc/sudoers.d/
-the sudo permissions configuration
+the sudo permission configuration
 .TP
 /usr/sap/$SID/HDB$nr/$host/trace/
 the directory with HANA trace files
