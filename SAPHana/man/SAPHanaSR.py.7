@@ -74,7 +74,7 @@ This example is similar to those given in documentation for former versions of t
 .br
 # SAPHanaSR-ScaleOut old-style needs for the srHook script:
 .br
-sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
+sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v * -t crm_config -s SAPHanaSR 
 .RE
 .PP
 Note: In former documentation the central /etc/sudoers has been used instead of /etc/sudoers.d/SAPHanaSR. See sudoers(5) for including files and other details. 
@@ -92,6 +92,25 @@ For more examples see SAPHanaSrMultiTarget.py(7) and SAPHanaSR-manageAttr(8).
 # SAPHanaSR-ScaleOut needs for the srHook script:
 .br
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_*
+.RE
+.PP
+* Advanced example for very restricted permission in /etc/sudoers.d/SAPHanaSR .
+.br
+HANA 1.0 and HANA 2.0 scale-out, SID is NSA. The attribute contains the lowercase-SID.
+Access is closely restricted to needed attributes and values.
+Restricted patterns should be used with caution. They may interfere with new functionality in the future. Please double check before applying in production. 
+.PP
+.RS 2
+# SAPHanaSR-ScaleOut needs at least for the srHook script:
+.br
+nsaadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_nsa_glob_srHook -s SOK -t crm_config -s SAPHanaSR
+.br
+nsaadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_nsa_glob_srHook -s SFAIL -t crm_config -s SAPHanaSR
+.\" TODO empty string needed?
+.\" .br
+.\" nsaadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_nsa_glob_srHook -s " " -t crm_config -s SAPHanaSR
+.br
+nsaadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_nsa_gsh -v 1.0 -l reboot
 .RE
 .PP
 * Example for looking up the sudo permission for the srHook script.
@@ -140,6 +159,29 @@ ha_dr_saphanasr = info
 .\" TODO chmod 755?
 .RE
 .PP
+* Example for checking the system log for srHook setting its version in the CIB nodes section.
+.br
+When being loaded on the HANA master name server, the srHook writes its version as node attribute into the CIB. This action is logged in the system log.
+If no log entry exists, either the srHook has not being loaded, or it did not have sufficient sudo permission. See HANA tracefile example below and sudo permission example above.
+.PP
+.RS 2
+# grep "sudo.*crm_attribute.*hana.*gsh" /var/log/messages
+.RE
+.PP
+* Example for checking the HANA tracefiles for srHook writing its version into CIB. 
+.PP
+.RS 2
+# su - sleadm
+.br
+~> cdtrace
+.br
+~> grep crm_attribute.*hana.*gsh nameserver_*.trc | grep rc=0
+.br
+~> grep crm_attribute.*hana.*gsh nameserver_*.trc | grep -v rc=0
+.br
+~> exit
+.RE
+.PP
 * Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. 
 .PP
 .RS 2
@@ -157,7 +199,7 @@ ha_dr_saphanasr = info
 .br
 ~> grep crm_attribute.*SAPHanaSR nameserver_*.trc
 .br
-# exit
+~> exit
 .RE
 .PP
 .\"
