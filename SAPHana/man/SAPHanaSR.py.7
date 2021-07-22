@@ -70,7 +70,9 @@ Access should be always limited to the specific SID.
 This example is similar to those given in documentation for former versions of the scale-out srHook script. In-place upgrade of the package without adding multi-target support is possible, even if the existing sudo permission does not allow new auxiliary attributes.
 .PP
 .RS 2
-# SAPHanaSR-ScaleOut old-style needs for the srHook script.
+# Comments need a blank after the hash.
+.br
+# SAPHanaSR-ScaleOut old-style needs for the srHook script:
 .br
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
 .RE
@@ -87,7 +89,7 @@ It might be used for any new installation.
 For more examples see SAPHanaSrMultiTarget.py(7) and SAPHanaSR-manageAttr(8).
 .PP
 .RS 2
-# SAPHanaSR-ScaleOut needs for the srHook script.
+# SAPHanaSR-ScaleOut needs for the srHook script:
 .br
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_*
 .RE
