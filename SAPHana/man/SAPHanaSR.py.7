@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR.py 7 "12 Mar 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "21 Jul 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -56,12 +56,30 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .PP
-* Simple example for permission in /etc/sudoers. HANA 1.0 Scale-Out, SID is SLE.
+* Example for specific permission in /etc/sudoers.d/SAPHanaSR .
+.br
+HANA 1.0 Scale-Out, SID is SLE. The attribute contains the lowercase-SID.
+Access is allowed to the specified SID's srHook attribute only.
+Access should be always limited to the specific SID. 
 .PP
 .RS 2
 # SAPHanaSR-ScaleOut old-style needs for the srHook script.
 .br
 sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
+.RE
+.PP
+* Example for generic permission in /etc/sudoers.d/SAPHanaSR .
+.br
+HANA 1.0 Scale-Out, SID is SLE. The attribute contains the lowercase-SID. 
+Access is allowed to all attributes of the specified SID.
+Access should be always limited to the specific SID. 
+This pattern works for both, old-style and multi-target.
+For more examples see SAPHanaSrMultiTarget.py(7) and SAPHanaSR-manageAttr(8).
+.PP
+.RS 2
+# SAPHanaSR-ScaleOut needs for the srHook script.
+.br
+sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_*
 .RE
 .PP
 * Example for looking up the sudo permission for the srHook script.
@@ -70,7 +88,7 @@ All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
 Example SID is HA1.
 .PP
 .RS 2
-# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_"
+# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_ha1"
 .RE
 .PP
 * Example for entry in SAP HANA global configuration
@@ -189,7 +207,9 @@ https://documentation.suse.com/sles-sap/ ,
 .br
 https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
-https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
+.\"https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
+.br
+https://www.susecon.com/archive-2019.html
 .br
 https://www.susecon.com/archive-2020.html
 .br
