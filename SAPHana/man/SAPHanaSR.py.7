@@ -126,7 +126,7 @@ Example SID is HA1.
 /hana/shared/$SID/global/hdb/custom/config/global.ini
 .br
 This file is needed at both sites. The HANA has to be stopped before the files
-can be edited.
+can be edited. Do not copy the file between sites. Please check SAP HANA documentation for details. Do not forget to adapt the sudo permission, see examples above.
 .PP
 .RS 2
 [ha_dr_provider_SAPHanaSR]
