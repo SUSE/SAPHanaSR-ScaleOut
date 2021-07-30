@@ -1,0 +1,370 @@
+.\" Version: 0.180.0
+.\"
+.TH SAPHanaSrMultiTarget.py 7 "20 Jul 2021" "" "SAPHanaSR-ScaleOut"
+.\"
+.SH NAME
+SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
+method srConnectionChanged().
+.PP
+.\"
+.\" .SH SYNOPSYS
+.\" \fBSAPHanaSrMultiTarget.py\fP
+.\" .PP
+.\"
+.SH DESCRIPTION
+SAPHanaSrMultitarget.py can be used to provide a script for the SAP HANA srHook method srConnectionChanged().
+
+The SAP HANA nameserver provides a Python-based API ("HA/DR providers"), which 
+is called at important points of the host auto-failover and system replication 
+takeover process. These so called hooks can be used for arbitrary operations
+that need to be executed. The method srConnectionChanged() is called on the
+master nameserver as soon as one of the replicating services loses or establishes the system replication connection. This method is called only once.
+
+SAPHanaSR srHook script and resource agent need to use same cluster attributes.
+Therefor beginning with package SAPHanaSR-ScaleOut version 0.180 a generation
+attribute is used. 
+.PP
+.\"
+.SH SUPPORTED PARAMETERS
+\fB*\fP The "HA/DR providers" API accepts the following parameters for the 
+ha_dr_provider_saphanasrmultitarget section:
+.TP
+[ha_dr_provider_saphanasrmultitarget]
+.TP
+\fBprovider = SAPHanaSrMultiTarget\fP
+.TP
+\fBpath = /usr/share/SAPHanaSR-ScaleOut/\fP
+.TP
+\fBexecution_order = 1\fP
+.\"
+.PP
+The "HA/DR providers" API accepts the following parameter for the system_replication section:
+.TP
+[system_replication]
+.TP
+\fBregister_secondaries_on_takeover = [ true | false ]\fP
+.PP
+The "HA/DR providers" API accepts the following parameter for the trace section:
+.TP
+[trace]
+.TP
+\fBha_dr_saphanasrmultitarget = [ info | debug ]\fP
+.PP
+\fB*\fP The SAPHanaController and SAPHana RA recognize the effecting system
+replication status via attributes in the CIB properties section. The SAP System
+Indentifier (sid) is given in lower case. See REQUIREMENTS section below for
+supported API versions and scenarios. For new SAPHanaSR-ScaleOut the
+SAPHanaSrMultiTarget.py provides site-specific attributes among the SAPHanaSR
+properties:
+.TP
+\fBhana_<sid>_site_srHook_<site> = [ SOK | SFAIL | SWAIT | SREG | SCOPY | PRIM ]\fP
+.PP
+Note: See SAPHanaSR.py(7) for old-style SAPHanaSR-ScaleOut with one global
+attribute instead of site-specific attributes.
+.\" TODO hana_<sid>_glob_srHook during migration process?
+.PP
+\fB*\fP The SAPHanaSR-manageAttr tool recognizes the scale-out multi-target capability
+via host attribute. The SAP System Indentifier (sid) is given in lower case. See
+REQUIREMENTS section below for supported API versions and scenarios. For new
+SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py reports its generation:
+.TP
+\fBhana_<sid>_gsh = [ \fIgeneration\fR \fB]\fP
+.PP
+.\"
+.SH RETURN CODES
+.B 0
+Successful program execution.
+.br
+.B >0
+Usage, syntax or execution errors.
+.PP
+.\"
+.SH EXAMPLES
+.PP
+* Simple example for permission in /etc/sudoers, SID is SLE.
+.br
+All needed attributes (..._srHook, ..._gsh, ..._mts) are covered.
+.PP
+.RS 2
+# SAPHanaSR needs for srHook
+.br
+sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_site_*
+.RE
+.PP
+.\" TODO define what attributes are needed: _srHook _gsh _mts?
+.\"* More restricted example for sudo permission, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Up and Scale-Out multi-target aware, SID is SLE.
+.\".PP
+.\".RS 2
+.\"# SAPHanaSR needs for srHook
+.\".br
+.\"Cmnd_Alias SOK = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SOK -t crm_config -s SAPHanaSR
+.\".br
+.\"Cmnd_Alias SFAIL = /usr/sbin/crm_attribute -n hana_sle_site_srHook_* -v SFAIL -t crm_config -s SAPHanaSR
+.\".br
+.\"sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
+.\".RE
+.\".PP
+* Example for looking up the sudo permission for the srHook script.
+.br
+All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
+Example SID is HA1.
+.PP
+.RS 2
+# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_" 
+.RE
+.PP
+* Example for entry in SAP HANA 2.0 global configuration
+/hana/shared/$SID/global/hdb/custom/config/global.ini with multi-target aware,
+site-specific attributes.
+.br
+This entry is needed at both sites that are managed by the Linux cluster.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details.
+Do not forget to adapt the sudoers permission, see examples above.
+.PP
+.RS 2
+[ha_dr_provider_saphanasrmultitarget]
+.br
+provider = SAPHanaSrMultiTarget
+.br
+path = /usr/share/SAPHanaSR-ScaleOut/
+.br
+execution_order = 1
+.br
+[trace]
+.br
+ha_dr_saphanasrmultitarget = info
+.RE
+.PP
+* Example for entry in SAP HANA 2.0 global configuration
+/hana/shared/$SID/global/hdb/custom/config/global.ini to enable multi-target aware third site.
+.br
+This entry is needed to allow ocf_suse_SAPHanaController(7) parameter AUTOMATED_REGISTER=true in multi-target environments.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details.
+.PP
+.RS 2
+[system_replication]
+.br
+ ...
+.br
+register_secondaries_on_takeover = true
+.br
+ ...
+.RE
+.PP
+* Example for entry in SAP HANA 2.0 nameserver configuration
+/hana/shared/$SID/global/hdb/custom/config/nameserver.ini for two-node scale-out HANA without standby nodes.
+.br
+This entry is needed at both sites that are managed by the Linux cluster.
+The HANA has to be stopped before the files can be edited.
+Do not copy the file between nodes. Please check SAP HANA documentation for details. In this example the master node is suse11, the worker is suse12.
+.PP
+.RS 2
+[landscape]
+ ...
+.br
+master = suse11:31001
+.br
+worker = suse11 suse12
+.br
+active_master = suse11:31001
+.br
+roles_suse11 = worker
+.br
+roles_suse12 = worker
+ ...
+.RE
+.PP
+* Example for creating the optional SAPHanaSrMultiTarget.pyc python object file manually. SID is SLE.
+.PP
+.RS 2
+# mkdir -p /hana/shared/srhook
+.br
+# chown sleadm.sapsys /hana/shared/srhook
+.br
+# su - sleadm
+.br
+# cd /hana/shared/srhook
+.br
+# python -m py_compile /usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
+.br
+# chmod 755 SAPHanaSrMultiTarget.pyc
+.br
+# ls -l SAPHanaSrMultiTarget.pyc
+.RE
+.PP
+* Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. To be executed on respective HANA primary site's master nameserver.
+.PP
+.RS 2
+# grep "sudo.*crm_attribute.*srHook" /var/log/messages
+.RE
+.PP
+* Example for checking the HANA tracefiles for srConnectionChanged() events. To be executed on respective HANA primary site's master nameserver.
+.PP
+.RS 2
+# su - sleadm
+.br
+~> cdtrace
+.br
+~> grep SAPHanaSR.srConnectionChanged.*called nameserver_*.trc
+.br
+~> grep crm_attribute.*SAPHanaSR nameserver_*.trc
+.br
+# exit
+.RE
+.PP
+* Example for checking the HANA tracefiles for when the hook script has been loaded. To be executed on both site's master nameservers.
+.PP
+.RS 2
+# su - sleadm
+.br
+~> cdtrace
+.br
+~> grep HADR.*load.*SAPHanaS nameserver_*.trc
+.RE
+.PP
+* Example for comparing Linux cluster srHook attribute with current HANA SR state. SID is HA1. To be executed on current HANA primary site.
+.PP
+.RS 2
+# SAPHanaSR-showAttr | grep -A4 srHook
+.br
+# su - ha1adm -c "HDBSettings.sh systemReplicationStatus.py"
+.RE
+.PP
+* Potentially dangerous example for manually changing Linux cluster srHook
+attribute according to current HANA SR state. This might be desired if the
+HANA SR state has changed while the Linux cluster was completely down.
+SID is ICE, site is BERG, current HANA SR state is SFAIL.
+.br
+Note: Understand the impact before trying.
+.PP
+.RS 2
+# su - iceadm -c "HDBSettings.sh systemReplicationStatus.py"
+.br
+# cs_clusterstate -i
+.br
+# crm_attribute -n hana_ice_site_srHook_BERG -v SFAIL -t crm_config -s SAPHanaSR
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
+\fB*\fR Example for removing orphaned global srHook attribute.
+This might be done after upgrading from old-style srHook, to avoid confusion
+caused by different HANA HADR provider API versions.
+See also SAPHanaSR.py(7) and SAPHanaSR-manageAttr(8) from SAPHanaSR-ScaleOut.
+SID is HA1.
+.\" TODO scale-up: SID is HA1, node is node1. All nodes need to be cleaned.
+.\" TODO scale-up: # crm_attribute --delete -t nodes --node node1 --name hana_ha1_glob_srHook
+.\" TODO double check orphaned attributes to be removed
+.PP
+.RS 2
+# SAPHanaSR-showAttr
+.br
+# cs_clusterstate -i
+.br
+# crm_attribute --delete -t crm_config --name hana_ha1_glob_srHook
+.br
+# SAPHanaSR-showAttr
+.RE
+.PP
+.\"
+.SH FILES
+.TP
+/usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
+the scale-out old-style hook provider, delivered with the RPM
+.TP
+/usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
+the scale-out multi-target aware hook provider, delivered with the RPM
+.TP
+/hana/shared/srhook/SAPHanaSR.pyc
+the old-style hook provider, if pre-compiled for the particular HANA (optional)
+.TP
+/hana/shared/$SID/global/hdb/custom/config/global.ini
+the on-disk representation of HANA global system configuration
+.TP
+/hana/shared/$SID/global/hdb/custom/config/nameserver.ini
+the on-disk representation of HANA nameserver configuration
+.TP
+/etc/sudoers , /etc/sudoers.d/
+the sudo permissions configuration
+.TP
+/usr/sap/$SID/HDB$nr/$host/trace/
+the directory with HANA trace files
+.TP
+/usr/sap/$SID/HDB$nr/.crm_attribute.$SITE
+the internal cache for srHook status changes while Linux cluster is down, file is owned by ${SID}adm and must never be touched
+.PP
+.\"
+.SH REQUIREMENTS 
+1. SAP HANA starting with version 1.0 SPS11 patch level 112.02.
+Older versions do not provide the srHook method srConnectionChanged().
+With the mentioned HANA versions uni-directional chained system replication is
+possible. With HANA 2.0 SPS04 and later multi-target system replication is
+possible as well. See also SAPHanaSR-ScaleOut(7) for supported API versions and
+scenarios.
+.\" TODO check HANA 2.0 SPS
+.PP
+2. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
+.PP
+3. The hook provider needs to be added to the HANA global configuration,
+in memory and on disk (in persistence).
+.PP
+4. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA has to be used.
+.PP
+5. The Linux cluster needs to be up and running to allow HA/DR provider events being written into CIB attributes. The current HANA SR status might differ from CIB srHook attribute after Linux cluster maintenance.
+.PP
+6. Running srHook script and RA need to be of same or compatible generation. This is indicated by node attributes.
+.PP
+.\"
+.SH BUGS
+Global and site-specific properties for HANA SR status can not be used at same
+time.
+.br
+In case of any problem, please use your favourite SAP support process to open
+a request for the component BC-OP-LNX-SUSE.
+Please report any other feedback and suggestions to feedback@suse.com.
+.PP
+.\"
+.SH SEE ALSO
+\fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR.py\fP(7) ,
+\fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) , 
+\fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
+\fBSAPHanaSR-manageAttr\fP(8) ,
+\fBcrm_attribute\fP(8) , \fBsudo\fP(8) , \fBsudoers\fP(5) , \fBpython\fP(8) ,
+.br
+https://documentation.suse.com/sbp/all/?context=sles-sap ,
+.br
+https://documentation.suse.com/sles-sap/ ,
+.br
+https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
+.br
+https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
+.br
+https://www.susecon.com/archive-2019.html ,
+.br
+https://www.susecon.com/archive-2020.html ,
+.br
+http://help.sap.com/saphelp_hanaplatform/helpdata/en/13/67c8fdefaa4808a7485b09815ae0f3/content.htm ,
+.br
+http://help.sap.com/saphelp_hanaplatform/helpdata/en/5d/f2e766549a405e95de4c5d7f2efc2d/content.htm ,
+.br
+http://help.sap.com/saphelp_hanaplatform/helpdata/en/12/00ab8ef0c54c54be2d0e7f5327f7ed/content.htm?frameset=/en/13/67c8fdefaa4808a7485b09815ae0f3/frameset.htm&current_toc=/en/00/0ca1e3486640ef8b884cdf1a050fbb/plain.htm&node_id=413 ,
+.br
+https://help.sap.com/saphelp_hanaplatform/helpdata/en/3f/1a6a7dc31049409e1a9f9108d73d51/content.htm
+.PP
+.\"
+.SH AUTHORS
+A.Briel, F.Herschel, L.Pinne.
+.PP
+.\"
+.SH COPYRIGHT
+(c) 2015-2016 SUSE Linux GmbH, Germany.
+.br
+(c) 2017-2021 SUSE LLC
+.br
+SAPHanaSR.py comes with ABSOLUTELY NO WARRANTY.
+.br
+For details see the GNU General Public License at
+http://www.gnu.org/licenses/gpl.html
+.\" 

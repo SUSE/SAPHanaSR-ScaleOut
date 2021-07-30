@@ -1,6 +1,6 @@
-.\" Version: 0.162.3
+.\" Version: 0.180.0
 .\"
-.TH ocf_suse_SAPHanaTopology 7 "26 Jul 2017" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaTopology 7 "29 Apr 2021" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaTopology \- Helps to manage two SAP HANA databases with system replication.
@@ -90,9 +90,23 @@ Optional. Default value: 120.
 .SH SUPPORTED PROPERTIES
 \fBhana_${sid}_glob_filter\fR
 .RS 4
-Global cluster property \fBhana_${sid}_glob_filter\fR .
-This property should only be set if requested by support engineers.
-The default is sufficient for normal operation.
+Global cluster property \fBhana_${sid}_glob_filter\fR . This property defines which messages are logged by the RA. It should only be set if requested by support engineers. The default is sufficient for normal operation.
+.br
+Message Types: [ act | dbg | dec | flow | top ]
+.\" TODO dbg2?
+.\" TODO message levels: (dbg)|info|warn|err|error
+.br
+ACT: Action. Start, stop, sr_takeover and others. See also section SUPPORTED ACTIONS.
+.br
+DBG: Debugging info. Usually not needed at customer site. See SUSE TID 7022678 for maximum RA tracing.
+.br
+DEC: Decision taken by the RA.
+.br
+FLOW: Function calls and the respective return codes.
+.br
+TOP: Topology. Messages related to HANA SR topology, like site name and remote site.
+.br
+Optional, advanced. Default value: ra-act-dec-lpa\&.
 .RE
 .PP
 .\"
@@ -230,19 +244,19 @@ SAPHanaSR(7) or SAPHanaSR-ScaleOut(7).
 \fBocf_suse_SAPHana\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) ,
 \fBSAPHanaSR\fP(7) , \fBSAPHanaSR-ScaleOut\fP(7) ,
-\fBntp.conf\fP(5) , \fBstonith\fP(8)
+\fBntp.conf\fP(5) , \fBchrony.conf\fP(5) , \fBstonith\fP(8)
 .br
-https://www.suse.com/products/sles-for-sap/resource-library/sap-best-practices.html ,
+https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
 https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
+https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
+.br
 http://clusterlabs.org/doc/en-US/Pacemaker/1.1/html/Pacemaker_Explained/s-ocf-return-codes.html ,
 .br
-http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution ,
+http://scn.sap.com/docs/DOC-60334
 .br
-http://scn.sap.com/docs/DOC-60334 ,
-.br
-http://scn.sap.com/docs/DOC-65899
+http://scn.sap.com/community/hana-in-memory/blog/2015/12/14/sap-hana-sps-11-whats-new-ha-and-dr--by-the-sap-hana-academy ,
 .PP
 .\"
 .SH AUTHORS
@@ -254,7 +268,7 @@ F.Herschel, L.Pinne.
 .br
 (c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2018-2019 SUSE LLC
+(c) 2018-2021 SUSE LLC
 .br
 SAPHanaTopology comes with ABSOLUTELY NO WARRANTY.
 .br
