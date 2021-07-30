@@ -1,7 +1,7 @@
 -------------------------------------------------------------------
-Tue Jul  6 13:15:23 UTC 2021 - abriel@suse.com
+Thu Jul 29 13:37:08 UTC 2021 - abriel@suse.com
 
-- change version to 0.180.0 - Testversion
+- change version to 0.180.1
 - Multi-target SAP HANA Scale-out replication support.
   Extent the SAP HANA ressource agents from single replication
   automation to multi replication automation, which means
@@ -34,6 +34,7 @@ Tue Jul  6 13:15:23 UTC 2021 - abriel@suse.com
   occurrence of an empty site name, but do not generate bad
   formatted cluster attribute name.
   (analog to ScaleUp - bsc#1173581)
+- add SAPHanaSR-call-monitor
 - handle 'leftover instances'
   if HANA is configured to have only one master name server, but
   no additional master name server candidates, there may be the
