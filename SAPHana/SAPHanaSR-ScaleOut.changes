@@ -1,5 +1,5 @@
 -------------------------------------------------------------------
-Thu Jul 29 13:37:08 UTC 2021 - abriel@suse.com
+Mon Aug  2 12:16:56 UTC 2021 - abriel@suse.com
 
 - change version to 0.180.1
 - Multi-target SAP HANA Scale-out replication support.
@@ -9,7 +9,7 @@ Thu Jul 29 13:37:08 UTC 2021 - abriel@suse.com
   /usr/sbin/SAPHanaSR-manageAttr - Add a helper tool to support the
   customer during the update from a single replication automation
   to multi replication automation.
-  (jsc#SLE-11217, jsc#SLE-17452, jsc#SLE-17453, jsc#ECO-3340)
+  (jsc#SLE-20081)
 - The resource start and stop timeout is now configurable by
   increasing the timeout for the action 'start' and/or 'stop' in
   the cluster. We will use 95% of this action timeouts to calculate
