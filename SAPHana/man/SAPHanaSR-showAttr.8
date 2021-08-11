@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-showAttr 8 "14 Jun 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-showAttr 8 "21 Jul 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-showAttr \- Shows Linux cluster attributes for SAP HANA system replication.
@@ -222,6 +222,13 @@ See section DUPLICATE_PRIMARY_TIMEOUT of ocf_suse_SAPHana(7) and ocf_suse_SAPHan
 .br
 Auxiliary values are set for an HANA SR secondary. 30 means the instance is
 evictable for primary. 10 means: not yet ready.
+.PP
+.B lss
+- landscape status
+
+Value: [ 4 | 3 | 2 | 1 | 0 ]
+
+The site attribute lss shows the return code of HANA's landscapeHostConfiguration.py. See Field A of the roles section below and ocf_suse_SAPHanaController(7).
 .PP
 .B mns
 - master name server
