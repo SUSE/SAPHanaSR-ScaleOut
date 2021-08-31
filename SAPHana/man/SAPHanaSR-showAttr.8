@@ -228,7 +228,7 @@ evictable for primary. 10 means: not yet ready.
 
 Value: [ 4 | 3 | 2 | 1 | 0 ]
 
-The site attribute lss shows the return code of HANA's landscapeHostConfiguration.py. See Field A of the roles section below and ocf_suse_SAPHanaController(7).
+The site attribute lss shows the return code of HANA's landscapeHostConfiguration.py. See field A of the roles section below and ocf_suse_SAPHanaController(7).
 .PP
 .B mns
 - master name server
@@ -313,9 +313,11 @@ The meaning is different from common Linux return codes.
 See landscapeHostConfiguration.py.
 .br
 
-Field B: HANA SR role
+Field B: HANA system replication role
 .br
 Value: [ "P"rimary | "S"econdary | "N"one ]
+.br
+See field srr of the Site section for scale-up.
 .br
 
 Field C: NameServer Config Role
