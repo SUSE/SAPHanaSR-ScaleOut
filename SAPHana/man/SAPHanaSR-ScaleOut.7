@@ -291,7 +291,8 @@ configured.
 16. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
 Linux cluster.
 .PP
-17. HANA feature Secondary Time Travel is not supported.
+17. HANA feature Secondary Time Travel is not supported. All nodes are in one
+common HANA take-over group. Tennant-specific take-over groups are not supported.
 .PP
 18. If a third HANA site is connected by system replication, that HANA is not
 controlled by another SUSE HA cluster. If that third site should work as part
