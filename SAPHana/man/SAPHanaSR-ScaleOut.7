@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "12 Jul 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "9 Sep 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -240,22 +240,26 @@ customized actions or messages. Supported shell is bash.
 .PP
 4. For scale-out there is no other SAP HANA system (like QA) on the nodes
 which needs to be stopped during take-over. Both HANA database systems are
-running memory-preload.
+running memory-preload. Also MCOS is currently not supported for scale-out.
 .PP
 5. Only one system replication between the two SAP HANA database systems in
 the Linux cluster. Maximum one system replication to an HANA database outside
 the Linux cluster. See also item 9 below.
 .PP
-6. Both SAP HANA database systems have the same SAP Identifier (SID)
-and Instance Number.
+6. The replication mode is either sync or syncmem. Replication mode async is
+not supported. The operation modes delta_datashipping, logreplay and
+logreplay_readaccess are supported.
 .PP
-7. Besides SAP HANA you need SAP hostagent to be installed and started 
+7. Both SAP HANA database systems have the same SAP Identifier (SID) and
+Instance Number.
+.PP
+8. Besides SAP HANA you need SAP hostagent to be installed and started 
 on your systems.
 .PP
-8. Automated start of SAP HANA database systems during system boot
+9. Automated start of SAP HANA database systems during system boot
 must be switched off.
 .PP
-9. For scale-out, the current resource agent supports SAP HANA in system
+10. For scale-out, the current resource agent supports SAP HANA in system
 replication beginning with HANA version 1.0 SPS11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
 With the mentioned HANA versions uni-directional chained system replication
@@ -265,36 +269,43 @@ resource agent manages only two sites. Thus only two HANA sites are part
 of the Linux cluster. See also item 5 above.
 .\" TODO check HANA patch level for multi-target
 .PP
-10. For scale-out, if the shared storage is implemented with another cluster,
+11. For scale-out, if the shared storage is implemented with another cluster,
 that one does not interfere with the Linux cluster. All three clusters
 (HANA, storage, Linux) have to be aligned.
 .PP
-11. The RAs SAPHanaController and SAPHanaToplogy need to be installed on all
+12. The RAs SAPHanaController and SAPHanaToplogy need to be installed on all
 cluster nodes, even the majority maker.
 .PP
-12. Colocation constraints between the SAPHanaController or SAPHana RA and
+13. Colocation constraints between the SAPHanaController or SAPHana RA and
 other resources are allowed only if they do not affect the RA's scoring.
 The location scoring finally depends on system replication status an must not
 be over-ruled by additional constraints. Thus it is not allowed to define rules
 forcing a SAPHanaController or SAPHana master to follow another resource.
 .PP
-13. The Linux cluster needs to be up and running to allow HA/DR provider events
+14. The Linux cluster needs to be up and running to allow HA/DR provider events
 being written into CIB attributes. The current HANA SR status might differ
 from CIB srHook attribute after cluster maintenance.
 .PP
-14. Once an HANA system replication site is known to the Linux cluster, that
+15. Once an HANA system replication site is known to the Linux cluster, that
 exact site name has to be used whenever the site is registered manually.
 .PP
-15. In two-node HANA scale-out systems only one master nameserver candidate is
+16. In two-node HANA scale-out systems only one master nameserver candidate is
 configured.
 .PP
-16. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
+17. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
 Linux cluster.
 .PP
-17. HANA feature Secondary Time Travel is not supported. All nodes are in one
-common HANA take-over group. Tennant-specific take-over groups are not supported.
+18. HANA feature Secondary Time Travel is not supported.
 .PP
-18. If a third HANA site is connected by system replication, that HANA is not
+19. The HANA scale-out system must have only one failover group.
+Tennant-specific take-over groups are not supported. Sharing standby nodes
+across sites is not supported.
+.PP
+20. In MDC configurations the HANA database is treated as a single system
+including all database containers. Therefore, cluster takeover decisions are
+based on the complete status independent of the status of individual containers.
+.PP
+21. If a third HANA site is connected by system replication, that HANA is not
 controlled by another SUSE HA cluster. If that third site should work as part
 of a fall-back HA cluster in DR case, that HA cluster needs to be in standby.  
 .\"
