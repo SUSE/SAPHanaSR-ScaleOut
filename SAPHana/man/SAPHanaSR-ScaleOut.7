@@ -308,6 +308,9 @@ based on the complete status independent of the status of individual containers.
 21. If a third HANA site is connected by system replication, that HANA is not
 controlled by another SUSE HA cluster. If that third site should work as part
 of a fall-back HA cluster in DR case, that HA cluster needs to be in standby.  
+.PP
+22. RA and srHook runtime almost completely depends on call-outs to controlled
+resources, OS and Linux cluster.
 .\"
 .SH BUGS
 .\" TODO
