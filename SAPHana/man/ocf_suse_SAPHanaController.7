@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "29 Apr 2021" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "21 Sep 2021" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages take-over between two SAP HANA databases with system replication.
@@ -298,11 +298,17 @@ Could be done once a specific filter is not needed anymore.
 # SAPHanaSR-showAttr
 .RE
 .PP
-* Search for log entries of the resource agent, show errors only:
+* Search for log entries of the resource agent. Show errors only:
 .PP
 .RS 4
 # grep "SAPHanaController.*RA.*rc=[1-7,9]" /var/log/messages
 .\" TODO: output
+.RE
+.PP
+* Search for log entries of the resource agent. Show date, time, return code, runtime:
+.PP
+.RS 4
+# grep "SAPHanaContoller.*end.action.monitor_clone.*rc=" /var/log/messages | awk '{print $1,$11,$13}' | colrm 20 32 | tr -d "=()rsc" | tr "T" " "
 .RE
 .PP
 * Manually trigger an SAPHanaSRController probe action. Output goes to the
