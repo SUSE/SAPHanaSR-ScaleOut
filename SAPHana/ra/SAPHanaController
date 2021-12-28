@@ -572,9 +572,9 @@ scoring_crm_master()
             read rolePatt syncPatt score <<< $scan
             if grep "$rolePatt" <<< "$roles"; then
                if grep "$syncPatt" <<< "$sync"; then
-                  super_ocf_log info "SCORE: scoring_crm_master: roles($roles) are matching pattern ($rolePatt)"
-                  super_ocf_log info "SCORE: scoring_crm_master: sync($sync) is  matching syncPattern ($syncPatt)"
-                  super_ocf_log info "SCORE: scoring_crm_master: set score $score"
+                  super_ocf_log info "DEC: scoring_crm_master: roles($roles) are matching pattern ($rolePatt)"
+                  super_ocf_log info "DEC: scoring_crm_master: sync($sync) is  matching syncPattern ($syncPatt)"
+                  super_ocf_log info "DEC: scoring_crm_master: set score $score"
                   skip=1
                   myScore=$score
                fi
@@ -1718,7 +1718,7 @@ function saphana_start_primary()
             esac
             my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
             my_role="${my_lss}:${my_srr}:${my_role}"
-            super_ocf_log info "SCORE: saphana_start_primary: scoring_crm_master($my_role,$my_sync)"
+            super_ocf_log info "DEC: saphana_start_primary: scoring_crm_master($my_role,$my_sync)"
             scoring_crm_master "$my_role" "$my_sync"
             ;;
         register ) # process a REGISTER
@@ -2733,7 +2733,7 @@ function saphana_monitor_primary()
             my_hana_role="${my_lss}:${my_srr}:${my_role}"
             if ocf_is_probe; then
                 rc=$OCF_SUCCESS
-                super_ocf_log info "SCORE: saphana_monitor_primary: (1) scoring_crm_master($my_hana_role,$my_sync)"
+                super_ocf_log info "DEC: saphana_monitor_primary: (1) scoring_crm_master($my_hana_role,$my_sync)"
                 scoring_crm_master "$my_hana_role" "$my_sync"
             else
                 LPTloc=$(date '+%s')
@@ -2825,7 +2825,7 @@ function saphana_monitor_primary()
                           ;;
                    esac
                 fi
-                super_ocf_log info "SCORE: saphana_monitor_primary: (2) scoring_crm_master($my_role,$my_sync)"
+                super_ocf_log info "DEC: saphana_monitor_primary: (2) scoring_crm_master($my_role,$my_sync)"
                 scoring_crm_master "$my_role" "$my_sync"
             fi
             ;;
@@ -2961,7 +2961,7 @@ function saphana_monitor_secondary()
                     #
                     my_hana_role="${my_lss}:${my_srr}:${my_role}"
                     super_ocf_log info "DEC: scoring $my_hana_role : $sync_attr"
-                    super_ocf_log info "SCORE: saphana_monitor_secondary: scoring_crm_master($my_hana_role,$sync_attr)"
+                    super_ocf_log info "DEC: saphana_monitor_secondary: scoring_crm_master($my_hana_role,$sync_attr)"
                     scoring_crm_master "$my_hana_role" "$sync_attr"
                     ;;
                 SFAIL ) # This is currently NOT a possible node to promote
