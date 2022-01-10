@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.181.0.1123.1923"
+SAPHanaControllerVersion="0.181.0.1226.1907"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -572,9 +572,9 @@ scoring_crm_master()
             read rolePatt syncPatt score <<< $scan
             if grep "$rolePatt" <<< "$roles"; then
                if grep "$syncPatt" <<< "$sync"; then
-                  super_ocf_log info "SCORE: scoring_crm_master: roles($roles) are matching pattern ($rolePatt)"
-                  super_ocf_log info "SCORE: scoring_crm_master: sync($sync) is  matching syncPattern ($syncPatt)"
-                  super_ocf_log info "SCORE: scoring_crm_master: set score $score"
+                  super_ocf_log info "DEC: scoring_crm_master: roles($roles) are matching pattern ($rolePatt)"
+                  super_ocf_log info "DEC: scoring_crm_master: sync($sync) is  matching syncPattern ($syncPatt)"
+                  super_ocf_log info "DEC: scoring_crm_master: set score $score"
                   skip=1
                   myScore=$score
                fi
@@ -649,16 +649,35 @@ function HANA_CALL()
                   output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
                   ;;
         *       )
-                  output=$(timeout --foreground -s 9 $timeOut $pre_cmd "$pre_script; timeout -s 9 $timeOut /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
+                  errExt=$(date '+%s')
+                  su_err_log=/tmp/HANA_CALL_SU_RA_${errExt}
+                  cmd_out_log=/tmp/HANA_CALL_CMD_RA_OUT_${errExt}
+                  cmd_err_log=/tmp/HANA_CALL_CMD_RA_${errExt}
+
+                  output=$(timeout --foreground -s 9 "$timeOut" "$pre_cmd" "($pre_script; timeout -s 9 $timeOut /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd > $cmd_out_log) >& $cmd_err_log" 2>"$su_err_log"); rc=$?
+
+                  output=$(if [ -f "$cmd_out_log" ]; then cat "$cmd_out_log"; rm -f "$cmd_out_log"; fi)
+                  suErr=$(if [ -f "$su_err_log" ]; then cat "$su_err_log"; rm -f "$su_err_log"; else echo "NA"; fi)
+                  cmdErr=$(if [ -f "$cmd_err_log" ]; then cat "$cmd_err_log"; rm -f "$cmd_err_log"; else echo "NA"; fi)
+                  super_ocf_log debug "DBG: RA ==== action HANA_CALL (cmd is '$cmd', rc is '$rc', stderr from su is '$suErr', stderr from cmd is '$cmdErr') ===="
+                  # on rc=1 - retry to improve the behavior in AD environments
+                  if [ $rc -eq 1 ]; then
+                      super_ocf_log warn "RA: HANA_CALL stderr from command '$pre_cmd' is '$suErr', stderr from command '$cmd' is '$cmdErr'"
+                      if [ "$cmdErr" == "NA" ]; then
+                          # seems something was going wrong with the 'pre_cmd' (su)
+                          super_ocf_log warn "DEC: HANA_CALL returned '1' for command '$pre_cmd'. Retry once."
+                          output=$(timeout --foreground -s 9 "$timeOut" "$pre_cmd" "$pre_script; timeout -s 9 $timeOut /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
+                      fi
+                  fi
                   #
                   # on timeout ...
                   #
-                  if [ "$rc" -eq 124 ]; then
-                      super_ocf_log warn "RA: HANA_CALL TIMEOUT after $timeOut seconds running command '$cmd'"
-                      if [ -n "$onTimeOut" ]; then
-                          local second_output=""
-                          second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");
-                      fi
+                  if [ $rc -eq 124 ]; then
+                      super_ocf_log warn "RA: HANA_CALL timed out after $timeOut seconds running command '$cmd'"
+                  fi
+                  if [ $rc -eq 124 -a -n "$onTimeOut" ]; then
+                      local second_output=""
+                      second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");
                   fi
                  ;;
     esac
@@ -1699,7 +1718,7 @@ function saphana_start_primary()
             esac
             my_role=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
             my_role="${my_lss}:${my_srr}:${my_role}"
-            super_ocf_log info "SCORE: saphana_start_primary: scoring_crm_master($my_role,$my_sync)"
+            super_ocf_log info "DEC: saphana_start_primary: scoring_crm_master($my_role,$my_sync)"
             scoring_crm_master "$my_role" "$my_sync"
             ;;
         register ) # process a REGISTER
@@ -2714,7 +2733,7 @@ function saphana_monitor_primary()
             my_hana_role="${my_lss}:${my_srr}:${my_role}"
             if ocf_is_probe; then
                 rc=$OCF_SUCCESS
-                super_ocf_log info "SCORE: saphana_monitor_primary: (1) scoring_crm_master($my_hana_role,$my_sync)"
+                super_ocf_log info "DEC: saphana_monitor_primary: (1) scoring_crm_master($my_hana_role,$my_sync)"
                 scoring_crm_master "$my_hana_role" "$my_sync"
             else
                 LPTloc=$(date '+%s')
@@ -2806,7 +2825,7 @@ function saphana_monitor_primary()
                           ;;
                    esac
                 fi
-                super_ocf_log info "SCORE: saphana_monitor_primary: (2) scoring_crm_master($my_role,$my_sync)"
+                super_ocf_log info "DEC: saphana_monitor_primary: (2) scoring_crm_master($my_role,$my_sync)"
                 scoring_crm_master "$my_role" "$my_sync"
             fi
             ;;
@@ -2942,7 +2961,7 @@ function saphana_monitor_secondary()
                     #
                     my_hana_role="${my_lss}:${my_srr}:${my_role}"
                     super_ocf_log info "DEC: scoring $my_hana_role : $sync_attr"
-                    super_ocf_log info "SCORE: saphana_monitor_secondary: scoring_crm_master($my_hana_role,$sync_attr)"
+                    super_ocf_log info "DEC: saphana_monitor_secondary: scoring_crm_master($my_hana_role,$sync_attr)"
                     scoring_crm_master "$my_hana_role" "$sync_attr"
                     ;;
                 SFAIL ) # This is currently NOT a possible node to promote
