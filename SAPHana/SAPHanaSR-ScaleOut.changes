@@ -17,6 +17,13 @@ Mon Jan 10 09:57:21 UTC 2022 - abriel@suse.com
   used commands, their return code and their stderr output by
   enabling the 'debug' mode of the resource agents.
   (bsc#1182774)
+- add switch 'cib_access' to the SAPHanaSrMultiTarget hook to give
+  control over the hook runtime.
+  Default is 'all-on' which means there are 3 cib calls performed
+  inside the hook script.
+  Changing the value of 'cib_access' inside the global.ini file to
+  'site-on' to perform the absolute minimum cib calls (only one)
+  (bsc#1189540)
 
 -------------------------------------------------------------------
 Mon Aug  2 12:23:09 UTC 2021 - abriel@suse.com
