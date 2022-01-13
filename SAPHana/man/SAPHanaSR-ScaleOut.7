@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "9 Sep 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "12 Jan 2022" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -310,7 +310,11 @@ controlled by another SUSE HA cluster. If that third site should work as part
 of a fall-back HA cluster in DR case, that HA cluster needs to be in standby.  
 .PP
 22. RA and srHook runtime almost completely depends on call-outs to controlled
-resources, OS and Linux cluster. The infrastructure needs to allow these call-outs to return in time.
+resources, OS and Linux cluster. The infrastructure needs to allow these call-outs
+to return in time.
+.PP
+23. The SAP HANA Fast Restart feature on RAM-tmfps as well as HANA on persistent
+memory can be used, as long as they are transparent to SUSE HA.
 .\"
 .SH BUGS
 .\" TODO
