@@ -108,10 +108,10 @@ This is why the Linux cluster needs to enforce a restart inhibit.
 There are two options to get back both, SAP HANA SR and the Linux cluster,
 into a fully functional state:
 .br
-a) The admin starts both nodes again
+a) The admin starts both nodes again.
 .br
-b) In the situation where the site_B is still down, the admin starts
-   the primary on site_A manually.
+b) In case the site_B is still down, the admin starts the primary on site_A
+   manually.
 .br
 The Linux cluster will follow this administrative decision. In both cases the
 administrator should register and start a secondary as soon as posible. This
@@ -191,7 +191,7 @@ The SBD can be implemented disk-based with shared LUNs across all nodes on all
 (three) sites. Or it can be implemented as diskless SBD.
 .PP
 \fB*\fR Align all timeouts in the Linux cluster with the timeouts of the
-underlying storage and multipathing.
+underlying infrastructure - particuarly network, storage and multipathing.
 .PP
 \fB*\fR Check the installation of OS and Linux cluster on all nodes before
 doing any functional tests.
