@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "20 Sep 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "28 Jan 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -273,7 +273,11 @@ SID is HA1.
 .br
 # cs_clusterstate -i
 .br
+crm configure show SAPHanaSR
+.br
 # crm_attribute --delete -t crm_config --name hana_ha1_glob_srHook
+.br
+crm configure show SAPHanaSR
 .br
 # SAPHanaSR-showAttr
 .RE
@@ -374,7 +378,7 @@ A.Briel, F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
-(c) 2017-2021 SUSE LLC
+(c) 2017-2022 SUSE LLC
 .br
 SAPHanaSR.py comes with ABSOLUTELY NO WARRANTY.
 .br
