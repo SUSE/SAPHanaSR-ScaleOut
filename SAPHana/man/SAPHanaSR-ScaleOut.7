@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "21 Jun 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "12 Jan 2022" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -108,10 +108,10 @@ This is why the Linux cluster needs to enforce a restart inhibit.
 There are two options to get back both, SAP HANA SR and the Linux cluster,
 into a fully functional state:
 .br
-a) The admin starts both nodes again
+a) The admin starts both nodes again.
 .br
-b) In the situation where the site_B is still down, the admin starts
-   the primary on site_A manually.
+b) In case the site_B is still down, the admin starts the primary on site_A
+   manually.
 .br
 The Linux cluster will follow this administrative decision. In both cases the
 administrator should register and start a secondary as soon as posible. This
@@ -191,7 +191,7 @@ The SBD can be implemented disk-based with shared LUNs across all nodes on all
 (three) sites. Or it can be implemented as diskless SBD.
 .PP
 \fB*\fR Align all timeouts in the Linux cluster with the timeouts of the
-underlying storage and multipathing.
+underlying infrastructure - particuarly network, storage and multipathing.
 .PP
 \fB*\fR Check the installation of OS and Linux cluster on all nodes before
 doing any functional tests.
@@ -234,28 +234,32 @@ leads to a Linux cluster in either one site or across three sites.
 2. Technical users and groups such as sidadm should be defined locally in
 the Linux system. If users are resolved by remote service, local caching is
 neccessary. Substitute user (su) to sidadm needs to work reliable and without
-customized actions or messages.
+customized actions or messages. Supported shell is bash.
 .PP
 3. Strict time synchronization between the cluster nodes, e.g. NTP.
 .PP
 4. For scale-out there is no other SAP HANA system (like QA) on the nodes
 which needs to be stopped during take-over. Both HANA database systems are
-running memory-preload.
+running memory-preload. Also MCOS is currently not supported for scale-out.
 .PP
 5. Only one system replication between the two SAP HANA database systems in
 the Linux cluster. Maximum one system replication to an HANA database outside
 the Linux cluster. See also item 9 below.
 .PP
-6. Both SAP HANA database systems have the same SAP Identifier (SID)
-and Instance Number.
+6. The replication mode is either sync or syncmem. Replication mode async is
+not supported. The operation modes delta_datashipping, logreplay and
+logreplay_readaccess are supported.
 .PP
-7. Besides SAP HANA you need SAP hostagent to be installed and started 
+7. Both SAP HANA database systems have the same SAP Identifier (SID) and
+Instance Number.
+.PP
+8. Besides SAP HANA you need SAP hostagent to be installed and started 
 on your systems.
 .PP
-8. Automated start of SAP HANA database systems during system boot
+9. Automated start of SAP HANA database systems during system boot
 must be switched off.
 .PP
-9. For scale-out, the current resource agent supports SAP HANA in system
+10. For scale-out, the current resource agent supports SAP HANA in system
 replication beginning with HANA version 1.0 SPS11 patch level 112.02.
 Older versions do not provide the srHook method srConnectionChanged().
 With the mentioned HANA versions uni-directional chained system replication
@@ -265,33 +269,52 @@ resource agent manages only two sites. Thus only two HANA sites are part
 of the Linux cluster. See also item 5 above.
 .\" TODO check HANA patch level for multi-target
 .PP
-10. For scale-out, if the shared storage is implemented with another cluster,
+11. For scale-out, if the shared storage is implemented with another cluster,
 that one does not interfere with the Linux cluster. All three clusters
 (HANA, storage, Linux) have to be aligned.
 .PP
-11. The RAs SAPHanaController and SAPHanaToplogy need to be installed on all
+12. The RAs SAPHanaController and SAPHanaToplogy need to be installed on all
 cluster nodes, even the majority maker.
 .PP
-12. Colocation constraints between the SAPHanaController or SAPHana RA and
+13. Colocation constraints between the SAPHanaController or SAPHana RA and
 other resources are allowed only if they do not affect the RA's scoring.
 The location scoring finally depends on system replication status an must not
 be over-ruled by additional constraints. Thus it is not allowed to define rules
 forcing a SAPHanaController or SAPHana master to follow another resource.
 .PP
-13. The Linux cluster needs to be up and running to allow HA/DR provider events
+14. The Linux cluster needs to be up and running to allow HA/DR provider events
 being written into CIB attributes. The current HANA SR status might differ
 from CIB srHook attribute after cluster maintenance.
 .PP
-14. Once an HANA system replication site is known to the Linux cluster, that
+15. Once an HANA system replication site is known to the Linux cluster, that
 exact site name has to be used whenever the site is registered manually.
 .PP
-15. In two-node HANA scale-out systems only one master nameserver candidate is
+16. In two-node HANA scale-out systems only one master nameserver candidate is
 configured.
 .PP
-16. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
+17. Reliable access to the /hana/shared/ filesystem is crucial for HANA and the
 Linux cluster.
 .PP
-17. HANA feature Secondary Time Travel is not supported.
+18. HANA feature Secondary Time Travel is not supported.
+.PP
+19. The HANA scale-out system must have only one failover group.
+Tennant-specific take-over groups are not supported. Sharing standby nodes
+across sites is not supported.
+.PP
+20. In MDC configurations the HANA database is treated as a single system
+including all database containers. Therefore, cluster takeover decisions are
+based on the complete status independent of the status of individual containers.
+.PP
+21. If a third HANA site is connected by system replication, that HANA is not
+controlled by another SUSE HA cluster. If that third site should work as part
+of a fall-back HA cluster in DR case, that HA cluster needs to be in standby.  
+.PP
+22. RA and srHook runtime almost completely depends on call-outs to controlled
+resources, OS and Linux cluster. The infrastructure needs to allow these call-outs
+to return in time.
+.PP
+23. The SAP HANA Fast Restart feature on RAM-tmfps as well as HANA on persistent
+memory can be used, as long as they are transparent to SUSE HA.
 .\"
 .SH BUGS
 .\" TODO
@@ -307,9 +330,9 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBSAPHanaSrMultiTarget.py\fP(7) , \fBntp.conf\fP(5) , \fBchrony.conf\fP(5) ,
 \fBstonith\fP(8) , \fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBstonith_admin\fP(8) ,
 \fBcrm\fP(8) , \fBcorosync.conf\fP(5) , \fBcrm_no_quorum_policy\fP(7) ,
-\fBsaptune\fP(8) , \fBcs_show_hana_info\fP(8) , 
+\fBsaptune\fP(8) , \fBcs_show_hana_info\fP(8) , \fBsupportconfig\fP(8) ,
 .br
-https://documentation.suse.com/sbp/all/?context=sles-sap ,
+https://documentation.suse.com/sbp/sap/ ,
 .br
 https://documentation.suse.com/sles-sap/ ,
 .br
@@ -319,6 +342,8 @@ https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
 https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
 .br
+.\" https://www.susecon.com/archive-2020.html (BP-1351) ,
+.\" .br
 https://archive.sap.com/documents/docs/DOC-60334 ,
 .br
 http://scn.sap.com/community/hana-in-memory/blog/2015/12/14/sap-hana-sps-11-whats-new-ha-and-dr--by-the-sap-hana-academy ,
@@ -334,7 +359,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2018-2021 SUSE LLC
+(c) 2018-2022 SUSE LLC
 .br
 The package SAPHanaSR-ScaleOut comes with ABSOLUTELY NO WARRANTY.
 .br

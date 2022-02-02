@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "20 Jul 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "28 Jan 2022" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -26,27 +26,36 @@ attribute is used.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
-\fB*\fP The "HA/DR providers" API accepts the following parameters for the 
-ha_dr_provider_saphanasrmultitarget section:
+\fB*\fP The "HA/DR providers" API accepts the following mandatory parameters
+for the ha_dr_provider_saphanasrmultitarget section:
 .TP
-[ha_dr_provider_saphanasrmultitarget]
+\fB[ha_dr_provider_saphanasrmultitarget]\fP
 .TP
 \fBprovider = SAPHanaSrMultiTarget\fP
 .TP
 \fBpath = /usr/share/SAPHanaSR-ScaleOut/\fP
 .TP
-\fBexecution_order = 1\fP
+\fBexecution_order = [ INTEGER ]\fP
+.PP
+Further one optional parameter can be used to control which attributes the
+srHook script should access in the Linux cluster CIB. The following parameter
+should be set only if requested by support engineers. The default is sufficient for normal operation.
+.TP
+.\" TODO check what finally is shipped
+\fBcib_access = [ all-on | site-on ]\fP
 .\"
 .PP
-The "HA/DR providers" API accepts the following parameter for the system_replication section:
+The "HA/DR providers" API accepts the following optional parameter for the
+system_replication section:
 .TP
-[system_replication]
+\fB[system_replication]\fP
 .TP
 \fBregister_secondaries_on_takeover = [ true | false ]\fP
 .PP
-The "HA/DR providers" API accepts the following parameter for the trace section:
+The "HA/DR providers" API accepts the following mandatory parameter for the
+trace section:
 .TP
-[trace]
+\fB[trace]\fP
 .TP
 \fBha_dr_saphanasrmultitarget = [ info | debug ]\fP
 .PP
@@ -63,9 +72,7 @@ Note: See SAPHanaSR.py(7) for old-style SAPHanaSR-ScaleOut with one global
 attribute instead of site-specific attributes.
 .\" TODO hana_<sid>_glob_srHook during migration process?
 .PP
-\fB*\fP The SAPHanaSR-manageAttr tool recognizes the scale-out multi-target capability
-via host attribute. The SAP System Indentifier (sid) is given in lower case. See
-REQUIREMENTS section below for supported API versions and scenarios. For new
+\fB*\fP The SAPHanaSR-manageAttr tool recognises scale-out multi-target capability via host attribute. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API versions and scenarios. For new
 SAPHanaSR-ScaleOut the SAPHanaSrMultiTarget.py reports its generation:
 .TP
 \fBhana_<sid>_gsh = [ \fIgeneration\fR \fB]\fP
@@ -81,14 +88,17 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .PP
-* Simple example for permission in /etc/sudoers, SID is SLE.
+* Example for generic permission in /etc/sudoers.d/SAPHanaSR .
 .br
-All needed attributes (..._srHook, ..._gsh, ..._mts) are covered.
+HANA 2.0 Scale-Out, SID is SLE. The attribute contains the lowercase-SID.
+The main srHook attribute and all auxiliary host- and site-attributes are covered (..._gsh, ..._mts). Access should be always limited to the specific SID.
 .PP
 .RS 2
-# SAPHanaSR needs for srHook
+# Comments need a blank after the hash.
 .br
-sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_site_*
+# SAPHanaSR needs for srHook:
+.br
+sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_*
 .RE
 .PP
 .\" TODO define what attributes are needed: _srHook _gsh _mts?
@@ -110,7 +120,7 @@ All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
 Example SID is HA1.
 .PP
 .RS 2
-# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_" 
+# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_ha1" 
 .RE
 .PP
 * Example for entry in SAP HANA 2.0 global configuration
@@ -120,7 +130,7 @@ site-specific attributes.
 This entry is needed at both sites that are managed by the Linux cluster.
 The HANA has to be stopped before the files can be edited.
 Do not copy the file between nodes. Please check SAP HANA documentation for details.
-Do not forget to adapt the sudoers permission, see examples above.
+Do not forget to adapt the sudo permission, see examples above.
 .PP
 .RS 2
 [ha_dr_provider_saphanasrmultitarget]
@@ -263,7 +273,11 @@ SID is HA1.
 .br
 # cs_clusterstate -i
 .br
+crm configure show SAPHanaSR
+.br
 # crm_attribute --delete -t crm_config --name hana_ha1_glob_srHook
+.br
+crm configure show SAPHanaSR
 .br
 # SAPHanaSR-showAttr
 .RE
@@ -287,7 +301,7 @@ the on-disk representation of HANA global system configuration
 the on-disk representation of HANA nameserver configuration
 .TP
 /etc/sudoers , /etc/sudoers.d/
-the sudo permissions configuration
+the sudo permission configuration
 .TP
 /usr/sap/$SID/HDB$nr/$host/trace/
 the directory with HANA trace files
@@ -314,7 +328,10 @@ in memory and on disk (in persistence).
 .PP
 5. The Linux cluster needs to be up and running to allow HA/DR provider events being written into CIB attributes. The current HANA SR status might differ from CIB srHook attribute after Linux cluster maintenance.
 .PP
-6. Running srHook script and RA need to be of same or compatible generation. This is indicated by node attributes.
+6. The srHook script runtime almost completely depends on call-outs to OS and
+Linux cluster.
+.PP
+7. Running srHook script and RA need to be of same or compatible generation. This is indicated by node attributes.
 .PP
 .\"
 .SH BUGS
@@ -338,8 +355,8 @@ https://documentation.suse.com/sbp/all/?context=sles-sap ,
 https://documentation.suse.com/sles-sap/ ,
 .br
 https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
-.br
-https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
+.\" .br
+.\"https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
 .br
 https://www.susecon.com/archive-2019.html ,
 .br
@@ -361,7 +378,7 @@ A.Briel, F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
-(c) 2017-2021 SUSE LLC
+(c) 2017-2022 SUSE LLC
 .br
 SAPHanaSR.py comes with ABSOLUTELY NO WARRANTY.
 .br

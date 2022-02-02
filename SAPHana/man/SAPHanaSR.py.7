@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR.py 7 "12 Mar 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "20 Sep 2021" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -23,20 +23,24 @@ establishes the system replication connection. This method is called only once.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
-The "HA/DR providers" API accepts the following parameters for the 
+\fB*\fR The "HA/DR providers" API accepts the following parameters for the 
 ha_dr_provider_SAPHanaSR section:
+.TP
+\fB[ha_dr_provider_saphanasr]\fP
 .TP
 \fBprovider = SAPHanaSR\fP
 .TP
-\fBpath = /usr/share/SAPHanaSR-ScaleOut\fP
+\fBpath = /usr/share/SAPHanaSR-ScaleOut/\fP
 .TP
 \fBexecution_order = [ INTEGER ]\fP
 .PP
-The "HA/DR providers" API accepts the following parameter for the trace section:
+\fB*\fR The "HA/DR providers" API accepts the following parameter for the trace section:
+.TP
+\fB[trace]\fP
 .TP
 \fBha_dr_saphanasr = [ info | debug ]\fP
 .PP
-The SAPHanaController and SAPHana RA recognize the effecting system replication 
+\fB*\fR The SAPHanaController and SAPHana RA recognize the effecting system replication 
 status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API
 versions and scenarios. For old SAPHanaSR-ScaleOut the SAPHanaSR.py provides
 one global attribute among the SAPHanaSR properties:
@@ -44,6 +48,12 @@ one global attribute among the SAPHanaSR properties:
 \fBhana_<sid>_glob_srHook = [ SOK | SFAIL | SWAIT ]\fP
 .TP
 Note: SAPHanaSR Scale-Up comes with a differnt SAPHanaSR.py that provides site-specific attributes. For SAPHanaSR-ScaleOut site-specific attributes see SAPHanaSrMultiTarget.py(7).
+.PP
+\fB*\fR The SAPHanaSR-manageAttr tool recognises scale-out multi-target capability via host attribute. The SAP System Indentifier (sid) is given in lower case. 
+See REQUIREMENTS section below for supported API versions and scenarios.
+For new SAPHanaSR-ScaleOut the SAPHanaSR.py reports its generation:
+.TP
+\fBhana_<sid>_gsh = [ \fIgeneration\fR \fB]\fP
 .PP
 .\"
 .SH RETURN CODES
@@ -56,12 +66,55 @@ Usage, syntax or execution errors.
 .\"
 .SH EXAMPLES
 .PP
-* Simple example for permission in /etc/sudoers. HANA 1.0 Scale-Out, SID is SLE.
+* Example for specific permission in /etc/sudoers.d/SAPHanaSR .
+.br
+HANA 1.0 scale-out, SID is SLE. The attribute contains the lowercase-SID.
+Access is allowed to the specified SID's srHook attribute only.
+Access should be always limited to the specific SID.
+This example is similar to those given in documentation for former versions of the scale-out srHook script. In-place upgrade of the package without adding multi-target support is possible, even if the existing sudo permission does not allow new auxiliary attributes.
 .PP
 .RS 2
-# SAPHanaSR-ScaleOut old-style needs for the srHook script.
+# Comments need a blank after the hash.
 .br
-sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v *
+# SAPHanaSR-ScaleOut old-style needs for the srHook script:
+.br
+sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_glob_srHook -v * -t crm_config -s SAPHanaSR 
+.RE
+.PP
+Note: In former documentation the central /etc/sudoers has been used instead of /etc/sudoers.d/SAPHanaSR. See sudoers(5) for including files and other details. 
+.PP
+* Example for generic permission in /etc/sudoers.d/SAPHanaSR .
+.br
+HANA 1.0 and HANA 2.0 scale-out, SID is SLE. The attribute contains the lowercase-SID. 
+Access is allowed to all attributes of the specified SID.
+Access should be always limited to the specific SID. 
+This pattern works for both, old-style and multi-target.
+It might be used for any new installation.
+For more examples see SAPHanaSrMultiTarget.py(7) and SAPHanaSR-manageAttr(8).
+.PP
+.RS 2
+# SAPHanaSR-ScaleOut needs for the srHook script:
+.br
+sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_*
+.RE
+.PP
+* Advanced example for very restricted permission in /etc/sudoers.d/SAPHanaSR .
+.br
+HANA 1.0 and HANA 2.0 scale-out, SID is NSA. The attribute contains the lowercase-SID.
+Access is closely restricted to needed attributes and values.
+Restricted patterns should be used with caution. They may interfere with new functionality in the future. Please double check before applying in production. 
+.PP
+.RS 2
+# SAPHanaSR-ScaleOut needs at least for the srHook script:
+.br
+nsaadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_nsa_glob_srHook -s SOK -t crm_config -s SAPHanaSR
+.br
+nsaadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_nsa_glob_srHook -s SFAIL -t crm_config -s SAPHanaSR
+.\" TODO empty string needed?
+.\" .br
+.\" nsaadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_nsa_glob_srHook -s " " -t crm_config -s SAPHanaSR
+.br
+nsaadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_nsa_gsh -v 1.0 -l reboot
 .RE
 .PP
 * Example for looking up the sudo permission for the srHook script.
@@ -70,14 +123,14 @@ All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
 Example SID is HA1.
 .PP
 .RS 2
-# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_"
+# sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_ha1"
 .RE
 .PP
 * Example for entry in SAP HANA global configuration
 /hana/shared/$SID/global/hdb/custom/config/global.ini
 .br
 This file is needed at both sites. The HANA has to be stopped before the files
-can be edited.
+can be edited. Do not copy the file between sites. Please check SAP HANA documentation for details. Do not forget to adapt the sudo permission, see examples above.
 .PP
 .RS 2
 [ha_dr_provider_SAPHanaSR]
@@ -110,6 +163,29 @@ ha_dr_saphanasr = info
 .\" TODO chmod 755?
 .RE
 .PP
+* Example for checking the system log for srHook setting its version in the CIB nodes section.
+.br
+When being loaded on the HANA master name server, the srHook writes its version as node attribute into the CIB. This action is logged in the system log.
+If no log entry exists, either the srHook has not being loaded, or it did not have sufficient sudo permission. See HANA tracefile example below and sudo permission example above.
+.PP
+.RS 2
+# grep "sudo.*crm_attribute.*hana.*gsh" /var/log/messages
+.RE
+.PP
+* Example for checking the HANA tracefiles for srHook writing its version into CIB. 
+.PP
+.RS 2
+# su - sleadm
+.br
+~> cdtrace
+.br
+~> grep crm_attribute.*hana.*gsh nameserver_*.trc | grep rc=0
+.br
+~> grep crm_attribute.*hana.*gsh nameserver_*.trc | grep -v rc=0
+.br
+~> exit
+.RE
+.PP
 * Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. 
 .PP
 .RS 2
@@ -127,7 +203,7 @@ ha_dr_saphanasr = info
 .br
 ~> grep crm_attribute.*SAPHanaSR nameserver_*.trc
 .br
-# exit
+~> exit
 .RE
 .PP
 .\"
@@ -166,6 +242,9 @@ in memory and on disk (in persistence).
 being written into CIB attributes. The current HANA SR status might differ from 
 CIB srHook attribute after cluster maintenance.
 .PP
+6. The srHook script runtime almost completely depends on call-outs to OS and
+Linux cluster.
+.PP
 .\"
 .SH BUGS
 Global and site-specific properties for HANA SR status can not be used at same
@@ -188,10 +267,12 @@ https://documentation.suse.com/sbp/all/?context=sles-sap ,
 https://documentation.suse.com/sles-sap/ ,
 .br
 https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
+.\".br
+.\"https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
 .br
-https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
+https://www.susecon.com/archive-2019.html ,
 .br
-https://www.susecon.com/archive-2020.html
+https://www.susecon.com/archive-2020.html ,
 .br
 http://help.sap.com/saphelp_hanaplatform/helpdata/en/13/67c8fdefaa4808a7485b09815ae0f3/content.htm ,
 .br
@@ -203,7 +284,7 @@ https://help.sap.com/saphelp_hanaplatform/helpdata/en/3f/1a6a7dc31049409e1a9f910
 .PP
 .\"
 .SH AUTHORS
-F.Herschel, L.Pinne.
+A.Briel, F.Herschel, L.Pinne.
 .PP
 .\"
 .SH COPYRIGHT
