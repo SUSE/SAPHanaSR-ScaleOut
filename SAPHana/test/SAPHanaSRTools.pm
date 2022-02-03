@@ -3,10 +3,10 @@
 # SAPHanaSRTools.pm
 # Copyright:    (c) 2014 SUSE Linux Products GmbH
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
-# Copyright:    (c) 2017-2020 SUSE LLC
+# Copyright:    (c) 2017-2022 SUSE LLC
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.24.0804.1613
+# Version: 0.24.2022.02.02
 #
 ##################################################################
 
@@ -713,7 +713,7 @@ sub host_attr2string
         $format="tables"
     }
     if ( $format eq "tables" ) {
-	    $hclen=$$refN{_hosts}->{_length};
+        $hclen=max($$refN{_hosts}->{_length}, length($title));
 	    $line_len=$hclen+1;
 	    $string.=sprintf "%-$hclen.${hclen}s ", "$title";
         #
