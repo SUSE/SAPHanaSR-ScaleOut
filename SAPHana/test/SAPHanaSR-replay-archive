@@ -134,6 +134,10 @@ done | sort -u | tr '[:upper:]' '[:lower:]' )
 #
 if [ -z "$pengine" ]; then
     mkdir -p "${archive}-tmp/tmp"
+    pengine_tmp="${archive}-tmp/tmp"
+else
+    mkdir -p "${pengine}-tmp"
+    pengine_tmp="${pengine}-tmp"
 fi
 #
 ####################
@@ -161,13 +165,8 @@ for sid in $sids; do
        cib="${cibBZ2%.bz2}";
        shortCIB="${cib##*/}"
        echo "cib: $cib";
-       if [ -z "$pengine" ]; then
-	       cibFile="${archive}-tmp/tmp/$shortCIB"
-           less -c "$cibBZ2" > "$cibFile";
-       else
-	       cibFile="$pengine"/"$shortCIB"
-           less -c "$cibBZ2" > "$cibFile";
-       fi
+       cibFile="$pengine_tmp"/"$shortCIB"
+       less -c "$cibBZ2" > "$cibFile";
        case "$format" in
            tables | script )
                /usr/sbin/SAPHanaSR-showAttr --cib="$cibFile" --sid="$sid" --format="$format";
