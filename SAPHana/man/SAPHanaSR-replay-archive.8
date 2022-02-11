@@ -1,11 +1,13 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-replay-archive 8 "04 Jun 2020" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-replay-archive 8 "10 Feb 2022" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH SYNOPSYS
 \fBSAPHanaSR-replay-archive\fR [ --help | --version ]
 .br
-\fBSAPHanaSR-replay-archive\fR CRM_REPORT_ARCHIVE
+\fBSAPHanaSR-replay-archive\fR [--sids=LIST_OF_SIDS] CRM_REPORT_ARCHIVE
+.br
+\fBSAPHanaSR-replay-archive\fR [--sids=LIST_OF_SIDS] --pengine PATH_TO_PENGINE_FILES
 .\"
 .SH DESCRIPTION
 SAPHanaSR-replay-archive can be used to re-play SAPHanaSR status changes info
@@ -22,6 +24,13 @@ for each pe-input file.
 .HP
 \fB --version\fR
 	show version.
+.HP
+\fB --sids=\fRLIST_OF_SIDS
+    Option to specify a list of SIDs
+.HP
+\fB --format=\fRFORMAT
+.br
+    Output format (tables, book or script).
 .\"
 .SH RETURN CODES
 .B 0
@@ -46,7 +55,7 @@ Usage, syntax or execution errors.
 .TP
 * Filter replay of SAPHanaSR actions from hb_report for a specific host.
 # SAPHanaSR-replay-archive --format=script hb_suse.tar.bz2 |\\
-        SAPHanaSR-filter --search='Hosts/lv9054/role' --filter=Double
+        SAPHanaSR-filter --search='Hosts/lv9054/role' --filterDouble
 .\"
 .SH FILES
 .TP
