@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "12 Jan 2022" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "02 Feb 2022" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -251,10 +251,12 @@ not supported. The operation modes delta_datashipping, logreplay and
 logreplay_readaccess are supported.
 .PP
 7. Both SAP HANA database systems have the same SAP Identifier (SID) and
-Instance Number.
+Instance Number (INO).
 .PP
-8. Besides SAP HANA you need SAP hostagent to be installed and started 
-on your systems.
+8. Besides SAP HANA you need SAP hostagent installed and started on your systems.
+For SystemV style, the sapinit script needs to be active.
+For systemd style, the services saphostagent and SAP${SID}_${INO} can stay enabled. The systemd enabled saphostagent and sapstartsrv is supported from SAPHanaSR-ScaleOut 0.181 onwards. Please refer to the OS documentation for the systemd version. Please refer to SAP documentation for the SAP HANA version.
+All nodes in one Linux cluster have to use the same style.
 .PP
 9. Automated start of SAP HANA database systems during system boot
 must be switched off.
@@ -327,10 +329,12 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBocf_heartbeat_IPaddr2\fP(7) , \fBSAPHanaSR-ScaleOut_basic_cluster\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR.py\fP(7) ,
-\fBSAPHanaSrMultiTarget.py\fP(7) , \fBntp.conf\fP(5) , \fBchrony.conf\fP(5) ,
+\fBSAPHanaSrMultiTarget.py\fP(7) ,
+\fBntp.conf\fP(5) , \fBchrony.conf\fP(5) , \fBsystemctl\fP(1) ,
 \fBstonith\fP(8) , \fBsbd\fP(8) , \fBstonith_sbd\fP(7) , \fBstonith_admin\fP(8) ,
 \fBcrm\fP(8) , \fBcorosync.conf\fP(5) , \fBcrm_no_quorum_policy\fP(7) ,
 \fBsaptune\fP(8) , \fBcs_show_hana_info\fP(8) , \fBsupportconfig\fP(8) ,
+\fBha_related_suse_tids\fP(7) , \fBha_related_sap_notes\fP(7) ,
 .br
 https://documentation.suse.com/sbp/sap/ ,
 .br
@@ -353,7 +357,7 @@ https://blogs.sap.com/2020/01/30/sap-hana-and-persistent-memory/
 .PP
 .SH AUTHORS
 .br
-F.Herschel, L.Pinne.
+A.Briel, F.Herschel, L.Pinne.
 .PP
 .\"
 .SH COPYRIGHT

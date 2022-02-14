@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "11 Mar 2021" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "02 Feb 2022" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut_basic_cluster \- SAP HANA System Replication scale-out basic cluster configuration.
@@ -85,6 +85,18 @@ before a fencing/stonith request will be triggerd.
 This parameter should prevent the cluster from unwanted double fencing in case
 of spilt-brain. A value around 30 seconds required in two-node clusters. It is not
 needed in usual SAPHanaSR-ScaleOut setups.
+
+.PP
+\fB* systemd Basics\fR
+
+\fBsaphostagent.service enabled\fR
+.br
+\fBSAP${SID}_${INO}.service enabled\fR
+
+In case systemd-style init is used for the HANA database, the services saphostagent
+and SAP${SID}_${INO} need to be enabled and running inside the SAP slice.
+The instance profile Autostart feature needs to be off.
+The service saptune is highly recommended, see manual page saptune(8).
 
 .PP
 .\"
@@ -324,6 +336,24 @@ After the root cause has been found and fixed, the failure message can be cleane
 # stonith_admin --cleanup --history=<originator_node> 
 .RE
 .PP
+
+\fB* check systemd services for the HANA database\fR
+
+In case systemd-style init is used for the HANA database, the services can be
+checked. Example SID is HA1, instance number is 10.
+.PP
+.RS 2
+.br
+# systemctl list-unit-files | grep -i sap
+.br
+# systemctl status SAPHA1_10.service
+.br
+# systemd-cgls -u SAP.slice
+.br
+# systemd-cgls -u SAPHA1_10.service
+.\" TODO check Autostart not set.
+
+.PP
 .\"
 .SH BUGS
 In case of any problem, please use your favourite SAP support process to open
@@ -338,7 +368,8 @@ Please report any other feedback and suggestions to feedback@suse.com.
 \fBcrm_no_quorum_policy\fP(7) , \fBcrm\fP(8) , \fBcrm_simulate\fP(8) ,
 \fBSAPHanaSR-ScaleOut\fP(7) , \fBSAPHanaSR-showAttr\fP(7) ,
 \fBcorosync.conf\fP(5) , \fBvotequorum\fP(5) ,
-\fBnfs\fP(5) , \fBmount\fP(8) , \fBha_related_suse_tids\fP(7) ,
+\fBnfs\fP(5) , \fBmount\fP(8) , \fBsystemctl\fP(1) , \fBsystemd-cgls\fP(1) ,
+\fBha_related_suse_tids\fP(7) , \fBha_related_sap_notes\fP(7) ,
 .br
 https://documentation.suse.com/sbp/all/?context=sles-sap ,
 .br
@@ -356,7 +387,7 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2018 SUSE Linux GmbH, Germany.
 .br
-(c) 2019-2021 SUSE LLC
+(c) 2019-2022 SUSE LLC
 .br
 For details see the GNU General Public License at
 http://www.gnu.org/licenses/gpl.html
