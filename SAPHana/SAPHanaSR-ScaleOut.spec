@@ -91,6 +91,8 @@ install -m 0444 man/*.8.gz %{buildroot}/usr/share/man/man8
 install -m 0555 bin/* %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-replay-archive %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-filter %{buildroot}/usr/sbin
+install -m 0555 test/ SAPHanaSR-SAPHanaSR-show-hadr-runtimes %{buildroot}/usr/sbin
+install -m 0555 test/ SAPHanaSR-SAPHanaSR-show-hadr-log-coincidence %{buildroot}/usr/sbin
 install -Dm 0444 test/SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}/SAPHanaSRTools.pm
 
 # sample configurations
@@ -123,6 +125,8 @@ install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 /usr/sbin/SAPHanaSR-manageAttr
 /usr/sbin/SAPHanaSR-replay-archive
 /usr/sbin/SAPHanaSR-filter
+/usr/sbin/SAPHanaSR-SAPHanaSR-show-hadr-runtimes
+/usr/sbin/SAPHanaSR-SAPHanaSR-show-hadr-log-coincidence
 %dir /srv/www/hawk
 %dir /srv/www/hawk/config
 %dir /srv/www/hawk/config/wizard
