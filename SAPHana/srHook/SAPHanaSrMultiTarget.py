@@ -9,7 +9,7 @@ SAPHanaSrMultiTarget needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
 import os, random
 from datetime import datetime
-            
+
 try:
     from hdb_ha_dr.client import HADRBase
 except ImportError as e:
@@ -28,7 +28,7 @@ To use this HA/DR hook provide please add the following lines (or similar) to yo
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.180.0.1019.1151"
+fhSRHookVersion = "0.181.0.0216.1706"
 srHookGen = "2.2"
 cib_access_dflt = "all-on"
 startTime = 0
@@ -47,8 +47,8 @@ def logTimestamp(episode, outputMessage):
             outputMessage = "{0} [{2}] {1}".format(currentTimeStr,outputMessage, episode)
             saphanasr_multitarget_file.write(outputMessage + "\n")
             saphanasr_multitarget_file.flush()
-            
-    except ( RuntimeError, TypeError, NameError, OSError ) as e : 
+
+    except ( RuntimeError, TypeError, NameError, OSError ) as e :
         self.tracer.info("{0}.{1}() logTimestamp error {2}".format(self.__class__.__name__, method, e))
         print("Error in logTimestamp(): {0}".format(e))
 
