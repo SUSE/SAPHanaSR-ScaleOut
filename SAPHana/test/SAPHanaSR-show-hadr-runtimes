@@ -184,7 +184,7 @@ while (<>)  {
                   $messageType='Cg';
             } elsif ( $fMessage =~ /CALLING CRM:.*hana_.*_site_srHook_/ ) {
                   $messageType='Cs';
-            } elsif ( $fMessage =~ /Running srHookGeneration .* see attribute hana_pew_gsh too/ ) {
+            } elsif ( $fMessage =~ /Running srHookGeneration .* see attribute hana_..._gsh too/ ) {
                   $messageType='Lv';
             } elsif ( $fMessage =~ /Ignoring bad SR status because of empty site name/ ) {
                   $messageType='Ie';
