@@ -125,8 +125,8 @@ install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 /usr/sbin/SAPHanaSR-manageAttr
 /usr/sbin/SAPHanaSR-replay-archive
 /usr/sbin/SAPHanaSR-filter
-/usr/sbin/SAPHanaSR-SAPHanaSR-show-hadr-runtimes
-/usr/sbin/SAPHanaSR-SAPHanaSR-show-hadr-log-coincidence
+/usr/sbin/SAPHanaSR-show-hadr-runtimes
+/usr/sbin/SAPHanaSR-show-hadr-log-coincidence
 %dir /srv/www/hawk
 %dir /srv/www/hawk/config
 %dir /srv/www/hawk/config/wizard
