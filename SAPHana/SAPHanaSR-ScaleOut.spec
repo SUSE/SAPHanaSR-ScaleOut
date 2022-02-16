@@ -91,8 +91,8 @@ install -m 0444 man/*.8.gz %{buildroot}/usr/share/man/man8
 install -m 0555 bin/* %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-replay-archive %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-filter %{buildroot}/usr/sbin
-install -m 0555 test/SAPHanaSR-SAPHanaSR-show-hadr-runtimes %{buildroot}/usr/sbin
-install -m 0555 test/SAPHanaSR-SAPHanaSR-show-hadr-log-coincidence %{buildroot}/usr/sbin
+install -m 0555 test/SAPHanaSR-show-hadr-runtimes %{buildroot}/usr/sbin
+install -m 0555 test/SAPHanaSR-show-hadr-log-coincidence %{buildroot}/usr/sbin
 install -Dm 0444 test/SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}/SAPHanaSRTools.pm
 
 # sample configurations
