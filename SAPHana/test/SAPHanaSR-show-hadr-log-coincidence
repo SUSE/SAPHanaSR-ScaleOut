@@ -1,0 +1,448 @@
+#!/usr/bin/perl
+#
+# SAPHanaSR-show-hadr-log-coincidence
+#
+# Description:
+#              Analyses SAP HANA nameserver trace files and calculates HA/DR hook script run times.
+#              Only for specific known SUSE HA/DR providers.
+#              Work in progress.
+#
+##############################################################################
+#
+# SAPHanaSR-show-hadr-runtimes
+# Author:       Fabian Herschel, Lars Pinne, August 2021
+# Support:      feedback@suse.com
+# License:      GNU General Public License (GPL) V2
+#               (c) 2021-2022 SUSE LLC
+#
+# An example usage:
+#      See usage() function below for more details...
+#
+##############################################################################
+#
+# Needs log times to increment continiously
+# cases like the following will lead into error messages:
+
+# I - get timestamps from nameserver-trace-file
+# 
+# Ia) SAP HANA nameserver logs python3 context (same "LogID" as Ib) - here [121685] ==> MULTIPLE!!
+#[121685]{160844}[36/-1] 2021-10-22 15:29:02.458947 i TraceContext     TraceContext.cpp(01269) : UserName=SFTHLIMON9S4, ApplicationUserName=root, ApplicationName=python3, StatementHash=2abfccc6dd1ea5d82bb9b11bdb364b33, StatementExecutionID=281479272473152
+#
+# Ib) SAP HANA nameserver logs call of SAPHanaSrMultiTarget Hook
+#[121685]{-1}[-1/-1] 2021-10-22 15:33:11.708247 i ha_dr_provider   PythonProxyImpl.cpp(01120) : calling HA/DR provider SAPHanaSrMultiTarget.hookDRConnectionChanged(hostname=suse01, port=30007, volume=2, service_name=xsengine, database=HA1, status=11, database_status=11, system_status=11, timestamp=2021-10-22T15:33:11.708027+00:00, is_in_sync=0, reason=, siteName=srsite1)
+#
+# Ic) SUSE hook logs dictionary (via SAP HANA nameserver)
+#[121685]{-1}[-1/-1] 2021-10-22 15:33:11.709605 i ha_dr_SAPHanaSrM SAPHanaSrMultiTarget.py(00127) : SAPHanaSrMultiTarget.srConnectionChanged() method called with Dict={'status': 11, 'is_in_sync': False, 'timestamp': '2021-10-22T15:33:11.708027+00:00', 'database': 'HA1', 'siteName': 'srsite1', 'service_name': 'xsengine', 'hostname': 'suse01', 'volume': 2, 'system_status': 11, 'reason': '', 'database_status': 11, 'port': '30007'} (version 0.180.0.0423.1704)
+#
+# Id) SUSE hook logs call-out completion and return code (via SAP HANA nameserver) ==> MULTIPLE!!
+#[121685]{-1}[-1/-1] 2021-10-22 15:33:57.897308 i ha_dr_SAPHanaSrM SAPHanaSrMultiTarget.py(00139) : SAPHanaSrMultiTarget.srConnectionChanged() CALLING CRM: <sudo /usr/sbin/crm_attribute -n hana_ha1_gsh -v 2.0 -l reboot> rc=0
+#
+# II messages (systemlog)
+#
+#2021-10-22T15:33:57.803448+00:00 suse01 sudo:   ha1adm : TTY=unknown ; PWD=/hana/shared/HA1/HDB00/suse01 ; USER=root ; COMMAND=/usr/sbin/crm_attribute -n hana_ha1_gsh -v 2.0 -l reboot
+#2021-10-22T15:34:17.635875+00:00 suse01 sudo:   ha1adm : TTY=unknown ; PWD=/hana/shared/HA1/HDB00/suse01 ; USER=root ; COMMAND=/usr/sbin/crm_attribute -n hana_ha1_glob_srHook -G
+#2021-10-22T15:34:36.871908+00:00 suse01 sudo:   ha1adm : TTY=unknown ; PWD=/hana/shared/HA1/HDB00/suse01 ; USER=root ; COMMAND=/usr/sbin/crm_attribute -n hana_ha1_site_srHook_srsite1 -v SFAIL -t crm_config -s SAPHanaSR
+
+# * time correlation should be Ia > Ib > Ic > II > Id
+# * log correlation
+#   ** I* must have same "LogID"
+#   ** Id "CALLING CRM: <...>" needs to match "COMMAND=..."   
+
+
+use strict;
+use Time::Piece; 
+use Getopt::Long;
+
+# use as filter (for first)
+# nameserver_suse11.31001.002.trc:
+# [7138]{-1}[-1/-1] 2021-08-19 15:44:50.974343 i ha_dr_slow       slow.py(00049) : slow.srConnectionChanged() method end with rc=0
+#
+# [<ID>]<dont-know-what-that-is> <date> <time> <level> <who> <where> <message>
+# <ID>: Number ([0-9]+)
+# <dont-know-what-that-is>: Skip till whitespace
+# <date>: Day YYYY-MM-DD ([0-9]+-[0-9]+-[0-9]+)
+# <time>: Time HH:MM:SS.mmmmmm ([0-9]+:[0-9]+:[0-9]+\.[0-9]+)
+# <level>: i (w, e ) ?
+# <what>: string-till-whitespace
+# <where>: string-till-whitespace
+# colon
+# <message>: string-till-end
+#
+
+my $startTime="0";
+my $stopTime="99999999999";
+my $startTimeStr="";
+my $stopTimeStr="";
+
+my $result = GetOptions ("start=s" => \$startTimeStr,
+                         "stop=s"  => \$stopTimeStr,
+         );
+
+if ( $startTimeStr ne "" ) {
+    my $startTimeTmp = Time::Piece->strptime($startTimeStr,"%Y-%m-%d %T");
+    $startTime = $startTimeTmp->epoch;
+}
+if ( $stopTimeStr ne "" ) {
+    my $stopTimeTmp = Time::Piece->strptime($stopTimeStr,"%Y-%m-%d %T");
+    $stopTime = $stopTimeTmp->epoch;
+}
+
+my $idPat = "[0-9]+";
+my $dnkwti = "[^ ]+";
+
+my $day = "[0-9]+";
+my $month = "[0-9]+";
+my $year = "[0-9]+";
+my $date = "$day-$month-$year";
+
+my $hour = "[0-9]+";
+my $minute = "[0-9]+";
+my $second = "[0-9]+";
+my $msecond = "[0-9]+";
+my $time = "$hour:$minute:$second\.$msecond";
+
+my $level = "[a-z]";
+my $what = "[^ ]+";
+my $where = "[^ ]+";
+my $message = ".*";
+my $WS = " +";
+my %countId;
+my %doubles;
+my %times;
+my %runtimes;
+my %unifier;
+
+my %event; # covers namesever-trace-events
+my %messages; # covers message log entries
+my %allEventsByTime; # covers all events and messages with key epoch-time
+
+my $printHadrRuntimes=0;
+my $debug=0;
+
+sub printHadrRuntimes {
+    for my $key ( sort(keys(%doubles))) {
+        if ( $doubles{$key} > 1 ) {
+        }
+        if ( defined $runtimes{$key}->{Start} && defined $runtimes{$key}->{Stop} ) {
+            if ( $runtimes{$key}->{Stop} == -1 ) {
+                printf("%s %s %11s %-16s %-10s %s\n", $runtimes{$key}->{StartDateString}, $runtimes{$key}->{StartTimeStringShort}, "---", $runtimes{$key}->{Hook}, $key, "Ds----");
+            } else {
+                my $rt; my $ms;
+                $rt = $runtimes{$key}->{Stop} - $runtimes{$key}->{Start};
+                $ms = $runtimes{$key}->{StopMicroseconds} - $runtimes{$key}->{StartMicroseconds};
+                if ( $rt > 0 && $ms < 0 ) {
+                   $rt--;
+                   $ms = $ms + 1000000;
+                }
+                printf("%s %s %4s.%06i %-16s %-10s %s\n", $runtimes{$key}->{StartDateString}, $runtimes{$key}->{StartTimeStringShort}, $rt, $ms, $runtimes{$key}->{Hook}, $key,  $runtimes{$key}->{Types});
+            }
+        }
+    }
+}
+
+#2021-10-22T15:33:57.803448+00:00 suse01 sudo:   ha1adm : TTY=unknown ; PWD=/hana/shared/HA1/HDB00/suse01 ; USER=root ; COMMAND=/usr/sbin/crm_attribute -n hana_ha1_gsh -v 2.0 -l reboot
+#
+# <date>T<time><offset> <host> <issuer>: <message>
+
+my $message_offset = "[+-][0-9]+:[0-9]+";
+my $message_host = "[a-zA-Z][a-zA-Z0-9-]*";
+my $message_issuer = "[a-zA-Z0-9-+_]+";
+my $message_text = ".*\$";
+
+#
+# process all nameserver-trace and linux-message files
+#
+while (<>)  {
+    chomp;
+    my $messageType;
+    #    if ( /($idPat)$dnkwti ($date) ($time) ($what) ($where) : ($message)/ ) {
+    #if ( /($idPat)$dnkwti ($date) ($time) ($level) ($what) ($where) : ($message)/) {
+    if ( /($idPat)$dnkwti$WS($date)$WS($time)$WS($level)$WS($what)$WS($where)$WS:$WS($message)/ ) {
+        my ($fID, $fDate, $fTime, $fLevel, $fWhat, $fWhere, $fMessage) = ( $1, $2, $3, $4, $5, $6, $7 );
+        # 
+        #TraceContext     TraceContext.cpp(01269) : UserName=SFTHLIMON9S4, ApplicationUserName=root, ApplicationName=python3
+        #
+        #### detect calls from SAP HANA (could look like...)
+        
+        #ha_dr_provider   PythonProxyImpl.cpp(01276) : calling HA/DR provider SAPHanaSrMultiTarget.srServiceStateChanged(
+        #ha_dr_provider   PythonProxyImpl.cpp(01096) : calling HA/DR provider SAPHanaSrMultiTarget.hookDRConnectionChanged(
+        #ha_dr_provider   HADRProviderManager.cpp(00073) : loading HA/DR Provider ##### UNFORTUNATELY USES A DIFFERENT EVENT NUMBER
+
+        if (
+               ( $fWhat =~ /ha_dr_provider/ ) && ( $fWhere =~ /PythonProxyImpl.cpp/ ) && ( $fMessage =~ /calling HA.DR provider SAPHanaS/ )  ## <SAPHanaS should be a parameter later
+           ) {
+            #
+            # Ib) detect nameserver-trace message about starting/calling HADR provider
+            #     * TODO: HADR provider name to be flexible (pattern?)
+            #
+            my $fTimeShort;
+            my $fTimeNanos; 
+            if ( $fTime =~ /($hour:$minute:$second)\.($msecond)/ ) {
+                $fTimeShort = $1;
+                $fTimeNanos = $2;
+            }
+            my $t = Time::Piece->strptime("$fDate $fTimeShort","%Y-%m-%d %T"); 
+            $event{$fID}->{startEvent}      = $t->epoch;
+            $event{$fID}->{startEventNanos} = $fTimeNanos;
+            $event{$fID}->{message}         = $fMessage;
+            #
+            # add this event to the complete timer list 
+            $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{type}     = "nameserverCallHook";
+            $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{fID}      = "$fID";
+            $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{message}  = "$fMessage";
+            #
+            # cut-out shorter call info:
+            # ... alling HA/DR provider SAPHanaSrMultiTarget.hookDRConnectionChanged(hostname=suse02, port=30003, volume=4,  ...
+            # SAPHanaSrMultiTarget.hookDRConnectionChanged(hostname=suse02
+            if ( $fMessage =~ "(SAPHanaS.*hookDRConnectionChanged).(hostname=[^,]*)" ) {
+                my $short = $1 . " " . $2;
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{shortMessage} = $short;
+                if ($debug)  { printf("short message: %s \n", $short); }
+            }
+            if ($debug)  { printf("%s %s -> %s\n", $fDate, $fTimeShort, $t->epoch); }
+        }
+
+
+# [12580]{-1}[-1/-1] 2021-06-14 13:42:28.436937 i ha_dr_SAPHanaSrM SAPHanaSrMultiTarget.py(00039) : SAPHanaSrMultiTarget.init() version 0.180.0.0423.1704
+# SAPHanaSrMultiTarget.init SAPHanaSrMultiTarget.about
+
+        if (
+             (
+               ( $fWhat =~ /ha_dr_SAPHanaSrM/ ) && ( $fWhere =~ /SAPHanaSrMultiTarget.py/ ) ||
+               ( $fWhat =~ /ha_dr_SAPHanaSR/ ) && ( $fWhere =~ /SAPHanaSR.py/ )
+             ) && !(
+                      # filter away init and about events
+                      ( $fMessage =~ /SAPHanaSrMultiTarget.init/ ) ||
+                      ( $fMessage =~ /SAPHanaSrMultiTarget.about/ ) ||
+                      ( $fMessage =~ /SAPHanaSR.init/ ) ||
+                      ( $fMessage =~ /SAPHanaSR.about/ )
+                   )
+           ) {
+            #printf("line: %s\n", $_);
+            if ( defined $countId{$fID} ) {
+               $countId{$fID} = $countId{$fID}+1;
+            } else {
+               $countId{$fID} = 1;
+            }
+           $runtimes{$fID}->{lastMessage} = $fMessage;
+           if ( $fTime =~ /($hour):($minute):($second)\.($msecond)/ ) {
+                 $runtimes{$fID}->{Stop} = $1 * 3600 + $2 * 60 + $3;
+                 $runtimes{$fID}->{StopTimeString} = $fTime;
+                 $runtimes{$fID}->{StopMicroseconds} = $4;
+                 if ($debug) { printf("stop %s:%s:%s\n", $1, $2, $3); }
+           }
+           # SAPHanaSrMultiTarget.srConnectionChanged() method called with Dict
+           #
+           # Ic nameserver-trace - message from HADR hook about being called and reports dictionary
+           #
+           if (
+                 ( $fMessage =~ /SAPHanaSR.srConnectionChanged.*method called with Dict/ && !($fMessage =~ /###/) ) ||
+                 ( $fMessage =~ /SAPHanaSrMultiTarget.srConnectionChanged.*method called with Dict/ )
+              ) {
+              #
+              # start time mark
+              #
+              $messageType='Ds';
+              if ( $fTime =~ /($hour):($minute):($second)\.($msecond)/ ) {
+                 $runtimes{$fID}->{Start} = $1 * 3600 + $2 * 60 + $3;
+                 $runtimes{$fID}->{StartTimeStringShort} = $1 . ":" . $2 . ":" . $3;
+                 $runtimes{$fID}->{Stop} = -1;
+                 $runtimes{$fID}->{StartTimeString} = $fTime;
+                 $runtimes{$fID}->{StartDateString} = $fDate;
+                 $runtimes{$fID}->{StartMicroseconds} = $4;
+                 $runtimes{$fID}->{Hook} = $fWhat;
+                 if ($debug) { printf("start %s %s:%s:%s - %s\n", $fID, $1, $2, $3, $runtimes{$fID}->{Start}); }
+              }
+              if ( defined $doubles{$fID} ) {
+                  $doubles{$fID} = $doubles{$fID} + 1;
+                  $times{$fID} = $times{$fID} . " " . $fDate . " " . $fTime;
+              } else {
+                  $doubles{$fID} = 1;
+              }
+            } elsif ( $fMessage =~ /ignoring bad SR status because of is_in_sync=True/ ) {
+                  $messageType='Ib';
+            } elsif ( $fMessage =~ /Ignoring bad SR status because of is_in_sync=True/ ) {
+                  # ignore this one
+            } elsif ( $fMessage =~ /was called with empty site name. Ignoring call/ ) {
+                  $messageType='Ic';
+            } elsif ( $fMessage =~ /CALLING CRM:.*hana_.*_gsh/ ) {
+                my $fTimeShort;
+                my $fTimeNanos; 
+                if ( $fTime =~ /($hour:$minute:$second)\.($msecond)/ ) {
+                    $fTimeShort = $1;
+                    $fTimeNanos = $2;
+                }
+                my $t = Time::Piece->strptime("$fDate $fTimeShort","%Y-%m-%d %T"); 
+                $event{$fID}->{startEvent}      = $t->epoch;
+                $event{$fID}->{startEventNanos} = $fTimeNanos;
+                $event{$fID}->{message}         = $fMessage;
+                #
+                # add this event to the complete timer list 
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{type}     = "nameserverReturnCrm";
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{fID}      = "$fID";
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{message}  = "$fMessage";
+                #
+                # cut-out: CALLING CRM: <sudo /usr/sbin/crm_attribute -n hana_ha1_gsh -v 2.2 -l reboot> rc=26112
+                if ( $fMessage =~ "CALLING CRM: <sudo ([^>]*)> (rc=[0-9]+)" ) {
+                    $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{shortMessage} = $1;
+                    $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{rc} = $2;
+                    if ($debug)  { printf("short message: %s \n", $1); }
+                }
+                if ($debug)  { printf("%s %s -> %s\n", $fDate, $fTimeShort, $t->epoch); }
+                $messageType='Cv';
+            } elsif ( $fMessage =~ /CALLING CRM:.*hana_.*_glob_srHook/ ) {
+                my $fTimeShort;
+                my $fTimeNanos; 
+                if ( $fTime =~ /($hour:$minute:$second)\.($msecond)/ ) {
+                    $fTimeShort = $1;
+                    $fTimeNanos = $2;
+                }
+                my $t = Time::Piece->strptime("$fDate $fTimeShort","%Y-%m-%d %T"); 
+                $event{$fID}->{startEvent}      = $t->epoch;
+                $event{$fID}->{startEventNanos} = $fTimeNanos;
+                $event{$fID}->{message}         = $fMessage;
+                #
+                # add this event to the complete timer list 
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{type}     = "nameserverReturnCrm";
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{fID}      = "$fID";
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{message}  = "$fMessage";
+                #
+                # cut-out: CALLING CRM: <sudo /usr/sbin/crm_attribute -n hana_ha1_gsh -v 2.2 -l reboot> rc=26112
+                if ( $fMessage =~ "CALLING CRM: <sudo ([^>]*)> (rc=[0-9]+)" ) {
+                    $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{shortMessage} = $1;
+                    $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{rc} = $2;
+                    if ($debug)  { printf("short message: %s \n", $1); }
+                }
+                if ($debug)  { printf("%s %s -> %s\n", $fDate, $fTimeShort, $t->epoch); }
+                  $messageType='Cg';
+            } elsif ( $fMessage =~ /CALLING CRM:.*hana_.*_site_srHook_/ ) {
+                my $fTimeShort;
+                my $fTimeNanos; 
+                if ( $fTime =~ /($hour:$minute:$second)\.($msecond)/ ) {
+                    $fTimeShort = $1;
+                    $fTimeNanos = $2;
+                }
+                my $t = Time::Piece->strptime("$fDate $fTimeShort","%Y-%m-%d %T"); 
+                $event{$fID}->{startEvent}      = $t->epoch;
+                $event{$fID}->{startEventNanos} = $fTimeNanos;
+                $event{$fID}->{message}         = $fMessage;
+                #
+                # add this event to the complete timer list 
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{type}     = "nameserverReturnCrm";
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{fID}      = "$fID";
+                $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{message}  = "$fMessage";
+                #
+                # cut-out: CALLING CRM: <sudo /usr/sbin/crm_attribute -n hana_ha1_gsh -v 2.2 -l reboot> rc=26112
+                if ( $fMessage =~ "CALLING CRM: <sudo ([^>]*)> (rc=[0-9]+)" ) {
+                    $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{shortMessage} = $1;
+                    $allEventsByTime{$t->epoch . '.' . $fTimeNanos}->{rc} = $2;
+                    if ($debug)  { printf("short message: %s \n", $1); }
+                }
+                if ($debug)  { printf("%s %s -> %s\n", $fDate, $fTimeShort, $t->epoch); }
+                  $messageType='Cs';
+            } elsif ( $fMessage =~ /Running srHookGeneration .* see attribute hana_..._gsh too/ ) {
+                  $messageType='Lv';
+            } elsif ( $fMessage =~ /Ignoring bad SR status because of empty site name/ ) {
+                  $messageType='Ie';
+            } else {
+                  $messageType='?';
+            }
+        $runtimes{$fID}->{Types} = $runtimes{$fID}->{Types} . $messageType;
+     }
+    } elsif ( /($date)T($time)($message_offset)$WS($message_host)$WS($message_issuer):$WS($message_text)/ ) {
+        #
+        #  II reading a message - entry
+        #
+        my ($fDate, $fTime, $fOffset, $fHost, $fIssuer, $fMessage) = ( $1, $2, $3, $4, $5, $6 );
+        if (( $fIssuer == "sudo") && ( $fMessage =~ /crm_attribute/ )) {
+            if ($debug) { printf("%s %s %s\n", $fDate, $fTime, $fMessage); }
+            # 
+            # 
+            my ($fTimeShort, $fTimeNanos);
+            if ( $fTime =~ /($hour:$minute:$second)\.($msecond)/ ) {
+                $fTimeShort = $1;
+                $fTimeNanos = $2;
+            }
+            my $t = Time::Piece->strptime("$fDate $fTimeShort","%Y-%m-%d %T"); 
+            my $tepoch = $t->epoch;
+            # TODO
+            my $key = $tepoch . "." . $fTimeNanos;
+            $messages{$key}->{date} = $fDate;
+            $messages{$key}->{time} = $fTime;
+            $messages{$key}->{txt}  = $fMessage;
+            # cut-out filed command: COMMAND=/usr/sbin/crm_attribute -n hana_ha1_gsh -v 2.0 -l reboot
+            if ( $fMessage =~ "COMMAND=(.*)\$" ) {
+                $messages{$key}->{cmd} = $1;
+                if ($debug) { printf "cmd: %s\n", $1 }
+            }
+            $allEventsByTime{$key}->{type} = "messageSudoCall";
+            if ($debug) { printf("%s %s %s %s\n",$fDate, $fTime, $tepoch, $fMessage); }
+        }
+    }
+   
+}
+
+if ( $printHadrRuntimes == 1 ) {
+    printHadrRuntimes();
+}
+
+#
+# run trough all found events and messages in time-line
+# TODO: * check for overlapping time-lines
+#       * check from event-call-msg to message-text-sudo, if the filed command is the same one
+#       * print time-line with deltas
+#
+$debug=0;
+my $delaySudoToCrm;
+my $delayNsmSudo;
+my $openSudoTime;
+my $openNsmCallTime;
+my $openCrmCmd;
+for my $akey ( sort(keys(%allEventsByTime))) {
+    my $type = $allEventsByTime{$akey}->{type};
+    my $themessage = "--";
+    my $shortType;
+    my ( $tepoch, $nanos) = split(/\./, $akey);
+    if (( $tepoch >= $startTime ) && ( $tepoch <= $stopTime )) {
+        if ( $type eq "nameserverCallHook" ) {
+           my $fID = $allEventsByTime{$akey}->{fID};
+           $shortType = "nmsCallHook";
+           #$themessage = $event{$fID}->{message};
+           $themessage = $allEventsByTime{$akey}->{shortMessage};
+           $openNsmCallTime = $tepoch;
+           if ($debug) {printf("n ");}
+           printf("\n");
+        } elsif ( $type eq "nameserverReturnCrm" ) {
+           $shortType = "nmsRetrnCrm";
+           $delaySudoToCrm = "";
+           if ($debug) { printf("<%s> ?? <%s>\n", $openCrmCmd, $allEventsByTime{$akey}->{shortMessage}); }
+           if ( $openCrmCmd eq $allEventsByTime{$akey}->{shortMessage} ) {
+              #
+              # matching crm return found for sudo call
+              #
+              $delaySudoToCrm = $tepoch - $openSudoTime;
+              $openCrmCmd = "";
+           }
+           $themessage = sprintf("%s %s (%ss)", $allEventsByTime{$akey}->{shortMessage} , $allEventsByTime{$akey}->{rc}, $delaySudoToCrm);
+        } elsif ( $type eq "messageSudoCall" ) {
+           $shortType = "msgSudoCall";
+           $openCrmCmd = $messages{$akey}->{cmd};
+           $openSudoTime = $tepoch;
+           $delayNsmSudo = $tepoch - $openNsmCallTime;
+           $themessage = sprintf("%s (%ss)", $messages{$akey}->{cmd}, $delayNsmSudo);
+           if ($debug) {printf("m ");}
+        }
+        my $timeStruct = Time::Piece->strptime($tepoch,"%s");
+        my $readableTime = $timeStruct->datetime;
+        printf("%s %s %s: %s\n",$readableTime, $akey, $shortType, $themessage);
+    }
+}
+
+#
+# debug output of found messages text
+#
+#for my $akey ( sort(keys(%messages))) {
+#    my $message = "--";
+#    $message = $messages{$akey}->{txt};
+#    printf("<%s> %s\n",$akey, $message);
+#}

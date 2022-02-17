@@ -1,0 +1,227 @@
+#!/usr/bin/perl
+#
+# SAPHanaSR-show-hadr-runtimes
+#
+# Description:
+#              Analyses SAP HANA nameserver trace files and calculates HA/DR hook script run times.
+#              Only for specific known SUSE HA/DR providers.
+#              Work in progress.
+#
+##############################################################################
+#
+# SAPHanaSR-show-hadr-runtimes
+# Author:       Fabian Herschel, Lars Pinne, August 2021
+# Support:      feedback@suse.com
+# License:      GNU General Public License (GPL) V2
+#               (c) 2021-2022 SUSE LLC
+#
+# An example usage:
+#      See usage() function below for more details...
+#
+##############################################################################
+#
+# Needs log times to increment continiously
+# cases like he following will lead into error messages:
+#
+#[27074]{-1}[-1/-1] 2021-08-19 15:23:56.089269 i ha_dr_SAPHanaSR  SAPHanaSR.py(00104) : SAPHanaSR (0.180.0.0330.1807) SAPHanaSR.srConnectionChanged method called with Dict={'status': 11, 'is_in_sync': False, 'timestamp': '2021-08-19T15:23:55.699821+02:00', 'database': 'HA1', 'siteName': 'S2', 'service_name': 'indexserver', 'hostname': 'suse12', 'volume': 4, 'system_status': 11, 'reason': '', 'database_status': 11, 'port': '31003'}
+#[27074]{-1}[-1/-1] 2021-08-19 15:23:55.700471 i ha_dr_provider   PythonProxyImpl.cpp(01096) : calling HA/DR provider SAPHanaSR.hookDRConnectionChanged(hostname=suse12, port=31003, volume=4, service_name=indexserver, database=HA1, status=11, database_status=11, system_status=11, timestamp=2021-08-19T15:23:55.699821+02:00, is_in_sync=0, reason=, siteName=S2)
+#
+# As you see the calling PythonProxyImpl.cpp logs after the called SAPHanaSR.py.
+#
+# a work around would be to pre-sort the trace file by fields 2 and 3:
+# sort -k2,3 nameserver_suse11.31001.002.trc | grep '\[27074\].*ha_dr'
+
+use strict;
+
+# use as filter (for first)
+# nameserver_suse11.31001.002.trc:
+# [7138]{-1}[-1/-1] 2021-08-19 15:44:50.974343 i ha_dr_slow       slow.py(00049) : slow.srConnectionChanged() method end with rc=0
+#
+# [<ID>]<dont-know-what-that-is> <date> <time> <level> <who> <where> <message>
+# <ID>: Number ([0-9]+)
+# <dont-know-what-that-is>: Skip till whitespace
+# <date>: Day YYYY-MM-DD ([0-9]+-[0-9]+-[0-9]+)
+# <time>: Time HH:MM:SS.mmmmmm ([0-9]+:[0-9]+:[0-9]+\.[0-9]+)
+# <level>: i (w, e ) ?
+# <what>: string-till-whitespace
+# <where>: string-till-whitespace
+# colon
+# <message>: string-till-end
+#
+
+my $idPat = "[0-9]+";
+my $dnkwti = "[^ ]+";
+
+my $day = "[0-9]+";
+my $month = "[0-9]+";
+my $year = "[0-9]+";
+my $date = "$day-$month-$year";
+
+my $hour = "[0-9]+";
+my $minute = "[0-9]+";
+my $second = "[0-9]+";
+my $msecond = "[0-9]+";
+my $time = "$hour:$minute:$second\.$msecond";
+
+my $level = "[a-z]";
+my $what = "[^ ]+";
+my $where = "[^ ]+";
+my $message = ".*";
+my $WS = " +";
+my %countId;
+my %doubles;
+my %times;
+my %runtimes;
+my %unifier;
+
+for my $key ( sort(keys(%countId))) {
+    printf("count: %s %s\n", $key, $countId{$key});
+}
+for my $key ( sort(keys(%doubles))) {
+    if ( $doubles{$key} > 1 ) {
+        printf("double: %s %s\n", $key, $doubles{$key});
+        printf("times: %s %s\n", $key, $times{$key});
+    }
+}
+
+while (<>)  {
+    chomp;
+    my $messageType;
+    #    if ( /($idPat)$dnkwti ($date) ($time) ($what) ($where) : ($message)/ ) {
+    #if ( /($idPat)$dnkwti ($date) ($time) ($level) ($what) ($where) : ($message)/) {
+    if ( /($idPat)$dnkwti$WS($date)$WS($time)$WS($level)$WS($what)$WS($where)$WS:$WS($message)/ ) {
+        my ($fID, $fDate, $fTime, $fLevel, $fWhat, $fWhere, $fMessage) = ( $1, $2, $3, $4, $5, $6, $7 );
+        #printf("in: %s\n", $_);
+        #printf("id: %s date: %s time: %s level: %s what: %s where: %s message: %s\n", $1, $2, $3, $4, $5, $6, $7);
+        #if ( $fLevel ne "i" ) {
+        #if ( $fWhat =~ /ha_dr_/ ) {
+        #    printf("line: %s\n", $_);
+        #}
+
+        #
+        #### detect calls from SAP HANA (could look like...)
+        #ha_dr_provider   PythonProxyImpl.cpp(01276) : calling HA/DR provider SAPHanaSrMultiTarget.srServiceStateChanged(
+        #ha_dr_provider   PythonProxyImpl.cpp(01096) : calling HA/DR provider SAPHanaSrMultiTarget.hookDRConnectionChanged(
+        #ha_dr_provider   HADRProviderManager.cpp(00073) : loading HA/DR Provider ##### UNFORTUNATELY USES A DIFFERENT EVENT NUMBER
+
+        if (
+               ( $fWhat =~ /ha_dr_provider/ ) && ( $fWhere =~ /PythonProxyImpl.cpp/ ) && ( $fMessage =~ /calling HA.DR provider/ ) ||
+               ( $fWhat =~ /ha_dr_provider/ ) && ( $fWhere =~ /HADRProviderManager.cpp/ ) && ( $fMessage =~ /loading HA.DR Provider/ )
+           ) {
+             # we found a new event fo an HA/DR call so we store a event-number-unifier
+
+             if (defined $unifier{$fID}) {
+                 $unifier{$fID} = $unifier{$fID} + 1;
+             } else {
+                 $unifier{$fID} = 1;
+             }
+        }
+
+        $fID = $fID . "-"  . $unifier{$fID};
+
+# [12580]{-1}[-1/-1] 2021-06-14 13:42:28.436937 i ha_dr_SAPHanaSrM SAPHanaSrMultiTarget.py(00039) : SAPHanaSrMultiTarget.init() version 0.180.0.0423.1704
+# SAPHanaSrMultiTarget.init SAPHanaSrMultiTarget.about
+
+        if (
+             (
+               ( $fWhat =~ /ha_dr_SAPHanaSrM/ ) && ( $fWhere =~ /SAPHanaSrMultiTarget.py/ ) ||
+               ( $fWhat =~ /ha_dr_SAPHanaSR/ ) && ( $fWhere =~ /SAPHanaSR.py/ )
+             ) && !(
+                      # filter away init and about events
+                      ( $fMessage =~ /SAPHanaSrMultiTarget.init/ ) ||
+                      ( $fMessage =~ /SAPHanaSrMultiTarget.about/ ) ||
+                      ( $fMessage =~ /SAPHanaSR.init/ ) ||
+                      ( $fMessage =~ /SAPHanaSR.about/ )
+                   )
+           ) {
+            #printf("line: %s\n", $_);
+            if ( defined $countId{$fID} ) {
+               $countId{$fID} = $countId{$fID}+1;
+            } else {
+               $countId{$fID} = 1;
+            }
+           $runtimes{$fID}->{lastMessage} = $fMessage;
+           if ( $fTime =~ /($hour):($minute):($second)\.($msecond)/ ) {
+                 $runtimes{$fID}->{Stop} = $1 * 3600 + $2 * 60 + $3;
+                 $runtimes{$fID}->{StopTimeString} = $fTime;
+                 $runtimes{$fID}->{StopMicroseconds} = $4;
+                 #printf("stop %s:%s:%s\n", $1, $2, $3);
+           }
+           # SAPHanaSrMultiTarget.srConnectionChanged() method called with Dict
+           if (
+                 ( $fMessage =~ /SAPHanaSR.srConnectionChanged.*method called with Dict/ && !($fMessage =~ /###/) ) ||
+                 ( $fMessage =~ /SAPHanaSrMultiTarget.srConnectionChanged.*method called with Dict/ )
+              ) {
+              #
+              # start time mark
+              #
+              $messageType='Ds';
+              if ( $fTime =~ /($hour):($minute):($second)\.($msecond)/ ) {
+                 $runtimes{$fID}->{Start} = $1 * 3600 + $2 * 60 + $3;
+                 $runtimes{$fID}->{StartTimeStringShort} = $1 . ":" . $2 . ":" . $3;
+                 $runtimes{$fID}->{Stop} = -1;
+                 $runtimes{$fID}->{StartTimeString} = $fTime;
+                 $runtimes{$fID}->{StartDateString} = $fDate;
+                 $runtimes{$fID}->{StartMicroseconds} = $4;
+                 $runtimes{$fID}->{Hook} = $fWhat;
+                 #printf("start %s %s:%s:%s - %s\n", $fID, $1, $2, $3, $runtimes{$fID}->{Start});
+              }
+              if ( defined $doubles{$fID} ) {
+                  $doubles{$fID} = $doubles{$fID} + 1;
+                  $times{$fID} = $times{$fID} . " " . $fDate . " " . $fTime;
+              } else {
+                  $doubles{$fID} = 1;
+              }
+            } elsif ( $fMessage =~ /ignoring bad SR status because of is_in_sync=True/ ) {
+                  $messageType='Ib';
+            } elsif ( $fMessage =~ /Ignoring bad SR status because of is_in_sync=True/ ) {
+                  # ignore thisone
+            } elsif ( $fMessage =~ /was called with empty site name. Ignoring call/ ) {
+                  $messageType='Ic';
+            } elsif ( $fMessage =~ /CALLING CRM:.*hana_.*_gsh/ ) {
+                  $messageType='Cv';
+            } elsif ( $fMessage =~ /CALLING CRM:.*hana_.*_glob_srHook/ ) {
+                  $messageType='Cg';
+            } elsif ( $fMessage =~ /CALLING CRM:.*hana_.*_site_srHook_/ ) {
+                  $messageType='Cs';
+            } elsif ( $fMessage =~ /Running srHookGeneration .* see attribute hana_..._gsh too/ ) {
+                  $messageType='Lv';
+            } elsif ( $fMessage =~ /Ignoring bad SR status because of empty site name/ ) {
+                  $messageType='Ie';
+            } else {
+                  $messageType='?';
+            }
+        $runtimes{$fID}->{Types} = $runtimes{$fID}->{Types} . $messageType;
+     }
+    }
+}
+
+#for my $key ( sort(keys(%countId))) {
+#    printf("count: %s %s\n", $key, $countId{$key});
+#}
+for my $key ( sort(keys(%doubles))) {
+    if ( $doubles{$key} > 1 ) {
+        #printf("double: %s %s\n", $key, $doubles{$key});
+        #printf("times: %s %s\n", $key, $times{$key});
+    }
+    if ( defined $runtimes{$key}->{Start} && defined $runtimes{$key}->{Stop} ) {
+        if ( $runtimes{$key}->{Stop} == -1 ) {
+            #printf("missing stop time: id: %s start time: %s %s\n", $key, $runtimes{$key}->{StartDateString}, $runtimes{$key}->{StartTimeStringShort});
+            printf("%s %s %11s %-16s %-10s %s\n", $runtimes{$key}->{StartDateString}, $runtimes{$key}->{StartTimeStringShort}, "---", $runtimes{$key}->{Hook}, $key, "Ds----");
+        } else {
+            my $rt; my $ms;
+            $rt = $runtimes{$key}->{Stop} - $runtimes{$key}->{Start};
+            $ms = $runtimes{$key}->{StopMicroseconds} - $runtimes{$key}->{StartMicroseconds};
+            if ( $rt > 0 && $ms < 0 ) {
+               $rt--;
+               $ms = $ms + 1000000;
+            }
+            #debug output
+            #printf("runtime: id: %s rt: %s ms: %s (start: %s, stop: %s)\n", $key, $rt, $ms, $runtimes{$key}->{StartTimeString}, $runtimes{$key}->{StopTimeString});
+            #printf("lastMessage: id:%s msg: %s\n", $key, $runtimes{$key}->{lastMessage});
+
+            #printf("%s %s %s.%06i (%s) %s [%s %s] [%s]\n", $runtimes{$key}->{StartDateString}, $runtimes{$key}->{StartTimeStringShort}, $rt, $ms, $runtimes{$key}->{Hook}, $key, $runtimes{$key}->{StartTimeString}, $runtimes{$key}->{StopTimeString}, $runtimes{$key}->{Types});
+            printf("%s %s %4s.%06i %-16s %-10s %s\n", $runtimes{$key}->{StartDateString}, $runtimes{$key}->{StartTimeStringShort}, $rt, $ms, $runtimes{$key}->{Hook}, $key,  $runtimes{$key}->{Types});
+        }
+    }
+}
