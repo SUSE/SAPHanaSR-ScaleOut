@@ -1,6 +1,6 @@
-.\" Version: 0.180.0
+.\" Version: 0.181.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "02 Feb 2022" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR-ScaleOut 7 "22 Feb 2022" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -255,8 +255,9 @@ Instance Number (INO).
 .PP
 8. Besides SAP HANA you need SAP hostagent installed and started on your systems.
 For SystemV style, the sapinit script needs to be active.
-For systemd style, the services saphostagent and SAP${SID}_${INO} can stay enabled. The systemd enabled saphostagent and sapstartsrv is supported from SAPHanaSR-ScaleOut 0.181 onwards. Please refer to the OS documentation for the systemd version. Please refer to SAP documentation for the SAP HANA version.
-All nodes in one Linux cluster have to use the same style.
+For systemd style, the services saphostagent and SAP${SID}_${INO} can stay enabled. The systemd enabled saphostagent and instance´s sapstartsrv is supported from SAPHanaSR-ScaleOut 0.181 onwards. Please refer to the OS documentation for the systemd version. Please refer to SAP documentation for the SAP HANA version.
+Combining systemd style hostagent with SystemV style instance is allowed.
+However, all nodes in one Linux cluster have to use the same style.
 .PP
 9. Automated start of SAP HANA database systems during system boot
 must be switched off.
