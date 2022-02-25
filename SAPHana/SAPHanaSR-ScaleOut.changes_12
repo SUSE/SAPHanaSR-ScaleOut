@@ -1,0 +1,166 @@
+-------------------------------------------------------------------
+Mon Jan 10 09:57:21 UTC 2022 - abriel@suse.com
+
+- change version to 0.181.0
+- add dedicated logging of HANA_CALL problems. So it will be now
+  possible to identify, if the called hana command or the needed
+  su command throws the error and for further hints we log the
+  stderr output.
+  Additional it is possible to get regular log messages for the
+  used commands, their return code and their stderr output by
+  enabling the 'debug' mode of the resource agents.
+  (bsc#1182774)
+- add switch 'cib_access' to the SAPHanaSrMultiTarget hook to give
+  control over the hook runtime.
+  Default is 'all-on' which means there are 3 cib calls performed
+  inside the hook script.
+  Changing the value of 'cib_access' inside the global.ini file to
+  'site-on' to perform the absolute minimum cib calls (only one)
+  (bsc#1189540)
+
+-------------------------------------------------------------------
+Mon Aug  2 12:23:09 UTC 2021 - abriel@suse.com
+
+- change version to 0.180.1
+- Multi-target SAP HANA Scale-out replication support.
+  Extent the SAP HANA ressource agents from single replication
+  automation to multi replication automation, which means
+  adding multi-target support (srHook - SAPHanaSrMultiTarget.py)
+  /usr/sbin/SAPHanaSR-manageAttr - Add a helper tool to support the
+  customer during the update from a single replication automation
+  to multi replication automation.
+  (jsc#SLE-17452, jsc#SLE-20081)
+- The resource start and stop timeout is now configurable by
+  increasing the timeout for the action 'start' and/or 'stop' in
+  the cluster. We will use 95% of this action timeouts to calculate
+  the new resource start and stop timeout for the 'WaitforStarted'
+  and 'WaitforStopped' functions. If the new, calculated timeout
+  value is less than '3600', it will be set to '3600', so that we
+  do not decrease this timeout by accident in currently running
+  clusters
+  (bsc#1182545)
+- improve handling of return codes in saphana_stopSystem and
+  saphana_stop function.
+  (bsc#1182115)
+- If the cluster is down during a SR change event, these events
+  need special care. They need to pick-up separately to not get
+  lost.
+- integrate man pages back to the base package SAPHanaSR-ScaleOut.
+  The doc package SAPHanaSR-ScaleOut-doc will still exists, but
+  only contain the file 'SAPHanaSR-Setup-Guide.pdf'
+- During a SR takeover there may be a small time frame where the
+  srHook gets a state change from the API with an empty site name.
+  This results in a mis-configuration of the cluster. So log the
+  occurrence of an empty site name, but do not generate bad
+  formatted cluster attribute name.
+  (analog to ScaleUp - bsc#1173581)
+- add SAPHanaSR-call-monitor
+- handle 'leftover instances'
+  if HANA is configured to have only one master name server, but
+  no additional master name server candidates, there may be the
+  situation, where the master name serve died and so the landscape
+  has no active name server anymore.
+  But there are other instances running with active communication
+  channels. To prevent data corruption or operations on outdated
+  data, we identify and stop these 'leftover' instances.
+- manual page updates:
+  SAPHanaSR-ScaleOut.7 (bsc#1144442)
+  SAPHanaSR-showAttr.8 (bsc#1144312)
+  and others
+
+-------------------------------------------------------------------
+Thu Mar  4 18:00:41 UTC 2021 - abriel@suse.com
+
+- change version to 0.164.2
+- The resource start and stop timeout is now configurable by
+  increasing the timeout for the action 'start' and/or 'stop'.
+  We will use 95% of this action timeouts to calculate the new
+  resource start and stop timeout for the 'WaitforStarted' and
+  'WaitforStopped' functions. If the new, calculated timeout value
+  is less than '3600', it will be set to '3600', so that we do not
+  decrease this timeout by accident
+  (bsc#1182545)
+- add return codes for saphana_stop and saphana_StopSystem
+  (bsc#1182115)
+- man page SAPhanaSR-ScaleOut minor mistakes
+  (bsc#1144442)
+
+-------------------------------------------------------------------
+Wed Nov  4 10:10:06 UTC 2020 - abriel@suse.com
+
+- change version to 0.164.1
+- adapt man page SAPHanaSR-showAttr(8) and the README
+  (bsc#1144729)
+
+-------------------------------------------------------------------
+Mon Sep 21 14:40:04 UTC 2020 - abriel@suse.com
+
+- PROMOTED/PROMOTED Fix - The PROMOTED/PROMOTED values happened
+  after the main tenance procedure and the refresh of the resource
+  did not fixed that
+  (bsc#1176330)
+- Improved SCORING and logging
+  Score of secondary in takeover phase increased from 122 to 145 to
+  avoid promotion of former primary masternameserver candidates
+  (bsc#1174610)
+- Fixed typos and improved descriptions in comments
+- Change default timeouts and intervals to match the official
+  recommendations
+
+-------------------------------------------------------------------
+Thu May 14 15:28:09 UTC 2020 - abriel@suse.com
+
+- let the SAPHanaSR-ScaleOut-doc package conflict with the
+  SAPHanaSR-doc package
+  (bsc#1157685)
+
+-------------------------------------------------------------------
+Mon Nov 11 10:44:44 UTC 2019 - abriel@suse.com
+
+- change version to 0.164.0
+- restart sapstartsrv service on master nameserver node
+  (bsc#1156150)
+- Use a fall-back scoring for the master nameserver nodes, if the
+  current roles of the node(s) got lost.
+  (bsc#1156067)
+- clean up package, add checks, correct typos
+
+-------------------------------------------------------------------
+Wed Sep 12 12:19:06 UTC 2018 - clanig@suse.de
+
+- Version 0.163.2
+- Fix bsc#1098979: SAPHanaSR-ScaleOut SAPHanaTopology and 
+  SAPHanaController allowing virtual host names
+
+-------------------------------------------------------------------
+Tue Jun 26 13:40:14 UTC 2018 - imanyugin@suse.com
+
+- Version 0.163.1
+
+-------------------------------------------------------------------
+Tue May 08 10:56:48 UTC 2018 - imanyugin@suse.com
+
+- Fix bsc#1092331: SAPHanaSR: SAPHanaSR-showAttr fails to open an archived cib file
+- Fix bsc#1091988:SAPHanaSR-ScaleOut SAPHanaSR-monitor depends on package not existing in SLES
+- SAPHanaSR-showAttr, SAPHanaSR-monitor moved to /usr/sbin to match the file layout in SAPHanaSR-ScaleUp
+
+-------------------------------------------------------------------
+Tue Apr 03 13:46:40 UTC 2018 - imanyugin@suse.com
+
+- Version 0.163.0
+- Fix bsc#1045603: Update man pages
+- Fix bsc#1045536: SAPHanaSR-ScaleOut missing update to use SLES python
+- Fix bsc#1086545: minor typos in package description and man pages
+
+-------------------------------------------------------------------
+Thu Jul 14 13:51:45 UTC 2016 - imanyugin@suse.com
+
+- Version 0.161.1
+- Added a package conflict for SAPHanaSR, bsc#989162
+- Restructure package and the .spec file
+
+-------------------------------------------------------------------
+Mon Jun 13 14:12:40 UTC 2016 - imanyugin@suse.com
+
+- Initial technical preview release. fate#318793 
+

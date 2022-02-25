@@ -11,6 +11,7 @@ FILE_LIST = crmconfig \
 
 PKG = SAPHanaSR-ScaleOut
 SPECFILE = ${PKG}.spec
+CHANGESFILE = ${PKG}.changes
 VERSION = $(strip $(patsubst Version:,,$(shell grep '^Version:' $(SPECFILE))))
 TARBALL_NAME = ${PKG}-${VERSION}.tar.bz2
 
@@ -31,10 +32,16 @@ copy: tarball
 		echo -e "\e[31mProject directory is missing. Set it via 'OBSPROJ=/path/to/project'\e[0m"; \
 		exit 1; \
 	fi
+	@cp ${PKG}.changes_$(REL) ${CHANGESFILE}
+	@if [ $(OBSPROJ) = "placeholder" ]; then
+		echo -e "\e[31mProject directory is missing. Set it via 'OBSPROJ=/path/to/project'\e[0m";
+		exit 1;
+	fi
 	@echo -e "\e[33mCopying the SPEC file, CHANGES file and the tarball to ${OBSPROJ}\e[0m"
 	@cp ${PKG}.changes ${OBSPROJ}
 	@cp ${PKG}.spec ${OBSPROJ}
 	@cp ${TARBALL_NAME} ${OBSPROJ}
+	@rm ${CHANGESFILE}
 	@echo -e "\e[32mDone\e[0m"
 
 .ONESHELL:

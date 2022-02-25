@@ -2,7 +2,7 @@
 # spec file for package SAPHanaSR-ScaleOut
 #
 # Copyright (c) 2016      SUSE LINUX GmbH, Nuernberg, Germany.
-# Copyright (c) 2017-2021 SUSE LLC
+# Copyright (c) 2017-2022 SUSE LLC
 #
 # All modifications and additions to the file contributed by third parties
 # remain the property of their copyright owners, unless otherwise agreed
