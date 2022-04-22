@@ -1,14 +1,10 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR.py 7 "20 Sep 2021" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "22 Apr 2022" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
 .PP
-.\"
-.\" .SH SYNOPSYS
-.\" \fBSAPHanaSR.py\fP
-.\" .PP
 .\"
 .SH DESCRIPTION
 SAPHanaSR.py can be used to provide a script for the SAP HANA srHook method
@@ -20,6 +16,13 @@ takeover process. These so called hooks can be used for arbitrary operations
 that need to be executed. The method srConnectionChanged() is called on the
 master nameserver as soon as one of the replicating services loses or
 establishes the system replication connection. This method is called only once.
+
+SAPHanaSR.py updates the cluster attribute srHook at changes of the HANA system
+replication status. Thus this attribute is more reliable than the attribute
+sync_state which is polled by RA monitors.
+
+This hook script needs to be configured and activated on all HANA nodes.
+
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
@@ -29,21 +32,26 @@ ha_dr_provider_SAPHanaSR section:
 \fB[ha_dr_provider_saphanasr]\fP
 .TP
 \fBprovider = SAPHanaSR\fP
+Mandatory. Must not be changed.
 .TP
 \fBpath = /usr/share/SAPHanaSR-ScaleOut/\fP
+Mandatory. Please change only if requested.
 .TP
 \fBexecution_order = [ INTEGER ]\fP
+Mandatory. Order might depend on other hook scripts.
 .PP
 \fB*\fR The "HA/DR providers" API accepts the following parameter for the trace section:
 .TP
 \fB[trace]\fP
 .TP
 \fBha_dr_saphanasr = [ info | debug ]\fP
+Optional. Will be added automatically if not set.
 .PP
-\fB*\fR The SAPHanaController and SAPHana RA recognize the effecting system replication 
-status via attributes in the CIB properties section. The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section below for supported API
-versions and scenarios. For old SAPHanaSR-ScaleOut the SAPHanaSR.py provides
-one global attribute among the SAPHanaSR properties:
+\fB*\fR The SAPHanaController and SAPHana RA recognize the effecting system
+replication  status via attributes in the CIB SAPHanSR properties section.
+The SAP System Indentifier (sid) is given in lower case. See REQUIREMENTS section
+below for supported API versions and scenarios. For old SAPHanaSR-ScaleOut the
+SAPHanaSR.py provides one global attribute among the SAPHanaSR properties:
 .TP
 \fBhana_<sid>_glob_srHook = [ SOK | SFAIL | SWAIT ]\fP
 .TP
@@ -274,13 +282,9 @@ https://www.susecon.com/archive-2019.html ,
 .br
 https://www.susecon.com/archive-2020.html ,
 .br
-http://help.sap.com/saphelp_hanaplatform/helpdata/en/13/67c8fdefaa4808a7485b09815ae0f3/content.htm ,
+https://help.sap.com/docs/SAP_HANA_PLATFORM?locale=en-US
 .br
-http://help.sap.com/saphelp_hanaplatform/helpdata/en/5d/f2e766549a405e95de4c5d7f2efc2d/content.htm ,
-.br
-http://help.sap.com/saphelp_hanaplatform/helpdata/en/12/00ab8ef0c54c54be2d0e7f5327f7ed/content.htm?frameset=/en/13/67c8fdefaa4808a7485b09815ae0f3/frameset.htm&current_toc=/en/00/0ca1e3486640ef8b884cdf1a050fbb/plain.htm&node_id=413 ,
-.br
-https://help.sap.com/saphelp_hanaplatform/helpdata/en/3f/1a6a7dc31049409e1a9f9108d73d51/content.htm
+https://help.sap.com/docs/SAP_HANA_PLATFORM/6b94445c94ae495c83a19646e7c3fd56/5df2e766549a405e95de4c5d7f2efc2d.html?locale=en-US
 .PP
 .\"
 .SH AUTHORS
@@ -290,10 +294,10 @@ A.Briel, F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2016 SUSE Linux GmbH, Germany.
 .br
-(c) 2017-2021 SUSE LLC
+(c) 2017-2022 SUSE LLC
 .br
 SAPHanaSR.py comes with ABSOLUTELY NO WARRANTY.
 .br
 For details see the GNU General Public License at
 http://www.gnu.org/licenses/gpl.html
-.\" 
+.\"
