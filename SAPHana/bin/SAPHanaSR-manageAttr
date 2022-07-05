@@ -1031,16 +1031,28 @@ chk_cluster_health() {
     done
 
     # get DC and check idle state
-    DC=$(crmadmin -Dq 2>&1 1>/dev/null)
-    if [ -n "$DC" ]; then
-        istate=$(crmadmin -q -S "$DC" 2>&1 1>/dev/null)
-    else
+    # Note: crmadmin in Pacemaker versions before 2.0.5/2.1.0 printed the
+    # --quiet result on stderr, hence checking this output sink first.
+    local ret
+    ret=0
+    DC=$(crmadmin -q -D 2>&1 1>/dev/null) || ret=$?
+    if [ -z "$DC" ]; then
+        DC=$(crmadmin -q -D 2>/dev/null) || ret=$?
+    fi
+    if [ -z "$DC" ] || [ "$ret" != 0 ]; then
         wr_info -eh "Could not detect the Designated Controller, please check cluster health."
         chk=1
+    else
+        istate=$(crmadmin -q -S "$DC" 2>&1 1>/dev/null) || ret=$?
     fi
-    if [ "$istate" != "S_IDLE" ]; then
-        wr_info -eh "Cluster NOT in state S_IDLE, but in state '$istate'. Please check."
+    if [ -z "$istate" ] || [ "$ret" != 0 ]; then
+        wr_info -eh "Cluster state 'unknown'. Please check."
         chk=1
+    else
+        if [ "$istate" != "S_IDLE" ]; then
+            wr_info -eh "Cluster NOT in state S_IDLE, but in state '$istate'. Please check."
+            chk=1
+        fi
     fi
 
     return $chk

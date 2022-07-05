@@ -1,6 +1,9 @@
 -------------------------------------------------------------------
-Tue Jul  5 12:20:39 UTC 2022 - abriel@suse.com
+Tue Jul  5 13:15:38 UTC 2022 - abriel@suse.com
 
+- change SAPHanaSR-manageAttr to support the different behaviour of
+  'crmadmin -qD' in different pacemaker versions
+  (bsc#1200969)
 - fix HANA_CALL function to support MCOS environments again
   (bsc#1198780)
 - correct the order constraint in man page ocf_suse_SAPHanaTopology.7
