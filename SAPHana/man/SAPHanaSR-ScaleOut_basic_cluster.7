@@ -49,11 +49,11 @@ would be equal to the \fBnumber of nodes * stonith timeout\fR. With concurrent-f
 enabled the time needed is in the range of \fB2 * stonith timeout\fR, independent of
 the number of nodes. See also \fBpcmk_action_limit\fR below.
 
-\fBfailure-timeout = 86400s\fR
+\fBfailure-timeout = 86400\fR
 
 The crm basic parameter failure-timeout defines how long failed actions will
-be kept in the CIB. After that time the failure record will be deleted. 
-See also \fBmigration-threshold\fR below.
+be kept in the CIB. After that time the failure record will be deleted. The
+time is measured in seconds. See also \fBmigration-threshold\fR below.
 
 \fBmigration-threshold = 50\fR
 
@@ -83,8 +83,8 @@ See also \fBconcurrent-fencing\fR above.
 The sbd stonith parameter pcmk_delay_max defines an upper limit for waiting
 before a fencing/stonith request will be triggerd.
 This parameter should prevent the cluster from unwanted double fencing in case
-of spilt-brain. A value around 30 seconds required in two-node clusters. It is not
-needed in usual SAPHanaSR-ScaleOut setups.
+of spilt-brain. A value around 30 seconds is required in two-node clusters. It
+is not needed in usual SAPHanaSR-ScaleOut setups.
 
 .PP
 \fB* systemd Basics\fR
@@ -283,7 +283,7 @@ colocation col_ip_with_SLE_HDB00 \\
 In case of NFS failure, HANA might stop working but the Linux cluster
 might not take action. To solve this, a dummy filesystem resource could
 be added. If this filesystem reports monitor failures, the node gets fenced
-and a take-over is initiated.
+and a takeover is initiated.
 .br
 Note: Understand the impact before implementing.
 .PP
@@ -329,7 +329,8 @@ Linux cluster should be in the same range.
 \fB* cleanup SDB stonith resource after write failure\fR
 
 In rare cases the SBD stonith resource failes writing to the block device.
-After the root cause has been found and fixed, the failure message can be cleaned.
+After the root cause has been found and fixed, the failure message can be
+cleaned.
 .PP
 .RS 2
 .br
