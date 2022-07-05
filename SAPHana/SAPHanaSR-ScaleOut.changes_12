@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Tue Jul  5 12:20:39 UTC 2022 - abriel@suse.com
+
+- fix HANA_CALL function to support MCOS environments again
+  (bsc#1198780)
+- correct the order constraint in man page ocf_suse_SAPHanaTopology.7
+  (bsc#1197239)
+
+-------------------------------------------------------------------
 Mon Jan 10 09:57:21 UTC 2022 - abriel@suse.com
 
 - change version to 0.181.0
