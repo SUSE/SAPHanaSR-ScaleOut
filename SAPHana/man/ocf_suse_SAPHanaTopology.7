@@ -1,12 +1,12 @@
 .\" Version: 0.180.0
 .\"
-.TH ocf_suse_SAPHanaTopology 7 "29 Apr 2021" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaTopology 7 "30 Jun 2022" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaTopology \- Helps to manage two SAP HANA databases with system replication.
 .PP
 .\"
-.SH SYNOPSYS
+.SH SYNOPSIS
 \fBSAPHanaTopology\fP [start | stop | status | monitor | meta\-data | validate\-all | methods | usage ]
 .PP
 .\"
@@ -37,7 +37,7 @@ role of the nameserver as well as the indexserver.
 The interface hdbnsutil is used to check the "topology" of the system
 replication as well as the current configuration (primary/secondary) of a
 SAP HANA database. A second task of the interface is the posibility to run
-a system replication take-over (sr_takeover) or to register a former primary
+a system replication takeover (sr_takeover) or to register a former primary
 to a newer one (sr_register). In scale-out setups, hdbnsutil sometimes
 might take some time. SAPHanaTopology uses only task one. SAPHanaController 
 or SAPHana are using all three tasks.
@@ -83,7 +83,7 @@ If the timeout is reached, the return code will be 124. If you increase the
 timeouts for HANA calls you should also adjust the operation timeouts of your
 Linux cluster resources.
 .br
-Optional. Default value: 120.
+Optional. Default value: 60 for scale-up, 120 for scale-out.
 .RE
 .PP
 .\"
@@ -206,7 +206,7 @@ notify="true" interleave="true" clone-node-max="1"
 .PP
 location SAPHanaTop_not_on_majority_maker cln_SAPHanaTop_HAE_HDB00 -inf: vm-majority
 .PP
-order SAPHanaTop_first 1000: cln_SAPHanaTop_SLE_HDB00 msl_SAPHC_SLE_HDB00
+order SAPHanaTop_first Optional: cln_SAPHanaTop_SLE_HDB00 msl_SAPHC_SLE_HDB00
 .RE
 .PP
 .\"
@@ -268,7 +268,7 @@ F.Herschel, L.Pinne.
 .br
 (c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2018-2021 SUSE LLC
+(c) 2018-2022 SUSE LLC
 .br
 SAPHanaTopology comes with ABSOLUTELY NO WARRANTY.
 .br

@@ -1,11 +1,11 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-monitor 8 "04 Jun 2020" "" "SAPHanaSR-monitor.8"
+.TH SAPHanaSR-monitor 8 "27 May 2022" "" "SAPHanaSR-monitor.8"
 .\"
 .SH NAME
 SAPHanaSR-monitor \- Display status of SAP HANA system replication automation (SAPHanaSR).
 .\"
-.SH SYNOPSYS
+.SH SYNOPSIS
 \fBSAPHanaSR-monitor\fR [ --help | --version ]
 .br
 \fBSAPHanaSR-monitor \fIOPTION VALUE\fR
@@ -42,7 +42,7 @@ The overall system replication (SR) state is shown in an summarized manner.
 \fB --out \fIFILE\fR
 .br
 	use output file \fIFILE\fR, default is /srv/www/hawk/public/SAPHanaSR/index.html.
-    The directory is not created by the package.
+    The directory is not created by the package. This option is only valid for format 'html'.
 .HP
 \fB --sid \fISID\fR[:\fIInstanceNumber\fR]
 .br
@@ -99,9 +99,9 @@ F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2014 SUSE Linux Products GmbH, Germany.
 .br
-(c) 2015-2016 SUSE Linux GmbH, Germany.
+(c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2017-2020 SUSE LLC
+(c) 2018-2022 SUSE LLC.
 .br
 SAPHanaSR-monitor comes with ABSOLUTELY NO WARRANTY.
 .br
