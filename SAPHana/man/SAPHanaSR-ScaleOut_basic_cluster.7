@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "02 Feb 2022" "" "SAPHanaSR-ScaleOut_basic_cluster"
+.TH SAPHanaSR-ScaleOut 7 "02 Aug 2022" "" "SAPHanaSR-ScaleOut_basic_cluster"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut_basic_cluster \- SAP HANA System Replication scale-out basic cluster configuration.
@@ -283,7 +283,7 @@ colocation col_ip_with_SLE_HDB00 \\
 In case of NFS failure, HANA might stop working but the Linux cluster
 might not take action. To solve this, a dummy filesystem resource could
 be added. If this filesystem reports monitor failures, the node gets fenced
-and a take-over is initiated.
+and a takeover is initiated.
 .br
 Note: Understand the impact before implementing.
 .PP
