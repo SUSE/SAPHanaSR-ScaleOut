@@ -1,6 +1,6 @@
 .\" Version: 0.160.0
 .\"
-.TH susChkSrv.py 7 "29 Jul 2022" "" "SAPHanaSR"
+.TH susChkSrv.py 7 "08 Aug 2022" "" "SAPHanaSR"
 .\"
 .SH NAME
 susChkSrv.py \- Provider for SAP HANA srHook method srServiceStateChanged().
@@ -40,7 +40,8 @@ page ocf_suse_SAPHana(7) or ocf_suse_SAPHanaController(7).
 Customising of HANA daemon timeout parameters might be needed for adapting the
 solution to a given environment. Please refer to SAP HANA documentation.
 
-This hook script needs to be installed, configured and activated on all HANA nodes.
+This hook script needs to be installed, configured and activated on all HANA
+nodes.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
@@ -338,8 +339,7 @@ memory and on disk (in persistence).
 .PP
 4. HANA daemon timeout TODO
 .PP
-.\" TODO check below:
-5. The hook script runs on the HANA master nameserver.
+5. The hook script runs on the system where srServiceStateChanged() happened.
 .PP
 6. HANA scale-out is supported only with exactly one master nameserver. HANA
 host auto-failover is not supported. Thus no standby nodes.
@@ -351,7 +351,11 @@ susChkSrv.py parameter 'action_on_lost=fence' is set.
 SAPHanaController parameter 'AUTOMATED_REGISTER=true' is set, it depends on HANA
 to release all OS resources prior to the registering attempt.
 .PP
-9. If the hook provider should be pre-compiled, the particular Python version
+9. No other HADR provider hooks script should be configured for the
+srServiceStateChanged() hook. Hook scripts provided in SAPHanaSR and
+SAPHanaSR-ScaleOut can be used in parallel.
+.PP
+10. If the hook provider should be pre-compiled, the particular Python version
 that comes with SAP HANA has to be used.
 .\"
 .SH BUGS
