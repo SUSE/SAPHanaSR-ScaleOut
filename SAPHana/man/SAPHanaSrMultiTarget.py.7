@@ -320,8 +320,9 @@ scenarios.
 .\" TODO check HANA 2.0 SPS
 .PP
 2. No other HADR provider hook script should be configured for the
-srConnectionChanged() hook. Hook scripts provided in SAPHanaSR and
-SAPHanaSR-ScaleOut can be used in parallel, if not documented contradictingly.
+srConnectionChanged() method. Hook scripts for other methods, provided in
+SAPHanaSR-ScaleOut, can be used in parallel to SAPHanaSrMultiTarget.py, if
+not documented contradictingly.
 .PP
 3. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
 .PP

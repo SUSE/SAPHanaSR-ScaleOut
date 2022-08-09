@@ -232,8 +232,9 @@ With the mentioned HANA versions uni-directional chained system replication
 is possible. See SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
 .PP
 2. No other HADR provider hook script should be configured for the
-srConnectionChanged() hook. Hook scripts provided in SAPHanaSR and
-SAPHanaSR-ScaleOut can be used in parallel, if not documented contradictingly.
+srConnectionChanged() method. Hook scripts for other methods, provided in
+SAPHanaSR and SAPHanaSR-ScaleOut, can be used in parallel to SAPHanaSR.py, if
+not documented contradictingly.
 .PP
 3. The user <sid>adm needs execution permission as user root for the command crm_attribute.
 .PP
