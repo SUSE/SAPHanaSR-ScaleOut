@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.181.0.1226.1907"
+SAPHanaControllerVersion="0.183.1"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -3290,6 +3290,13 @@ function saphana_demote_clone() {
     local rc=$OCF_ERR_GENERIC;
     set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
     rc=$OCF_SUCCESS;
+    # bsc#1198127: let it fail, to get the resource stopped.
+    my_role=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_ROLES[@]}")
+    if [[ "$my_role" =~ "*:shtdown:shtdown:shtdown*" ]]; then
+        rc=$OCF_ERR_GENERIC
+    else
+        rc=$OCF_SUCCESS
+    fi
     super_ocf_log info "ACT: Demoted $SID-$InstanceName."
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc
