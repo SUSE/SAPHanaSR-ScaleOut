@@ -26,7 +26,7 @@
 #
 #######################################################################
 # DONE PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
-SAPHanaTopologyVersion="0.181.0.1228.1907"
+SAPHanaTopologyVersion="0.183.1"
 #
 # Initialization:
 timeB=$(date '+%s')
@@ -883,8 +883,9 @@ function sht_start_clone() {
 function sht_stop_clone() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     local rc=0
+    local tout=0
     local nRole nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr
-	check_for_primary; primary_status=$?
+    check_for_primary; primary_status=$?
     if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
         hanaPrim="P"
     elif [ $primary_status -eq $HANA_STATE_SECONDARY ]; then
@@ -894,10 +895,61 @@ function sht_stop_clone() {
     else
         hanaPrim="-"
     fi
-    nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
-    read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
-    set_hana_attribute "${NODENAME}" "$nNsConf:shtdown:shtdown:shtdown" "${ATTR_NAME_HANA_ROLES[@]}"
-    sht_stop; rc=$?
+    # bsc#1198127
+    # we do not use our usual HANA_CALL_TIMEOUT for this call of
+    # 'landscapeHostConfiguration.py', but a much longer one, because if the
+    # timeout is reached, the node will be fenced. So it is a critical call
+    # and should get reasonable time to succeed.
+    # But it will be configurable by the cluster config (action timeout), if a
+    # system needs more time than we expected. The minimum used timeout is 300s
+    #
+    # timeOut = max(300, 50%(actionTimeOut))
+    # $OCF_RESKEY_CRM_meta_timeout is the timeout of the current running action
+    # in ms
+    local actionTimeOut="$OCF_RESKEY_CRM_meta_timeout"
+    local stdTimeOut=300
+    local actTimeOutPercent=50
+    if [ -z "$actionTimeOut" ]; then
+        actionTimeOut="$stdTimeOut"
+    else
+        # actionTimeOut in seconds
+        ((actionTimeOut = actionTimeOut/1000))
+    fi
+    # 50%(actionTimeOut)
+    ((timeout = actionTimeOut * actTimeOutPercent/100))
+    # max(300, 50%(actionTimeOut))
+    if [ -z "$timeout" ] || [ "$timeout" -lt "$stdTimeOut" ]; then
+        timeout=$stdTimeOut
+    fi
+
+    hanaANSWER=$(HANA_CALL --timeout "$timeout" --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+    if [ "$hanalrc" -ge 124 ]; then
+        # timeout of HANA_CALL, set role to '$nNsConf:shtdown:shtdown:shtdown'
+        # to get the saphana_demote_clone to fail and stop the resource
+        nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
+        read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+        set_hana_attribute "${NODENAME}" "$nNsConf:shtdown:shtdown:shtdown" "${ATTR_NAME_HANA_ROLES[@]}"
+        # and exit with 1 to let the stop fail
+        tout=1
+    else
+        hanarole=$(echo "$hanaANSWER" | tr -d ' ' | \
+            awk -F= '
+            $1 == "host/"vName"/nameServerConfigRole"  {nsCR=$2}
+            $1 == "host/"vName"/nameServerActualRole"  {nsAR=$2}
+            $1 == "host/"vName"/indexServerConfigRole" {isCR=$2}
+            $1 == "host/"vName"/indexServerActualRole" {isAR=$2}
+            $1 == "nameServerConfigRole"  {nsCR=$2}
+            $1 == "nameServerActualRole"  {nsAR=$2}
+            $1 == "indexServerConfigRole" {isCR=$2}
+            $1 == "indexServerActualRole" {isAR=$2}
+            END { printf "%s:%s:%s:%s\n", nsCR, nsAR, isCR, isAR;  } ' vName=$vName )
+        set_hana_attribute ${NODENAME} "$hanarole" "${ATTR_NAME_HANA_ROLES[@]}"
+    fi
+    sht_stop; rc=$? # till now it returns everytime $OCF_SUCCESS
+    if [ "$tout" -eq 1 ]; then
+        # timeout of landscapeHostConfiguration.py - let stop fail
+        rc=$OCF_ERR_GENERIC
+    fi
     return $rc
 }
 
@@ -951,7 +1003,7 @@ function sht_monitor_clone() {
     fi
     # DONE: PRIO1: ASK: Is the output format of ListInstances fix? Could we take that as an API?
     # try to catch:  Inst Info : LNX - 42 - lv9041 - 740, patch 36, changelist 1444691
-    # We rely on the following format: SID is word#4, NR is work#6, vHost is word#8
+    # We rely on the following format: SID is word#4, NR is word#6, vHost is word#8
     #### SAP-CALL
     if [ -e /usr/sap/hostctrl/exe/saphostctrl ]; then
         vName=$(/usr/sap/hostctrl/exe/saphostctrl -function ListInstances \
@@ -969,10 +1021,17 @@ function sht_monitor_clone() {
     if [ -z "$vName" ]; then
        vName=${NODENAME}
     fi
+    setRole=true
     hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+    # landscape timeout - retry command
     if [ "$hanalrc" -eq 124 ]; then
-        # landscape timeout
-        super_ocf_log warn "RA: landscapeHostConfiguration.py TIMEOUT after $HANA_CALL_TIMEOUT seconds"
+        super_ocf_log warn "RA: HANA_CALL timed out after $HANA_CALL_TIMEOUT seconds running command 'landscapeHostConfiguration.py --sapcontrol=1'. Retrying..."
+        hanaANSWER=$(HANA_CALL --timeout "$HANA_CALL_TIMEOUT" --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+        # if the second try again run into a timeout, log an error and do not set hanarole but keep the previous settings.
+        if [ "$hanalrc" -ge 124 ]; then
+            super_ocf_log err "RA: HANA_CALL Operation timeout after $HANA_CALL_TIMEOUT seconds running command 'landscapeHostConfiguration.py --sapcontrol=1'."
+                setRole=false
+        fi
     fi
     #
     # scan with and without host prefix to allow also single instances (scaleup) for smaller test environments
@@ -988,7 +1047,9 @@ function sht_monitor_clone() {
             $1 == "indexServerConfigRole" {isCR=$2}
             $1 == "indexServerActualRole" {isAR=$2}
             END { printf "%s:%s:%s:%s\n", nsCR, nsAR, isCR, isAR;  } ' vName=$vName )
-    set_hana_attribute ${NODENAME} "$hanarole" "${ATTR_NAME_HANA_ROLES[@]}"
+    if $setRole; then
+        set_hana_attribute ${NODENAME} "$hanarole" "${ATTR_NAME_HANA_ROLES[@]}"
+    fi
 
     # TODO PRIO2: COULD/SHOULD WE LIMIT THE SET OF THE LSS/SRR ATTRIBUTE TO ONLY THE_MASTER nodes?
     # ignore timeout (124) and "ignore" (5) as return code from the landscapeHostConfiguration call
