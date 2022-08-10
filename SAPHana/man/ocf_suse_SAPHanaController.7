@@ -6,7 +6,7 @@
 SAPHanaController \- Manages takeover between two SAP HANA databases with system replication.
 .PP
 .\"
-.SH SYNOPSYS
+.SH SYNOPSIS
 \fBSAPHanaController\fP [start | stop | status | monitor | promote | demote | notify | meta\-data | validate\-all | methods | usage ]
 .PP
 .\"
@@ -39,13 +39,19 @@ The resource agent uses the following five interfaces provided by SAP:
 .PP
 1. \fBsapcontrol/sapstartsrv\fP
 .br
-The interface sapcontrol/sapstartsrv is used to start/stop a HANA database instance/system. SAPHanaController also checks via this interface the instance status to allow a start of HANA standby nodes.
+The interface sapcontrol/sapstartsrv is used to start/stop a HANA database
+instance/system. SAPHanaController also checks via this interface the instance status to allow a start of HANA standby nodes.
 .PP
 2. \fBlandscapeHostConfiguration\fP
 .br
-The interface is used to monitor an entire HANA system. The python script is named landscapeHostConfiguration.py. landscapeHostConfiguration.py has some detailed output about HANA system status and node roles. For our monitor the overall status is relevant. This overall status is reported by the return code of the script:
-0: Internal Fatal, 1: ERROR, 2: WARNING, 3: INFO, 4: OK .
-The SAPHanaController resource agent will interpret return code 0 as FATAL, 1 as not-running (or ERROR) and return codes 2+3+4 as RUNNING.
+The interface is used to monitor an entire HANA system. The python script is named
+landscapeHostConfiguration.py.
+landscapeHostConfiguration.py has some detailed output about HANA system status
+and node roles. For our monitor the overall status is relevant. This overall
+status is reported by the return code of the script:
+0: Internal Fatal, 1: ERROR, 2: WARNING, 3: INFO, 4: OK
+The SAPHanaController resource agent will interpret return code 0 as FATAL, 1 as not-running
+(or ERROR) and return codes 2+3+4 as RUNNING.
 .br
 Note: Some conditions cause HANA stopping to work, but not reporting an error. E.g. filesystem filled up. 
 .PP
@@ -69,6 +75,7 @@ Please see also the REQUIREMENTS section below.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
+.br
 This resource agent supports the following parameters:
 .PP
 \fBSID\fR
@@ -83,14 +90,18 @@ Number of the SAP HANA database. Has to be same on both instances. For system re
 .PP
 \fBDIR_EXECUTABLE\fR
 .RS 4
-The full qualified path where to find sapstartsrv and sapcontrol. Specify this parameter, if you have changed the SAP kernel directory location after the default SAP installation.
+The full qualified path where to find sapstartsrv and sapcontrol.
+Specify this parameter, if you have changed the SAP kernel directory location
+after the default SAP installation.
 .br
 Optional, well known directories will be searched by default.
 .RE
 .PP
 \fBDIR_PROFILE\fR
 .RS 4
-The full qualified path where to find the SAP START profile. Specify this parameter, if you have changed the SAP profile directory location after the default SAP installation.
+The full qualified path where to find the SAP START profile.
+Specify this parameter, if you have changed the SAP profile directory location
+after the default SAP installation.
 .br
 Optional, well known directories will be searched by default.
 .RE
@@ -104,14 +115,18 @@ Optional, experimental. Default value: 120.
 .PP
 \fBINSTANCE_PROFILE\fR
 .RS 4
-The name of the SAP HANA instance profile. Specify this parameter, if you have changed the name of the SAP HANA instance profile after the default SAP installation. Normally you do not need to set this parameter.
+The name of the SAP HANA instance profile. Specify this parameter,
+if you have changed the name of the SAP HANA instance profile
+after the default SAP installation.
+Normally you do not need to set this parameter.
 .br
 Optional, well known directories will be searched by default.
 .RE 
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to takeover to the secondary database instead of restarting master locally. However a takeover will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of takeover could be combined with HANA's persistent memory features. Example: "PREFER_SITE_TAKEOVER=true".
+Defines whether RA should prefer to takeover to the secondary database instead of restarting
+master locally. However a takeover will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of takeover could be combined with HANA's persistent memory features. Example: "PREFER_SITE_TAKEOVER=true".
 .br
 Optional. Default value: false\&.
 .RE
