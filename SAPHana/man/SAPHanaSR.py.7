@@ -16,10 +16,10 @@ srConnectionChanged().
 
 The SAP HANA nameserver provides a Python-based API ("HA/DR providers"), which 
 is called at important points of the host auto-failover and system replication 
-takeover process. These so called hooks can be used for arbitrary operations
-that need to be executed. The method srConnectionChanged() is called on the
-master nameserver as soon as one of the replicating services loses or
-establishes the system replication connection. This method is called only once.
+takeover process. These so called hooks can be used for arbitrary operations that
+need to be executed. The method srConnectionChanged() is called on the master
+nameserver as soon as one of the replicating services loses or establishes
+the system replication connection. This method is called only once.
 .PP
 .\"
 .SH SUPPORTED PARAMETERS
