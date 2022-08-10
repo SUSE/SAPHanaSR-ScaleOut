@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR-monitor 8 "27 May 2022" "" "SAPHanaSR-monitor.8"
+.TH SAPHanaSR-monitor 8 "27 May 2022" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR-monitor \- Display status of SAP HANA system replication automation (SAPHanaSR).
@@ -47,6 +47,7 @@ The overall system replication (SR) state is shown in an summarized manner.
 \fB --sid \fISID\fR[:\fIInstanceNumber\fR]
 .br
 	use SAP system ID \fISID\fR and optional \fIInstanceNumber\fR.
+    Could be used multiple times.
 .\"
 .SH RETURN CODES
 .B 0
@@ -65,7 +66,7 @@ show status of SAP HANA system replication one time.
 /usr/bin/SAPHanaSR-monitor
 the program itself.
 .TP
-/usr/lib/SAPHanaSR-ScaleOut
+/usr/lib/SAPHanaSR or /usr/lib/SAPHanaSR-ScaleOut
 directory with function libraries.
 .TP
 /srv/www/hawk/public/SAPHanaSR/index.html
@@ -80,10 +81,10 @@ script is under development.
 Feedback is welcome, please mail to feedback@suse.com.
 .\"
 .SH SEE ALSO
-\fBocf_suse_SAPHanaController\fP(7) , \fBocf_suse_SAPHanaTopology\fP(7) ,
+\fBocf_suse_SAPHana\fP(7) or \fBocf_suse_SAPHanaController\fP(7) , \fBocf_suse_SAPHanaTopology\fP(7) ,
 \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR-filter\fP(8) , \fBcibadmin\fP(8) , 
 .br
-https://documentation.suse.com/sbp/all/?context=sles-sap ,
+https://documentation.suse.com/sbp/sap ,
 .br
 https://documentation.suse.com/sles-sap/ ,
 .br
@@ -91,7 +92,9 @@ https://www.susecon.com/doc/2015/sessions/TUT19921.pdf ,
 .br
 https://www.susecon.com/doc/2016/sessions/TUT90846.pdf ,
 .br
-https://www.susecon.com/archive-2020.html
+https://www.susecon.com/archive-2020.html ,
+.br
+https://www.susecon.com/archive-2021.html
 .\"
 .SH AUTHORS
 F.Herschel, L.Pinne.
