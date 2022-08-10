@@ -12,7 +12,7 @@
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2013,2014 SUSE Linux Products GmbH
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
-# Copyright:    (c) 2017-2021 SUSE LLC
+# Copyright:    (c) 2017-2022 SUSE LLC
 #
 # An example usage:
 #      See usage() function below for more details...
@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.181.0.1226.1907"
+SAPHanaControllerVersion="0.183.1"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -203,7 +203,7 @@ The resource agent uses the following four interfaces provided by SAP:
    Interface is SQL query into HANA (system replication table).  The hdbsql query will be replaced by a python script
    "systemReplicationStatus.py" in SAP HANA SPS8 or 9.
    As long as we need to use hdbsql you need to set up secure store users for linux user root to be able to
-   access the SAP HANA database. You need to configure a secure store user key "SAP HANA${SID}SR" which can connect the SAP
+   access the SAP HANA database. You need to configure a secure store user key "SAPHANA${SID}SR" which can connect the SAP
    HANA database:
 
 5. saphostctrl
@@ -460,7 +460,7 @@ function get_hana_attribute()
 
 #
 # function: set_hana_attribute - set the multi-state status of a node
-# params:   NODE VALUE ATTR [STORE]
+# params:   NODE VALUE ATTR [STORE [DEFAULT]]
 # globals:  -
 #
 function set_hana_attribute()
@@ -1000,7 +1000,7 @@ function saphana_init() {
         for onode in "${otherNodes[@]}"; do
             onode_site=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
             if [ -z "$onode_site" ]; then
-                # not a HANA node, may be the decision maker / tiebreaker
+                # not a HANA node, maybe the decision maker / tiebreaker
                 continue
             fi
             (( nrOfNodes++ ))
@@ -1042,7 +1042,7 @@ function saphana_init() {
         for onode in "${otherNodes[@]}"; do
             onode_site=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SITE[@]}")
             if [ -z "$onode_site" ]; then
-                # not a HANA node, may be the decision maker / tiebreaker
+                # not a HANA node, maybe the decision maker / tiebreaker
                 continue
             fi
             onode_srHook_gen=$(get_hana_attribute "$onode" "${ATTR_NAME_HANA_SRHOOK_GEN[@]}")
@@ -1057,7 +1057,7 @@ function saphana_init() {
                 super_ocf_log info "HOOK: RA saphana_init - the cluster nodes '$NODENAME' and '$onode' are running different Hook generations ('$srHook_gen' - '$onode_srHook_gen')."
             fi
         done
-        # be in mind: it may be that not all nodes running the same Hook generation
+        # be in mind: it maybe that not all nodes running the same Hook generation
         multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
         if [ -z "$multiTargetSupport" ]; then
             # cluster attribute 'hana_${sid}_glob_mts' not set
@@ -1237,7 +1237,6 @@ function check_sapstartsrv() {
             # TODO: PRIO2: Check, if we need to delete the socket files
             rm -f /tmp/.sapstream5${InstanceNr}13
             rm -f /tmp/.sapstream5${InstanceNr}14
-            # DONE: PRI0: WE NEED LD_LIBRARY_PATH HERE!!
             (
               export PATH="$DIR_EXECUTABLE${PATH:+:}$PATH"
               export LD_LIBRARY_PATH="$DIR_EXECUTABLE${LD_LIBRARY_PATH:+:}$LD_LIBRARY_PATH"
@@ -1325,14 +1324,14 @@ function check_for_primary() {
 # systemReplicationStatus.py return-codes:
 #    NoHSR        = 10
 #    Error        = 11
-#    Unkown       = 12
+#    Unknown      = 12
 #    Initializing = 13
 #    Syncing      = 14
 #    Active       = 15
 function analyze_hana_sync_statusSRS()
 {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
-    local rc=-1 srRc=0 all_nodes_other_side="" local n="" siteParam=""
+    local rc=-1 srRc=0 all_nodes_other_side="" n="" siteParam=""
     if [ -n "$remSR_name" ]; then
        siteParam="--site=$remSR_name"
     fi
@@ -2121,7 +2120,7 @@ function lpa_init_lpt() {
     local hana_state=$1
     local lpa_file=$LPA_DIRECTORY/lpa_${sid}_${NODENAME}
     mkdir -p $LPA_DIRECTORY
-    LPTloc=$(lpa_get_lpt ${sr_name}) || LPTloc=$(lpa_pull_lpt) || \
+    LPTloc=$(lpa_get_lpt "${sr_name}") || LPTloc=$(lpa_pull_lpt) || \
         if   [ "$hana_state" -eq "$HANA_STATE_PRIMARY" ];  then    # Initialize for Primary
             # init primary
             LPTloc=20
@@ -2182,7 +2181,7 @@ function lpa_check_lpt_status() {
     #
     # First GET LPT from ATTR-FILE-DEFAULT
     #
-    LPTloc=$(lpa_get_lpt $sr_name); lparc=$?   # ATTR
+    LPTloc=$(lpa_get_lpt "$sr_name"); lparc=$?   # ATTR
     if [ "$lparc" -ne 0 ]; then
         # as a fallback try to fetch the value from external status file
         LPTloc=$(lpa_pull_lpt);                 # FILE
@@ -2475,7 +2474,7 @@ function saphana_start_clone() {
             rc=$OCF_SUCCESS
         fi
     else
-        set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
+        set_hana_attribute "${NODENAME}" "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
         local start=0
         local lss=0
         local my_role=0
@@ -2744,7 +2743,7 @@ function saphana_monitor_primary()
                     rc=$OCF_RUNNING_MASTER
                 else
                     if [ "$init_attribute" -eq 1 ]; then
-                        set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
+                        set_hana_attribute "${NODENAME}" "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
                         rc=$OCF_RUNNING_MASTER
                     else
                         rc=$OCF_SUCCESS
@@ -2759,12 +2758,12 @@ function saphana_monitor_primary()
                 # first check, if we have a pending HA/DR provider attribute in the interface files
                 #
                 recover_site_attributes_from_file "/hana/shared/$SID/$InstanceName/.crm_attribute.$remSR_name"
-		#
-		# second check, if we have a pending HA/DR provider attribute in the interface files of "other" (cluster external) sites
-		#
-		for rFile in $(ls "/hana/shared/$SID/$InstanceName/.crm_attribute."* 2>/dev/null); do
-			recover_site_attributes_from_file "$rFile"
-		done
+                #
+                # second check, if we have a pending HA/DR provider attribute in the interface files of "other" (cluster external) sites
+                #
+                for rFile in $(ls "/hana/shared/$SID/$InstanceName/.crm_attribute."* 2>/dev/null); do
+                    recover_site_attributes_from_file "$rFile"
+                done
                 #
                 # saphana_monitor_primary - get SR attribute of "the" remote site (TODO: PRIO3: allow multi targets in the
                 #
@@ -3002,7 +3001,7 @@ function saphana_monitor_clone() {
     super_ocf_log info "FLOW $FUNCNAME ($*)"
     #
     # TODO: PRIO3: For the secondary, which is missing the primary (so in status WAITING) what is better:
-    #       a) returning 7 here and force cluster a restart of the slave
+    #       a) returning 7 here and force cluster a restart of the secondary
     #       b) starting the instance here inside the monitor -> may result in longer runtime, timeouts
     #
     # first check with the status function (OS tools) if there could be something like a SAP instance running
@@ -3194,9 +3193,9 @@ function saphana_monitor_clone() {
 #
 function saphana_promote_clone() {
   super_ocf_log info "FLOW $FUNCNAME ($*)"
-  local rc=$OCF_ERR_GENERIC;
+  local rc="$OCF_ERR_GENERIC";
   local hana_sync;
-  local primary_status=$HANA_STATE_DEFECT;
+  local primary_status="$HANA_STATE_DEFECT";
   #
   # first check, if we WILL be PRIMARY (checking HANA status)
   #
@@ -3269,7 +3268,7 @@ function saphana_promote_clone() {
         #
         # neither PRIMARY nor SECONDARY - This clone instance seems to be broken!!
         #
-        rc=$OCF_ERR_GENERIC
+        rc="$OCF_ERR_GENERIC"
      fi
   fi
   rc=$?
@@ -3291,6 +3290,13 @@ function saphana_demote_clone() {
     local rc=$OCF_ERR_GENERIC;
     set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
     rc=$OCF_SUCCESS;
+    # bsc#1198127: let it fail, to get the resource stopped.
+    my_role=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_ROLES[@]}")
+    if [[ "$my_role" =~ "*:shtdown:shtdown:shtdown*" ]]; then
+        rc=$OCF_ERR_GENERIC
+    else
+        rc=$OCF_SUCCESS
+    fi
     super_ocf_log info "ACT: Demoted $SID-$InstanceName."
     super_ocf_log info "FLOW $FUNCNAME rc=$rc"
     return $rc

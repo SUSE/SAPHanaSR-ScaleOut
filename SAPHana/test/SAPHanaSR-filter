@@ -41,13 +41,16 @@ if ( $version ) {
    exit 0;
 }
 
+if ( scalar(@search) eq 0 ) {
+      @search = ( "." );
+}
 
 #  
 while ( <> ) {
     if ( /(.*)="(.*)"/ ) {
         # lines like: a/b/c="d e f"
         $key="$1"; $value="$2";
-        if ( $key =~ "Global/.*/cib-time" ) {
+        if ( $key eq "Global/global/cib-time" ) {
             $cibTime=$value;
         } else {
             foreach my $search ( @search ) {
