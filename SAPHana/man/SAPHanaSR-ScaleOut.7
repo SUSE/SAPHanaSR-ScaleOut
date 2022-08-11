@@ -171,6 +171,12 @@ HANA nodes outside the Linux cluster. An additional Linux cluster node is used
 as majority maker for split-brain situations. This dedicated node does not need
 to have HANA installed and must not run any SAP HANA resources for the same SID.
 Supported combinations of CPU architectures are given by the Linux cluster. 
+.br
+Note: A third HANA site can be added, with another system replication (aka
+multi-target replication). This will be tolerated by the cluster. Nevertheless,
+this additional pieces are not managed by the cluster. Therefor in multi-target
+setups, the AUTOMATED_REGISTER feature needs the register_secondaries_on_takeover
+feature of HANA.
 .PP
 The HANA HADR provider is used for detecting system replication status changes.
 .PP
