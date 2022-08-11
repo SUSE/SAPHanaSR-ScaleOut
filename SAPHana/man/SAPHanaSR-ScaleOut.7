@@ -27,7 +27,7 @@ not "ERROR" the Linux cluster will not act. The main purpose of the Linux
 cluster is to handle the takeover to the other site. Only if the HANA
 landscape status indicates that HANA can not recover from the failure and the
 replication is in sync, then Linux will act. As an exception, the Linux cluster
-will react if HANA moves the master nameserver role to another candidate. 
+will react if HANA moves the master nameserver role to another candidate.
 SAPHanaController is also able to restart former failed worker nodes as standby.
 In addition to the SAPHanaTopology RA, the SAPHanaSR-ScaleOut solution uses a
 "HA/DR providers" API provided by HANA to get informed about the current state
@@ -120,7 +120,7 @@ avoids a full log partition with consequence of a DATABASE STUCK.
 3. \fBAutomatic registration as secondary after site failure and takeover\fR
 .br
 The cluster can be configured to register a former primary database
-automatically as secondary. If this option is set, the resource agent 
+automatically as secondary. If this option is set, the resource agent
 will register a former primary database as secondary during cluster/resource
 start.
 .PP
@@ -147,7 +147,7 @@ the nameserver on another node. Therefore usually up to two nodes are
 configured as additional nameserver candidates. At least one of them should be
 a standby node to optimize failover time. The Linux cluster will detect the
 change and move the IP address to the new active master nameserver.
-This case fits for scale-out HANAs with big number of nodes, e.g. BW systems. 
+This case fits for scale-out HANAs with big number of nodes, e.g. BW systems.
 .PP
 6. \fBLocal stop of orphaned worker node\fR
 .br
@@ -158,7 +158,7 @@ This case fits for scale-out HANAs with small number of nodes, e.g. ERP systems
 with two nodes.
 .\" TODO scenario filesystem full or inaccesible: additional Filsystem RA
 .PP
-.\" 
+.\"
 \fBImplementation\fR
 .PP
 The two HANA database systems (primary and secondary site) are managed by the
@@ -170,7 +170,7 @@ The HANA consists of two sites with same number of nodes each. There are no
 HANA nodes outside the Linux cluster. An additional Linux cluster node is used
 as majority maker for split-brain situations. This dedicated node does not need
 to have HANA installed and must not run any SAP HANA resources for the same SID.
-Supported combinations of CPU architectures are given by the Linux cluster. 
+Supported combinations of CPU architectures are given by the Linux cluster.
 .br
 Note: A third HANA site can be added, with another system replication (aka
 multi-target replication). This will be tolerated by the cluster. Nevertheless,
@@ -189,7 +189,7 @@ candidate.
 \fBBest Practice\fR
 .PP
 \fB*\fR Use two independent corosync rings, at least one of them on bonded
-network. Resulting in at least three physical links. Unicast is preferred. 
+network. Resulting in at least three physical links. Unicast is preferred.
 .PP
 \fB*\fR Use Stonith Block Device (SBD) for node fencing.
 Of course, always together with hardware watchdog.
@@ -203,7 +203,7 @@ underlying infrastructure - particuarly network, storage and multipathing.
 doing any functional tests.
 .PP
 \fB*\fR Carefully define, perform, and document tests for all failure scenarios
-that should be covered, as well as all maintenance procedures. 
+that should be covered, as well as all maintenance procedures.
 .PP
 \fB*\fR Test HANA HA and SR features without Linux cluster before doing the
 overall cluster tests.
@@ -316,7 +316,7 @@ based on the complete status independent of the status of individual containers.
 .PP
 21. If a third HANA site is connected by system replication, that HANA is not
 controlled by another SUSE HA cluster. If that third site should work as part
-of a fall-back HA cluster in DR case, that HA cluster needs to be in standby.  
+of a fall-back HA cluster in DR case, that HA cluster needs to be in standby.
 .PP
 22. RA and srHook runtime almost completely depends on call-outs to controlled
 resources, OS and Linux cluster. The infrastructure needs to allow these call-outs
