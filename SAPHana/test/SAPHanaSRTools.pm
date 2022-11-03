@@ -6,7 +6,7 @@
 # Copyright:    (c) 2017-2022 SUSE LLC
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.24.2022.02.02
+# Version: 0.25.2022.11.03
 #
 ##################################################################
 
@@ -288,7 +288,11 @@ while (<$CIB>) {
    #}
    if ( $_ =~ /nvpair.*name="([a-zA-Z0-9\_\-]+_${sid}_([a-zA-Z0-9\-\_]+))"/ ) {
       $name=$1;
-      if ( $_ =~ /id=.(status|nodes)-([a-zA-Z0-9\_\-]+)-/ ) {
+      # Bug 1192963 - L3: SAPHanaSR-monitor not reporting correctly
+      #  - catch also ids: id="host15-instance_attributes-hana_ha1_srmode"
+      #
+      if (( $_ =~ /id=.((.*)-instance_attributes)-([a-zA-Z0-9\_\-]+)/ )
+         || ( $_ =~ /id=.(status|nodes)-([a-zA-Z0-9\_\-]+)-/ )) {
          # found attribute in nodes forever and reboot store
          $host=$2;
          if (defined $id2uname{$host}) {
