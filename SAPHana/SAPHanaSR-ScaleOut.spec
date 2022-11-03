@@ -21,7 +21,7 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.183.1
+Version:        0.183.1_TEST
 Release:        0
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 Source0:        SAPHanaSR-ScaleOut-%{version}.tar.bz2
@@ -91,6 +91,8 @@ install -m 0444 man/*.8.gz %{buildroot}/usr/share/man/man8
 install -m 0555 bin/* %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-replay-archive %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-filter %{buildroot}/usr/sbin
+install -m 0555 test/SAPHanaSR-hookHelper %{buildroot}/usr/sbin
+install -m 0555 test/SAPHanaSR-manageProvider %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-show-hadr-runtimes %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-show-hadr-log-coincidence %{buildroot}/usr/sbin
 install -Dm 0444 test/SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}/SAPHanaSRTools.pm
@@ -108,8 +110,10 @@ install -Dm 0444 wizard/workflows/90-SAPHanaSR-ScaleOut.xml  %{buildroot}/srv/ww
 # HANA hooks
 install -m 0644 srHook/SAPHanaSR.py %{buildroot}/usr/share/%{name}/
 install -m 0644 srHook/SAPHanaSrMultiTarget.py %{buildroot}/usr/share/%{name}/
+install -m 0644 srHook/susTkOver.py %{buildroot}/usr/share/%{name}/
 install -m 0644 srHook/susChkSrv.py %{buildroot}/usr/share/%{name}/
 install -m 0444 srHook/global.ini %{buildroot}/usr/share/%{name}/samples
+install -m 0444 srHook/global.ini_TakeoverBlocker %{buildroot}/usr/share/%{name}/samples
 install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 
 %files
@@ -126,6 +130,8 @@ install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 /usr/sbin/SAPHanaSR-manageAttr
 /usr/sbin/SAPHanaSR-replay-archive
 /usr/sbin/SAPHanaSR-filter
+/usr/sbin/SAPHanaSR-hookHelper
+/usr/sbin/SAPHanaSR-manageProvider
 /usr/sbin/SAPHanaSR-show-hadr-runtimes
 /usr/sbin/SAPHanaSR-show-hadr-log-coincidence
 %dir /srv/www/hawk
