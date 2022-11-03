@@ -61,12 +61,10 @@ else
     log_attr_file="/dev/null"
 fi
 
-
 HANA_STATE_PRIMARY=0
 HANA_STATE_SECONDARY=1
 HANA_STATE_STANDALONE=2
 HANA_STATE_DEFECT=3
-HANA_CALL_TIMEOUT=120
 HANA_STD_ACTION_TIMEOUT=3600
 
 debug_attributes=0
@@ -82,7 +80,6 @@ function super_ocf_log() {
     local message="$2"
     local skip=1
     local mtype=""
-    local search=0
     local shf="${SAPHanaFilter:-all}"
     # message levels: (dbg)|info|warn|err|error
     # message types:  (ACT|RA|FLOW|DBG|LPA|DEC|DBG2...
@@ -96,15 +93,10 @@ function super_ocf_log() {
             none )
                 skip=1
                 ;;
-            * ) mtype=${message%% *}
+            * ) mtype=${message:0:4}
+                mtype=${mtype%% *}
                 mtype=${mtype%:}
-                mtype=${mtype#fh}
-                echo "$shf"|  grep -iq ${mtype}; search=$?
-                if [ $search -eq 0 ]; then
-                     skip=0
-                else
-                    skip=1
-                fi
+                [[ ${shf} == *${mtype}* ]] && skip=0 || skip=1
             ;;
         esac
         ;;
@@ -120,7 +112,7 @@ function super_ocf_log() {
 # globals:  $0(r)
 #
 function saphana_usage() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     methods=$(saphana_methods)
     methods=$(echo $methods | tr ' ' '|')
@@ -145,11 +137,11 @@ EOF
 }
 
 function backup_global_and_nameserver() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     cp /hana/shared/${SID}/global/hdb/custom/config/global.ini /hana/shared/${SID}/global/hdb/custom/config/global.ini.$(date +"%s")
     cp /hana/shared/${SID}/global/hdb/custom/config/nameserver.ini /hana/shared/${SID}/global/hdb/custom/config/nameserver.ini.$(date +"%s")
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -159,7 +151,7 @@ function backup_global_and_nameserver() {
 # globals:  -
 #
 function saphana_meta_data() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
 # TODO PRIO2: Description including parameters to be reviewed for scale-out
 # TODO PRIO2: check whether default is PREFER_SITE_TAKEOVER=false, then correct this meta-data.
@@ -300,7 +292,7 @@ return $rc
 # methods: What methods/operations do we support?
 #
 function saphana_methods() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0 m
     for m in start stop status monitor promote demote notify validate-all methods meta-data usage reload; do
         echo "$m"
@@ -363,7 +355,7 @@ function version() {
 # timeOut = max(3600, 95%(actionTimeOut))
 #
 function get_saphana_waitfor_timeout() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     # $OCF_RESKEY_CRM_meta_timeout is the timeout of the current running action in ms
     local actionTimeOut="$OCF_RESKEY_CRM_meta_timeout"
     local stdTimeOut="$HANA_STD_ACTION_TIMEOUT"
@@ -399,7 +391,7 @@ function get_saphana_waitfor_timeout() {
 # DONE: PRIO2: For the first shipment (scale-out) we need to limit the clones to 2
 #
 function is_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     #
     # is a clone config?
@@ -419,7 +411,7 @@ function is_clone() {
     else
         rc=1;
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -431,7 +423,7 @@ function is_clone() {
 #
 function get_hana_attribute()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local attr_node=$1
     local attr_name=$2
@@ -454,7 +446,7 @@ function get_hana_attribute()
             crm_attribute -G -n "$attr_name" -t crm_config -q -d "$attr_default" 2>>$log_attr_file; rc=$?
             ;;
     esac
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -465,7 +457,7 @@ function get_hana_attribute()
 #
 function set_hana_attribute()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local attr_node=$1
     local attr_value=$2
     local attr_name=$3
@@ -495,7 +487,7 @@ function set_hana_attribute()
         super_ocf_log debug "DBG: LET attribute $attr_name for node ${attr_node} still be ${attr_value}"
         rc=0
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -505,7 +497,7 @@ function set_hana_attribute()
 # globals:  OCF_*(r)
 #
 function assert() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local err_msg=$1
     local default_rc=$OCF_NOT_RUNNING
     # DONE: Check, if we need to distinguish between probe and others
@@ -529,7 +521,7 @@ function assert() {
 #
 function set_crm_master()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local score=0
     local node=""
@@ -562,7 +554,7 @@ function set_crm_master()
 #
 scoring_crm_master()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local roles="$1"
     local sync="$2"
     local skip=0
@@ -595,7 +587,7 @@ scoring_crm_master()
 #
 function get_crm_master()
 {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=0
    ${HA_SBIN_DIR}/crm_master -G -q -l reboot; rc=$?
    return $rc
@@ -633,7 +625,7 @@ function HANA_CALL()
 
     if [ $use_su -eq 1 ]; then
         pre_cmd="su - ${sid}adm -c"
-        pre_script="true"
+        [[ $cmd == python* ]] && pre_script="cd $DIR_EXECUTABLE/python_support" || pre_script='true'
     else
         # as root user we need the library path to the SAP kernel to be able to call sapcontrol
         # check, if we already added DIR_EXECUTABLE at the beginning of LD_LIBRARY_PATH
@@ -646,7 +638,7 @@ function HANA_CALL()
     fi
     case $timeOut in
         0 | inf )
-                  output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
+                  output=$($pre_cmd "$pre_script; $cmd"); rc=$?
                   ;;
         *       )
                   errExt=$(date '+%s%N')_${sid}adm
@@ -654,7 +646,7 @@ function HANA_CALL()
                   cmd_out_log=/tmp/HANA_CALL_CMD_RA_OUT_${errExt}
                   cmd_err_log=/tmp/HANA_CALL_CMD_RA_${errExt}
 
-                  output=$(timeout --foreground -s 9 "$timeOut" $pre_cmd "($pre_script; timeout -s 9 $timeOut /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd > $cmd_out_log) >& $cmd_err_log" 2>"$su_err_log"); rc=$?
+                  output=$(timeout --foreground -s 9 "$timeOut" $pre_cmd "($pre_script; timeout -s 9 $timeOut $cmd > $cmd_out_log) >& $cmd_err_log" 2>"$su_err_log"); rc=$?
 
                   output=$(if [ -f "$cmd_out_log" ]; then cat "$cmd_out_log"; rm -f "$cmd_out_log"; fi)
                   suErr=$(if [ -f "$su_err_log" ]; then cat "$su_err_log"; rm -f "$su_err_log"; else echo "NA"; fi)
@@ -666,7 +658,7 @@ function HANA_CALL()
                       if [ "$cmdErr" == "NA" ]; then
                           # seems something was going wrong with the 'pre_cmd' (su)
                           super_ocf_log warn "DEC: HANA_CALL returned '1' for command '$pre_cmd'. Retry once."
-                          output=$(timeout --foreground -s 9 "$timeOut" $pre_cmd "$pre_script; timeout -s 9 $timeOut /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
+                          output=$(timeout --foreground -s 9 "$timeOut" $pre_cmd "$pre_script; timeout -s 9 $timeOut $cmd"); rc=$?
                       fi
                   fi
                   #
@@ -677,7 +669,7 @@ function HANA_CALL()
                   fi
                   if [ $rc -eq 124 -a -n "$onTimeOut" ]; then
                       local second_output=""
-                      second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");
+                      second_output=$($pre_cmd "$pre_script; $onTimeOut");
                   fi
                  ;;
     esac
@@ -781,7 +773,7 @@ function set_SRHOOK()
 # saphana_init : Define global variables with default values, if optional parameters are not set
 #
 function saphana_init() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_SUCCESS
     local clN
     SYSTEMCTL="/usr/bin/systemctl"
@@ -1057,7 +1049,7 @@ function saphana_init() {
                 super_ocf_log info "HOOK: RA saphana_init - the cluster nodes '$NODENAME' and '$onode' are running different Hook generations ('$srHook_gen' - '$onode_srHook_gen')."
             fi
         done
-        # be in mind: it maybe that not all nodes running the same Hook generation
+        # be in mind: it may be that not all nodes running the same Hook generation
         multiTargetSupport=$(get_hana_attribute "X" "${ATTR_NAME_HANA_multiTargetSupport[@]}")
         if [ -z "$multiTargetSupport" ]; then
             # cluster attribute 'hana_${sid}_glob_mts' not set
@@ -1138,7 +1130,7 @@ function saphana_init() {
     elif is_active_nameserver_slave; then
        master_walk $standbyFilter
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$OCF_SUCCESS"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$OCF_SUCCESS"
     #############################
     # DONE: PRIO9: To be able to call landscapeHostConfig.py without su (so as root)
     #############################
@@ -1173,7 +1165,7 @@ function chk4systemdsupport() {
 # check_sapstartsrv : Before using sapcontrol we make sure that the sapstartsrv is running.
 #
 function check_sapstartsrv() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local restart=0
     local runninginst=""
     local rc=$OCF_SUCCESS
@@ -1270,12 +1262,12 @@ function check_sapstartsrv() {
 # globals:  -
 #
 function cleanup_instance() {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=0
   # TODO: PRIO5: Check, if we need HANA cleanup procedure (processes, ipc obj, pid files); Currently not needed
   super_ocf_log debug "DBG: cleanup_instance currently not implemented"
   rc=0
-  super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
 }
 
 #
@@ -1284,7 +1276,7 @@ function cleanup_instance() {
 # globals:  HANA_STATE_PRIMARY(r), HANA_STATE_SECONDARY(r), HANA_STATE_DEFECT(r)
 #
 function check_for_primary() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$HANA_STATE_DEFECT
     node_full_status=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null )
     node_status=$(echo "$node_full_status" | awk -F= '$1=="mode" {print $2}')
@@ -1294,13 +1286,13 @@ function check_for_primary() {
     for i in  1 2 3; do
        case "$node_status" in
            primary )
-               super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_PRIMARY"
+               super_ocf_log info "FLOW: ${FUNCNAME[0]} rc=HANA_STATE_PRIMARY"
                return $HANA_STATE_PRIMARY;;
            syncmem | sync | async )
-               super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_SECONDARY"
+               super_ocf_log info "FLOW: ${FUNCNAME[0]} rc=HANA_STATE_SECONDARY"
                return $HANA_STATE_SECONDARY;;
            none ) # have seen that mode on second side BEFORE we registered it as replica
-               super_ocf_log info "FLOW: $FUNCNAME rc=HANA_STATE_STANDALONE"
+               super_ocf_log info "FLOW: ${FUNCNAME[0]} rc=HANA_STATE_STANDALONE"
                return $HANA_STATE_STANDALONE;;
            * )
                super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: <$node_status>"
@@ -1313,7 +1305,7 @@ function check_for_primary() {
        esac;
        sleep 20
     done
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1330,19 +1322,19 @@ function check_for_primary() {
 #    Active       = 15
 function analyze_hana_sync_statusSRS()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=-1 srRc=0 all_nodes_other_side="" n="" siteParam=""
     if [ -n "$remSR_name" ]; then
        siteParam="--site=$remSR_name"
     fi
-    FULL_SR_STATUS=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "systemReplicationStatus.py $siteParam" 2>/dev/null); srRc=$?
-    super_ocf_log info "FLOW $FUNCNAME systemReplicationStatus.py (to site '$remSR_name')-> $srRc"
+    FULL_SR_STATUS=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "python systemReplicationStatus.py $siteParam" 2>/dev/null); srRc=$?
+    super_ocf_log info "FLOW ${FUNCNAME[0]} systemReplicationStatus.py (to site '$remSR_name')-> $srRc"
     #
     # TODO: PRIO2: Here we might also need to filter additional sites (if multi tier should be supported)
     #              And is the check for return code capable for chains?
     #
     if [ $srRc -eq 15 ]; then
-       super_ocf_log info "FLOW $FUNCNAME SOK"
+       super_ocf_log info "FLOW ${FUNCNAME[0]} SOK"
        set_hana_attribute "X" "SOK" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
        super_ocf_log debug "DBG: site=$sr_name, setting SOK for secondary (1)"
        lpa_set_lpt 30 "$remSR_name"
@@ -1355,7 +1347,7 @@ function analyze_hana_sync_statusSRS()
           rc=2
        else
           # ok we should be careful and set secondary to SFAIL
-          super_ocf_log info "FLOW $FUNCNAME SFAIL"
+          super_ocf_log info "FLOW ${FUNCNAME[0]} SFAIL"
           set_hana_attribute "X" "SFAIL" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
           super_ocf_log debug "DBG: site=$sr_name, setting SFAIL for secondary (5) - srRc=$srRc lss=$lss"
           # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
@@ -1364,7 +1356,7 @@ function analyze_hana_sync_statusSRS()
           rc=1
        fi
     else
-       super_ocf_log info "FLOW $FUNCNAME SFAIL"
+       super_ocf_log info "FLOW ${FUNCNAME[0]} SFAIL"
        set_hana_attribute "X" "SFAIL" "${ATTR_NAME_HANA_SEC_SYNC_STATUS[@]}"
        super_ocf_log debug "DBG: site=$sr_name, setting SFAIL for secondary (2) - srRc=$srRc"
        # TODO: PRIO1 - P004: need to check LSS again to avoid dying primary to block (SFAIL) secondary
@@ -1372,8 +1364,8 @@ function analyze_hana_sync_statusSRS()
        lpa_set_lpt 10 "$remSR_name"
        rc=1;
     fi
-    super_ocf_log info "FLOW $FUNCNAME PRIM+LPA"
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} PRIM+LPA"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1385,14 +1377,14 @@ function analyze_hana_sync_statusSRS()
 #
 function get_hana_landscape_status()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
-    hana_LSS_Out=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); rc=$?
+    hana_LSS_Out=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); rc=$?
     if [ $rc -eq 124 ]; then
         # landscape timeout
         super_ocf_log warn "RA: landscapeHostConfiguration.py TIMEOUT after $HANA_CALL_TIMEOUT seconds"
         sleep 20
-        hana_LSS_Out=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); rc=$?
+        hana_LSS_Out=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); rc=$?
         if [ $rc -eq 124 ]; then
            super_ocf_log warn "RA: landscapeHostConfiguration.py second TIMEOUT after $HANA_CALL_TIMEOUT seconds"
            # TODO PRIO2: How to handle still hanging lss - current solution is to say "FATAL"
@@ -1410,15 +1402,18 @@ function get_hana_landscape_status()
 #
 function register_hana_secondary()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=2;
     local remoteInstance="";
     local remoteHanaHost="";
     if is_the_master_nameserver; then
         remoteInstance=$InstanceNr
 
-        ges_ver=$(HANA_CALL --timeout 10 --cmd "HDB version" | tr -d " " | awk -F: '$1 == "version" {print $2}')
-        hdbver=${ges_ver%.*.*}
+        ges_ver=$(grep -s -m1 -oP 'fullversion: \K.+(?= Build)' "/usr/sap/$SID/$InstanceName/exe/manifest")
+        #fallback
+        [[ -z ${ges_ver:-} ]] && ges_ver=$(HANA_CALL --timeout 10 --cmd "HDB version" | tr -d " " | awk -F: '$1 == "version" {print $2}')
+        #Version xx.yy.zzz
+        [[ ${ges_ver} =~ [0-9]+(\.[0-9]+){2} ]] && hdbver=${BASH_REMATCH[0]}
 
         if version "$hdbver" ">=" "1.00.110"; then
             newParameter=1
@@ -1456,7 +1451,7 @@ function register_hana_secondary()
            rc=1
         fi
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc;
 }
 
@@ -1477,7 +1472,7 @@ function saphana_status() {
 # globals:  OCF_*, SAPCONTROL, InstanceNr, SID, InstanceName,
 #
 function saphana_start() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_NOT_RUNNING
     local output=""
     local loopcount=0
@@ -1502,7 +1497,7 @@ function saphana_start() {
             then
                 for i in 1 2 3 4; do
                     super_ocf_log info "ACT: SAP HANA: System $SID-$InstanceName started: $output"
-                    hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+                    hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
                     hanarole=$(echo "$hanaANSWER" | tr -d ' ' | \
                             awk -F= '
                             $1 == "host/"vName"/nameServerConfigRole"  {nsCR=$2}
@@ -1536,7 +1531,7 @@ function saphana_start() {
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1561,7 +1556,7 @@ function saphana_stopSystem() {
             # TODO: PRIO1: differ return codes for WaitforStarted from the Number-Of-Partial-Nodes
             #
             rcWfS=0
-            hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null);
+            hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null);
             hAPart=$(echo "$hanaANSWER" | tr -d ' ' | \
             awk -F= '
                BEGIN { partials=0 }
@@ -1606,7 +1601,7 @@ function saphana_stopSystem() {
 # saphana_stop: Stop the SAP instance
 #
 function saphana_stop() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local output=""
     if is_the_master_nameserver; then
@@ -1617,7 +1612,7 @@ function saphana_stop() {
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1628,7 +1623,7 @@ function saphana_stop() {
 # saphana_validate: Check the semantic of the input parameters
 #
 function saphana_validate() {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=$OCF_SUCCESS
   #
   # SID is Alpha-AlphaNumeric-Alphanumeric?
@@ -1646,7 +1641,7 @@ function saphana_validate() {
     super_ocf_log err "ACT: Parsing instance profile name: '$InstanceNr' is not a valid instance number!"
     rc=$OCF_ERR_ARGS
   fi
-  super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
   return $rc
 }
 
@@ -1657,7 +1652,7 @@ function saphana_validate() {
 #
 function saphana_start_primary()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local primary_status sync_attr score_master rc=$OCF_NOT_RUNNING
     local lss=$1
     local sqlrc=0;
@@ -1800,7 +1795,7 @@ function saphana_start_primary()
             rc=$OCF_NOT_RUNNING
             ;;
     esac
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1811,7 +1806,7 @@ function saphana_start_primary()
 #
 check_for_primary_master()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=1
     local clN clN_role
     #
@@ -1827,7 +1822,7 @@ check_for_primary_master()
         * ) rc=1;;
     esac
 
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1842,7 +1837,7 @@ wait_for_primary_master()
     local rc=1
     local loops=${1:-0}
     local count=0
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     #
     # hana_ndb_roles=primary:master1:master:worker:master
     #
@@ -1861,7 +1856,7 @@ wait_for_primary_master()
            sleep 10
         fi
     done
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1872,7 +1867,7 @@ wait_for_primary_master()
 #
 function saphana_start_secondary()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local primary_status sync_attr score_master rc=$OCF_NOT_RUNNING
     local sqlrc;
     case "$PreferSiteTakeover" in
@@ -1924,7 +1919,7 @@ function saphana_start_secondary()
        set_crm_master -INFINITY
        rc=$OCF_SUCCESS
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1942,7 +1937,7 @@ function saphana_check_local_instance()
     local SERVNO
     local output
     local MONITOR_SERVICES="hdbnameserver|hdbdaemon" # TODO: PRIO1: exact list of Services
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     check_sapstartsrv
     rc=$?
     if [ $rc -eq $OCF_SUCCESS ]
@@ -1984,7 +1979,7 @@ function saphana_check_local_instance()
         fi
       fi
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1996,14 +1991,14 @@ function saphana_check_local_instance()
 # globals:  LPA_ATTR_*,
 #
 function lpa_get_lpt() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=1
     local mysite=$1
     local lpt=""
     local -a ATTR
     ATTR=( "${LPA_ATTR[@]}" )
     ATTR[0]="${LPA_ATTR[0]}_${mysite}"
-    super_ocf_log debug "DBG: $FUNCNAME get_hana_attribute X " "${ATTR[@]}"
+    super_ocf_log debug "DBG: ${FUNCNAME[0]} get_hana_attribute X " "${ATTR[@]}"
     lpt=$(get_hana_attribute "X" "${ATTR[@]}")
     if [ -n "$lpt" ]; then
         rc=0
@@ -2011,7 +2006,7 @@ function lpa_get_lpt() {
     else
         rc=2
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2022,7 +2017,7 @@ function lpa_get_lpt() {
 # rc:       rc=0: OK, rc=1: InternalERROR, rc=2: ERROR
 #
 function lpa_set_lpt() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=1
     local crm_rc=1
     local lpt=$1
@@ -2031,7 +2026,7 @@ function lpa_set_lpt() {
     local -a ATTR
     ATTR=(${LPA_ATTR[@]})
     ATTR[0]="${LPA_ATTR[0]}_${mysite}"
-    super_ocf_log debug "DBG: $FUNCNAME (set_hana_attribute X \"$lpt\"" "${ATTR[@]}" ")"
+    super_ocf_log debug "DBG: ${FUNCNAME[0]} (set_hana_attribute X \"$lpt\"" "${ATTR[@]}" ")"
     if [ -n "$mysite" ]; then
         set_hana_attribute "X" "$lpt" "${ATTR[@]}"; crm_rc=$?
         clpt=$(lpa_get_lpt $mysite)
@@ -2044,7 +2039,7 @@ function lpa_set_lpt() {
     else
        super_ocf_log info "DEC: lpa_set_lpt - ignore changing lpt due to lost site name"
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2056,7 +2051,7 @@ function lpa_set_lpt() {
 # rc:       rc=0: OK, rc=1: InternalERROR, rc=2: ERROR
 #
 function lpa_pull_lpt() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=1
     local lpt=-1
     local lpa_file=$LPA_DIRECTORY/lpa_${sid}_${NODENAME}
@@ -2069,7 +2064,7 @@ function lpa_pull_lpt() {
     else
         rc=2
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2081,7 +2076,7 @@ function lpa_pull_lpt() {
 # rc:       rc=0: OK, rc=1: InternalERROR, rc=2: ERROR
 #
 function lpa_push_lpt() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local lpt=$1
     local clpt=-1
     local rc=1
@@ -2095,7 +2090,7 @@ function lpa_push_lpt() {
     else
         rc=0
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2113,7 +2108,7 @@ function lpa_push_lpt() {
 #    PRIMARY   sets to 1
 #
 function lpa_init_lpt() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=1
     local LPTloc=-1
     local LPTrem=-1
@@ -2133,7 +2128,7 @@ function lpa_init_lpt() {
             rc=2
         fi
     lpa_set_lpt $LPTloc "$sr_name"
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2170,7 +2165,7 @@ function lpa_init_lpt() {
 #            WAIT ==> LOST REMOTE HANDLING ===> rc=3 (wait4other)
 #
 function lpa_check_lpt_status() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local LPTloc=-1
     local LPTrem=-1
@@ -2226,7 +2221,7 @@ function lpa_check_lpt_status() {
                     rc=2
                 fi
             fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2267,7 +2262,7 @@ function master_walk() {
  # look at the scores:
  #
  # master_walk now also counts available nodes (same site) in the
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
 
     local active_master="" master1="" master2="" master3=""
     local nSite="" nRole=""
@@ -2355,7 +2350,7 @@ function master_walk() {
 
     super_ocf_log info "DEC: ===> master_walk: priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
     super_ocf_log info "DEC: ===> master_walk: the_master=$the_master;"
-    super_ocf_log info "FLOW $FUNCNAME the_master=$the_master rc=0"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} the_master=$the_master rc=0"
 }
 
 # function: is_active_nameserver_slave
@@ -2368,7 +2363,7 @@ function master_walk() {
 #
 is_active_nameserver_slave()
 {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
   nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
   read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
@@ -2381,7 +2376,7 @@ is_active_nameserver_slave()
          ;;
   esac
   super_ocf_log info "DEC: is_active_nameserver_slave rc=$rc"
-  super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
   return $rc
 }
 
@@ -2395,7 +2390,7 @@ is_active_nameserver_slave()
 #
 function is_master_nameserver()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
     nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
     read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
@@ -2411,7 +2406,7 @@ function is_master_nameserver()
            ;;
     esac
     super_ocf_log info "DEC: is_master_nameserver  rc=$rc"
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2422,12 +2417,12 @@ function is_master_nameserver()
 # globals:
 function is_the_master_nameserver()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=1
     if [ "$the_master" = "$NODENAME" ]; then
         rc=0
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2438,7 +2433,7 @@ function is_the_master_nameserver()
 # saphana_start_clone
 #
 function saphana_start_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local primary_status sync_attr score_master rc=$OCF_NOT_RUNNING
     local sqlrc;
     local chkusr;
@@ -2496,7 +2491,7 @@ function saphana_start_clone() {
         set_crm_master -INFINITY
         rc=$OCF_SUCCESS
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2507,7 +2502,7 @@ function saphana_start_clone() {
 # saphana_stop_clone
 #
 function saphana_stop_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local primary_status="x"
     set_hana_attribute ${NODENAME} "UNDEFINED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
@@ -2569,7 +2564,7 @@ function recover_site_attributes_from_file()
 #
 function saphana_monitor_primary()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_ERR_GENERIC
     local promoted=0
     local init_attribute=0
@@ -2618,7 +2613,7 @@ function saphana_monitor_primary()
                     # lpa - no need to wait any longer - lets try a new start
                     saphana_start_clone
                     rc=$?
-                    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+                    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
                     return $rc
                 else
                     lpa_init_lpt $HANA_STATE_PRIMARY
@@ -2694,7 +2689,7 @@ function saphana_monitor_primary()
                         esac
                     else
                         # TODO:  PRIO5: SCALE-OUT ONLY? Implement for local restart
-                        #        It maybe that for the local restart we only need to decrease the secondaries promotion score
+                        #        It may be that for the local restart we only need to decrease the secondaries promotion score
                         #super_ocf_log info "DEC: PreferSiteTakeover selected so decrease promotion score here"
                         ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$sr_name"
                         my_lss=$(get_hana_attribute "X" "${ATTR[@]}")
@@ -2840,7 +2835,7 @@ function saphana_monitor_primary()
             fi
             ;;
     esac
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2852,7 +2847,7 @@ function saphana_monitor_primary()
 #
 function saphana_monitor_secondary()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_ERR_GENERIC
     local promoted=0
     local init_attribute=0
@@ -2941,7 +2936,7 @@ function saphana_monitor_secondary()
             local hanaOut1=""
             # TODO: PRIO 3: check, if using getParameter.py is the best option to analyze the set operationMode
             # TODO: DONE 3: Should we default to logreplay for SAP HANA >= SPS11 ?
-            hanaOut1=$(HANA_CALL --timeout 10 --use-su --cmd "getParameter.py --key=global.ini/system_replication/operation_mode --sapcontrol=1")
+            hanaOut1=$(HANA_CALL --timeout 10 --use-su --cmd "python getParameter.py --key=global.ini/system_replication/operation_mode --sapcontrol=1")
             hanaFilter1=$(echo "$hanaOut1" | awk -F/ 'BEGIN {out=0} /^SAPCONTROL-OK: <begin>/ { out=1 } /^SAPCONTROL-OK: <end>/ { out=0 } /=/ {if (out==1) {print $3} }')
             hanaOM=$(echo "$hanaFilter1" | awk -F= '$1=="operation_mode" {print $2}')
             set_hana_attribute ${NODENAME} "$hanaOM" "${ATTR_NAME_HANA_OPERATION_MODE[@]}"
@@ -2987,7 +2982,7 @@ function saphana_monitor_secondary()
             rc=$OCF_NOT_RUNNING
             ;;
     esac
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -2998,7 +2993,7 @@ function saphana_monitor_secondary()
 # saphana_monitor_clone
 #
 function saphana_monitor_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     #
     # TODO: PRIO3: For the secondary, which is missing the primary (so in status WAITING) what is better:
     #       a) returning 7 here and force cluster a restart of the secondary
@@ -3180,7 +3175,7 @@ function saphana_monitor_clone() {
             fi
         fi
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -3192,7 +3187,7 @@ function saphana_monitor_clone() {
 #    In a multi-state configuration get Master being the primary OR by running hana takeover
 #
 function saphana_promote_clone() {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc="$OCF_ERR_GENERIC";
   local hana_sync;
   local primary_status="$HANA_STATE_DEFECT";
@@ -3272,7 +3267,7 @@ function saphana_promote_clone() {
      fi
   fi
   rc=$?
-  super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
   return $rc
 }
 
@@ -3286,7 +3281,7 @@ function saphana_promote_clone() {
 #   correct monitor return codes
 #
 function saphana_demote_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_ERR_GENERIC;
     set_hana_attribute ${NODENAME} "DEMOTED" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
     rc=$OCF_SUCCESS;
@@ -3298,7 +3293,7 @@ function saphana_demote_clone() {
         rc=$OCF_SUCCESS
     fi
     super_ocf_log info "ACT: Demoted $SID-$InstanceName."
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -3320,7 +3315,7 @@ SAPSTARTSRV=""
 SAPCONTROL=""
 DIR_PROFILE=""
 SAPSTARTPROFILE=""
-SAPHanaFilter="ra-act-dec-lpa"
+declare -u SAPHanaFilter='ra-act-dec-lpa'
 
 
 
