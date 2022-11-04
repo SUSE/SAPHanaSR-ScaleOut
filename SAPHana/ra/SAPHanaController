@@ -3287,7 +3287,7 @@ function saphana_demote_clone() {
     rc=$OCF_SUCCESS;
     # bsc#1198127: let it fail, to get the resource stopped.
     my_role=$(get_hana_attribute "${NODENAME}" "${ATTR_NAME_HANA_ROLES[@]}")
-    if [[ "$my_role" =~ "*:shtdown:shtdown:shtdown*" ]]; then
+    if [[ "$my_role" =~ :shtdown:shtdown:shtdown ]]; then
         rc=$OCF_ERR_GENERIC
     else
         rc=$OCF_SUCCESS
