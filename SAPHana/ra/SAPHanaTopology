@@ -14,7 +14,7 @@
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2014 SUSE Linux Products GmbH
 #               (c) 2015-2016 SUSE Linux GmbH
-#               (c) 2017-2021 SUSE LLC
+#               (c) 2017-2022 SUSE LLC
 #
 # An example usage:
 #      See usage() function below for more details...
@@ -46,7 +46,6 @@ HANA_STATE_PRIMARY=0
 HANA_STATE_SECONDARY=1
 HANA_STATE_STANDALONE=2
 HANA_STATE_DEFECT=3
-HANA_CALL_TIMEOUT=120
 
 debug_attributes=0
 SH=/bin/sh
@@ -60,11 +59,9 @@ function super_ocf_log() {
     local message="$2"
     local skip=1
     local mtype=""
-    local search=0
     local shf="${SAPHanaFilter:-all}"
     #ocf_log "info" "super_ocf_log: f:$shf l:$level m:$message"
     # message levels: (dbg)|info|warn|err|error
-    #
     # message types:  (ACT|RA|FLOW|DBG|LPA|DEC
     case "$level" in
         dbg | debug | warn | err | error ) skip=0
@@ -76,15 +73,10 @@ function super_ocf_log() {
             none )
                 skip=1
                 ;;
-            * ) mtype=${message%% *}
+            * ) mtype=${message:0:4}
+                mtype=${mtype%% *}
                 mtype=${mtype%:}
-                mtype=${mtype#fh}
-                echo "$shf"|  grep -iq ${mtype}; search=$?
-                if [ $search -eq 0 ]; then
-                     skip=0
-                else
-                    skip=1
-                fi
+                [[ ${shf} == *${mtype}* ]] && skip=0 || skip=1
             ;;
         esac
         ;;
@@ -100,7 +92,7 @@ function super_ocf_log() {
 # globals:  $0(r)
 #
 function sht_usage() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     methods=$(sht_methods)
     methods=$(echo $methods | tr ' ' '|')
@@ -127,7 +119,7 @@ function sht_usage() {
 # globals:  -
 #
 function sht_meta_data() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
 	cat <<END
 <?xml version="1.0"?>
@@ -209,7 +201,7 @@ return $rc
 #
 function get_hana_attribute()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local attr_node=$1
     local attr_name=$2
@@ -227,7 +219,7 @@ function get_hana_attribute()
             crm_attribute -G -n "$attr_name" -t crm_config -q -d "$attr_default" 2>>$log_attr_file; rc=$?
             ;;
     esac
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -238,7 +230,7 @@ function get_hana_attribute()
 #
 function set_hana_attribute()
 {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local attr_node=$1
     local attr_value=$2
     local attr_name=$3
@@ -265,7 +257,7 @@ function set_hana_attribute()
         super_ocf_log debug "DBG: LET attribute $attr_name for node ${attr_node} still be ${attr_value}"
         rc=0
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -276,7 +268,7 @@ function set_hana_attribute()
 # methods: What methods/operations do we support?
 #
 function sht_methods() {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=0
   cat <<-!
     start
@@ -303,7 +295,7 @@ function sht_methods() {
 #   Special EXIT of RA, if clone is misconfigured
 #
 function is_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     #
     # is a clone config?
@@ -321,7 +313,7 @@ function is_clone() {
     else
         rc=1;
     fi
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -357,7 +349,7 @@ function HANA_CALL()
 
     if [ $use_su -eq 1 ]; then
         pre_cmd="su - ${sid}adm -c"
-        pre_script="true"
+        [[ $cmd == python* ]] && pre_script="cd $DIR_EXECUTABLE/python_support" || pre_script='true'
     else
         # as root user we need the library path to the SAP kernel to be able to call sapcontrol
         # check, if we already added DIR_EXECUTABLE at the beginning of LD_LIBRARY_PATH
@@ -370,7 +362,7 @@ function HANA_CALL()
     fi
     case $timeOut in
         0 | inf )
-                  output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
+                  output=$($pre_cmd "$pre_script; $cmd"); rc=$?
                   ;;
         *       )
                   errExt=$(date '+%s%N')_${sid}adm
@@ -378,7 +370,7 @@ function HANA_CALL()
                   cmd_out_log=/tmp/HANA_CALL_CMD_TOP_OUT_${errExt}
                   cmd_err_log=/tmp/HANA_CALL_CMD_TOP_${errExt}
 
-                  output=$(timeout "$timeOut" $pre_cmd "($pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd > $cmd_out_log) >& $cmd_err_log" 2>"$su_err_log"); rc=$?
+                  output=$(timeout "$timeOut" $pre_cmd "($pre_script; $cmd > $cmd_out_log) >& $cmd_err_log" 2>"$su_err_log"); rc=$?
 
                   output=$(if [ -f "$cmd_out_log" ]; then cat "$cmd_out_log"; rm -f "$cmd_out_log"; fi)
                   suErr=$(if [ -f "$su_err_log" ]; then cat "$su_err_log"; rm -f "$su_err_log"; else echo "NA"; fi)
@@ -390,7 +382,7 @@ function HANA_CALL()
                       if [ "$cmdErr" == "NA" ]; then
                           # seems something was going wrong with the 'pre_cmd' (su)
                           super_ocf_log warn "DEC: HANA_CALL returned '1' for command '$pre_cmd'. Retry once."
-                          output=$(timeout "$timeOut" $pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $cmd"); rc=$?
+                          output=$(timeout "$timeOut" $pre_cmd "$pre_script; $cmd"); rc=$?
                       fi
                   fi
                   #
@@ -400,7 +392,7 @@ function HANA_CALL()
                       super_ocf_log warn "RA: HANA_CALL TIMEOUT after $timeOut seconds ($cmd)"
                       if [ -n "$onTimeOut" ]; then
                           local second_output=""
-                          second_output=$($pre_cmd "$pre_script; /usr/sap/$SID/$InstanceName/HDBSettings.sh $onTimeOut");
+                          second_output=$($pre_cmd "$pre_script; $onTimeOut");
                       fi
                   fi
                  ;;
@@ -422,7 +414,7 @@ function HANA_CALL()
 #
 
 function sht_init() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local myInstanceName=""
     local rc=$OCF_SUCCESS
     local hdbANSWER=""
@@ -537,7 +529,7 @@ function sht_init() {
     #super_ocf_log info "DEC: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
     #super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING, hanaRemoteHost=$hanaRemoteHost"
     #super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING"
-    super_ocf_log info "FLOW $FUNCNAME rc=$OCF_SUCCESS"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$OCF_SUCCESS"
     return $OCF_SUCCESS
 }
 
@@ -547,7 +539,7 @@ function sht_init() {
 # globals:  srmode(r), HANA_STATE_PRIMARY(r), HANA_STATE_SECONDARY(r), HANA_STATE_DEFECT(r), HANA_STATE_STANDALONE(r)
 #
 function check_for_primary() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     node_status=$srmode
     super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
@@ -555,14 +547,14 @@ function check_for_primary() {
     for i in  1 2 3; do
         case "$node_status" in
            primary )
-                  super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_PRIMARY"
+                  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=HANA_STATE_PRIMARY"
                   return $HANA_STATE_PRIMARY;;
            syncmem | sync | async )
-                  super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_SECONDARY"
+                  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=HANA_STATE_SECONDARY"
                   return $HANA_STATE_SECONDARY;;
            none ) # have seen that mode on second side BEFEORE we registered it as replica
                   # TODO: PRIO1: Should we set SFAIL?
-                  super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_STANDALONE"
+                  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=HANA_STATE_STANDALONE"
                   return $HANA_STATE_STANDALONE;;
            * )
               # TODO: PRIO3: Should we set SFAIL?
@@ -578,7 +570,7 @@ function check_for_primary() {
        esac;
        sleep 20
    done
-   super_ocf_log info "FLOW $FUNCNAME rc=HANA_STATE_DEFECT"
+   super_ocf_log info "FLOW ${FUNCNAME[0]} rc=HANA_STATE_DEFECT"
    return $HANA_STATE_DEFECT
 }
 
@@ -686,7 +678,7 @@ function check_saphostagent()
 # sht_start : Start the SAP HANA instance
 #
 function sht_start() {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
 
   local rc=$OCF_NOT_RUNNING
   local output=""
@@ -707,7 +699,7 @@ function sht_start() {
   esac
 
 
-  super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
   return $rc
 }
 
@@ -718,14 +710,14 @@ function sht_start() {
 # sht_stop: Stop the SAP HANA Topology Resource
 #
 function sht_stop() {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local output=""
   local rc=0
 
   rm $HA_RSCTMP/SAPHana/SAPTopologyON
   rc=$OCF_SUCCESS
 
-  super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
   return $rc
 }
 
@@ -806,7 +798,7 @@ function master_walk() {
 # sht_monitor: Can the given SAP instance do anything useful?
 #
 function sht_monitor() {
-  super_ocf_log info "FLOW $FUNCNAME ($*)"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=0
 
   master_walk
@@ -816,7 +808,7 @@ function sht_monitor() {
      rc=$OCF_NOT_RUNNING
   fi
 
-  super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
   return $rc
 }
 
@@ -828,7 +820,7 @@ function sht_monitor() {
 # sht_status: Lightweight check of SAP instance only with OS tools
 #
 function sht_status() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
 
     sht_monitor; rc=$?
@@ -843,7 +835,7 @@ function sht_status() {
 # sht_validate: Check the semantic of the input parameters
 #
 function sht_validate() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_SUCCESS
     if [ $(echo "$SID" | grep -c '^[A-Z][A-Z0-9][A-Z0-9]$') -ne 1 ]
     then
@@ -857,7 +849,7 @@ function sht_validate() {
         rc=$OCF_ERR_ARGS
     fi
 
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -868,7 +860,7 @@ function sht_validate() {
 # sht_start_clone
 #
 function sht_start_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_NOT_RUNNING
     sht_start; rc=$?
     return $rc
@@ -881,7 +873,7 @@ function sht_start_clone() {
 # sht_stop_clone
 #
 function sht_stop_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local tout=0
     local nRole nLsc nSrmode nNsConf nNsCurr nIsConf nIsCurr
@@ -922,7 +914,7 @@ function sht_stop_clone() {
         timeout=$stdTimeOut
     fi
 
-    hanaANSWER=$(HANA_CALL --timeout "$timeout" --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+    hanaANSWER=$(HANA_CALL --timeout "$timeout" --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
     if [ "$hanalrc" -ge 124 ]; then
         # timeout of HANA_CALL, set role to '$nNsConf:shtdown:shtdown:shtdown'
         # to get the saphana_demote_clone to fail and stop the resource
@@ -960,7 +952,7 @@ function sht_stop_clone() {
 # sht_monitor_clone
 #
 function sht_monitor_clone() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     #
 	local rc=$OCF_ERR_GENERIC
 	local promoted=0
@@ -1022,11 +1014,11 @@ function sht_monitor_clone() {
        vName=${NODENAME}
     fi
     setRole=true
-    hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+    hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
     # landscape timeout - retry command
     if [ "$hanalrc" -eq 124 ]; then
         super_ocf_log warn "RA: HANA_CALL timed out after $HANA_CALL_TIMEOUT seconds running command 'landscapeHostConfiguration.py --sapcontrol=1'. Retrying..."
-        hanaANSWER=$(HANA_CALL --timeout "$HANA_CALL_TIMEOUT" --cmd "landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
+        hanaANSWER=$(HANA_CALL --timeout "$HANA_CALL_TIMEOUT" --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
         # if the second try again run into a timeout, log an error and do not set hanarole but keep the previous settings.
         if [ "$hanalrc" -ge 124 ]; then
             super_ocf_log err "RA: HANA_CALL Operation timeout after $HANA_CALL_TIMEOUT seconds running command 'landscapeHostConfiguration.py --sapcontrol=1'."
@@ -1071,7 +1063,7 @@ function sht_monitor_clone() {
     esac
     #ATTR_NAME_HANA_STATUS  # TODO: PRIO5: For SCALE-OUT: Fill that attribute later
     fi # end ocf_is_NOT_probe
-    super_ocf_log info "FLOW $FUNCNAME rc=$rc"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1082,7 +1074,7 @@ function sht_monitor_clone() {
 # sht_notify: Handle master scoring - to make sure a slave gets the next master
 #
 function sht_notify() {
-    super_ocf_log info "FLOW $FUNCNAME ($*)"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     super_ocf_log info "RA ==== end action $ACTION$CLACT (${n_type}/${n_op})===="
     return $rc
@@ -1100,7 +1092,7 @@ sidadm=""
 InstanceName=""
 InstanceNr=""
 DIR_EXECUTABLE=""
-SAPHanaFilter="ra-act-dec-lpa"
+declare -u SAPHanaFilter='ra-act-dec-lpa'
 NODENAME=$(crm_node -n)
 
 if [ $# -ne 1 ]
