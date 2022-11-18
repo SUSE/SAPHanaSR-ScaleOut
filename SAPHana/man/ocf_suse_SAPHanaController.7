@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH ocf_suse_SAPHanaController 7 "27 Jun 2022" "" "OCF resource agents"
+.TH ocf_suse_SAPHanaController 7 "11 Nov 2022" "" "OCF resource agents"
 .\"
 .SH NAME
 SAPHanaController \- Manages takeover between two SAP HANA databases with system replication.
@@ -125,8 +125,7 @@ Optional, well known directories will be searched by default.
 .PP
 \fBPREFER_SITE_TAKEOVER\fR
 .RS 4
-Defines whether RA should prefer to takeover to the secondary database instead of restarting
-master locally. However a takeover will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of takeover could be combined with HANA's persistent memory features. Example: "PREFER_SITE_TAKEOVER=true".
+Defines whether RA should prefer to takeover to the secondary database instead of restarting the primary site locally. However a takeover will only be triggered, if the SAP HANA landscape status is on "ERROR". This option usually is choosen for HANA system replication performance-optimised setups. On the other hand local restart of the master instead of takeover could be combined with HANA's persistent memory features. Example: "PREFER_SITE_TAKEOVER=true".
 .br
 Optional. Default value: false\&.
 .RE
