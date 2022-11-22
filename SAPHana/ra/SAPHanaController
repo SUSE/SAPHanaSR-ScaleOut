@@ -1128,6 +1128,8 @@ function saphana_init() {
        master_walk $standbyFilter
     elif is_active_nameserver_slave; then
        master_walk $standbyFilter
+    elif is_lost_nameserver_slave; then
+       master_walk $standbyFilter
     fi
     super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$OCF_SUCCESS"
     #############################
@@ -1603,11 +1605,21 @@ function saphana_stop() {
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local output=""
+    super_ocf_log info "ACT: saphana_stop"
     if is_the_master_nameserver; then
+	    super_ocf_log info "ACT: saphana_stop: is_the_master_nameserver"
         saphana_stopSystem; rc=$?
     elif is_active_nameserver_slave && [ -z "$the_master" ]; then
+	    super_ocf_log info "ACT: saphana_stop: is_active_nameserver_slave and no the_master"
         saphana_stopSystem; rc=$?
+    elif is_lost_nameserver_slave && [ -z "$the_master" ]; then
+	    super_ocf_log info "ACT: saphana_stop: is_lost_nameserver_slave and no the_master"
+        $SAPCONTROL -nr $InstanceNr -function StopWait 3600 10
+        rc=$?
+	# TODO   do we need to loop as we do for StopSystem?
     else
+	    is_active_nameserver_slave; is_slave_rc=$?
+	    super_ocf_log info "ACT: saphana_stop: NEITHER is_active_nameserver_slave (rc=$is_slave_rc) NOR is_the_master_nameserver debug: ($the_master)"
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
     fi
@@ -2355,6 +2367,7 @@ function master_walk() {
 # function: is_active_nameserver_slave
 # params:   -
 # rc:       0: yes its an active nameserver slave (running)
+#           2: yes it is a configured but lost slave
 #           1: else
 # globals:
 #
@@ -2368,6 +2381,7 @@ is_active_nameserver_slave()
   read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
   case "$nNsConf:$nNsCurr" in
       slave:slave )
+	 # configured as slave and actual role also detected as slave
          rc=0
          ;;
       * )
@@ -2375,6 +2389,34 @@ is_active_nameserver_slave()
          ;;
   esac
   super_ocf_log info "DEC: is_active_nameserver_slave rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
+  return $rc
+}
+
+# function: is_lost_nameserver_slave
+# params:   -
+# rc:       0: yes it is a configured but lost slave
+#           1: else
+# globals:
+#
+# true, if the node has an active (runnig) master nameserver slave role
+#
+is_lost_nameserver_slave()
+{
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
+  local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
+  nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+  IFS=: read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+  case "$nNsConf:$nNsCurr" in
+      slave: )
+	 # configured as slave but actual role could not be figured out - treat as is_lost_nameserver_slave
+         rc=0
+	 ;;
+      * )
+         rc=1
+         ;;
+  esac
+  super_ocf_log info "DEC: is_lost_nameserver_slave ($nNsConf:$nNsCurr) rc=$rc"
   super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
   return $rc
 }
@@ -3114,7 +3156,7 @@ function saphana_monitor_clone() {
                 #
                 # code for missing ALL master nameserver candidates
                 #
-                if is_active_nameserver_slave; then
+                if is_active_nameserver_slave || is_lost_nameserver_slave; then
                     #
                     # missing ALL master nameserver candidates, but local instance still running -> we need to trigger the cluster to take us down
                     #
