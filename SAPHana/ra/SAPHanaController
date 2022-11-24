@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.183.1"
+SAPHanaControllerVersion="0.184.1"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -1536,13 +1536,21 @@ function saphana_start() {
     return $rc
 }
 
+#
+# saphana_stopSystem [stopMode]
+# stopMode: StopSystem|Stop
+#
 function saphana_stopSystem() {
     local rc=0 rcWfS=0
+    local stopMode="StopSystem"
+    if [ $# -eq 1 ]; then
+        stopMode="$1"
+    fi
     check_sapstartsrv; rc="$?"
     if [ "$rc" -eq "$OCF_SUCCESS" ]; then
         ## TODO: PRIO 1: Only stop System, if I am the last master!
         ## TODO: PRIO 2: Do we need a "last-man-switch-off-the-light" detection?
-        output=$($SAPCONTROL -nr $InstanceNr -function StopSystem)
+        output=$($SAPCONTROL -nr "$InstanceNr" -function "$stopMode")
         rc=$?
          super_ocf_log info "ACT: SAP HANA STOP: Stopping System $SID-$InstanceName: $output"
     fi
@@ -1608,18 +1616,19 @@ function saphana_stop() {
     super_ocf_log info "ACT: saphana_stop"
     if is_the_master_nameserver; then
 	    super_ocf_log info "ACT: saphana_stop: is_the_master_nameserver"
+        # Stop the entire SAP HANA site (StopSystem)
         saphana_stopSystem; rc=$?
     elif is_active_nameserver_slave && [ -z "$the_master" ]; then
-	    super_ocf_log info "ACT: saphana_stop: is_active_nameserver_slave and no the_master"
+	    super_ocf_log info "ACT: saphana_stop: is_active_nameserver_slave and no master nameserver is available"
+        # Stop the entire SAP HANA site (StopSystem)
         saphana_stopSystem; rc=$?
     elif is_lost_nameserver_slave && [ -z "$the_master" ]; then
-	    super_ocf_log info "ACT: saphana_stop: is_lost_nameserver_slave and no the_master"
-        $SAPCONTROL -nr $InstanceNr -function StopWait 3600 10
-        rc=$?
-	# TODO   do we need to loop as we do for StopSystem?
+	    super_ocf_log info "ACT: saphana_stop: is_lost_nameserver_slave and no master nameserver is available"
+        # Stop ONLY the local SAP HANA instance to avoid an isolated SAP HANA nameserver slave does shutdown the entire site
+        saphana_stopSystem Stop rc=$?
     else
 	    is_active_nameserver_slave; is_slave_rc=$?
-	    super_ocf_log info "ACT: saphana_stop: NEITHER is_active_nameserver_slave (rc=$is_slave_rc) NOR is_the_master_nameserver debug: ($the_master)"
+	    super_ocf_log info "ACT: saphana_stop: NEITHER is_active_nameserver_slave (rc=$is_slave_rc) NOR is_the_master_nameserver debug: ($the_master) NOR is_lost_nameserver_slave"
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
     fi
