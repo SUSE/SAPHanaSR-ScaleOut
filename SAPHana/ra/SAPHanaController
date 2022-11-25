@@ -2648,6 +2648,20 @@ function saphana_monitor_primary()
                 ;;
             # TODO: PRIO5: Implement WAITING4LPA WAITING4REG WAITING4PRIM WAITING4NODES
             # WAITING4LPA WAITING4REG WAITING4PRIM WAITING4NODES
+            # TODO: PRIO1: Implement WAITING4NODES in the same way as for secondary:
+#        1 ) # ERROR
+#            super_ocf_log debug "DBG: 012 * lpa_set_lpt 10 $sr_name"
+#            lpa_set_lpt  10 "$sr_name"
+#            # Hide this error, if we still in WAITING4NODES
+#            case "$promote_attr" in
+#                WAITING4NODES ) # hide error 
+#                                rc=$OCF_SUCCESS
+#                                ;;
+#                * )
+#                                rc=$OCF_NOT_RUNNING
+#                                ;;
+#            esac
+#            ;;
             WAITING* )
                 # DONE: lpa_check_lpt_status to come out of here :)
                 # DONE: PRIO2: CHECK IF THE FIX FOR COMING OUT OF WAITING IS CORRECT
