@@ -25,7 +25,7 @@ similar) to your global.ini:
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.183.1"
+fhSRHookVersion = "0.184.1"
 srHookGen = "1.0"
 
 

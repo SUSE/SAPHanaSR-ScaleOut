@@ -1,7 +1,7 @@
 -------------------------------------------------------------------
-Thu Nov  3 18:42:15 UTC 2022 - abriel@suse.com
+Tue Nov 29 17:12:15 UTC 2022 - abriel@suse.com
 
-- Version bump to 0.183.1 - Testversion
+- Version bump to 0.184.1
   * add new HA/DR provider hook susChkSrv supporting a fast-dying
     indexserver
     (jsc#PED-1241, jsc#PED-1240)
@@ -17,6 +17,13 @@ Thu Nov  3 18:42:15 UTC 2022 - abriel@suse.com
   * fix for SAPHanaSR-monitor reporting "LPA status of one node is
     missing"
     (bsc#1192963, bsc#1203973)
+  * add lost-nameserver-slave handling to SAPHanaTopology, to avoid
+    toggeling SAPHanaController resource, if all nameserver-masters
+    got lost.
+    SAPHanaController keeps started, if WAITING4NODES event needs
+    to be processed. This only keeps the resource "started".
+    The SAP HANA instance will only be started, if enough nodes are
+    available to fulfill the needs of the SAP HANA landscape.
   * add new tool SAPHanaSR-manageProvider to show, add and delete
     HA/DR provider sections in the global.ini of SAP HANA.
   * changes to the demote_clone function of the resource agent:
@@ -32,6 +39,7 @@ Thu Nov  3 18:42:15 UTC 2022 - abriel@suse.com
     be configured by the cluster action timeout, if needed. It will
     be 50% of the action timeout or the minimum of 300s.
     (bsc#1198127)
+  * SAPHanaSRTools.pm: shows terminate node attribute too
   * change SAPHanaSR-manageAttr to support the different behaviour
     of 'crmadmin -qD' in different pacemaker versions
     (bsc#1200969)
