@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.183.1"
+SAPHanaControllerVersion="0.184.1"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -1128,6 +1128,8 @@ function saphana_init() {
        master_walk $standbyFilter
     elif is_active_nameserver_slave; then
        master_walk $standbyFilter
+    elif is_lost_nameserver_slave; then
+       master_walk $standbyFilter
     fi
     super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$OCF_SUCCESS"
     #############################
@@ -1534,13 +1536,21 @@ function saphana_start() {
     return $rc
 }
 
+#
+# saphana_stopSystem [stopMode]
+# stopMode: StopSystem|Stop
+#
 function saphana_stopSystem() {
     local rc=0 rcWfS=0
+    local stopMode="StopSystem"
+    if [ $# -eq 1 ]; then
+        stopMode="$1"
+    fi
     check_sapstartsrv; rc="$?"
     if [ "$rc" -eq "$OCF_SUCCESS" ]; then
         ## TODO: PRIO 1: Only stop System, if I am the last master!
         ## TODO: PRIO 2: Do we need a "last-man-switch-off-the-light" detection?
-        output=$($SAPCONTROL -nr $InstanceNr -function StopSystem)
+        output=$($SAPCONTROL -nr "$InstanceNr" -function "$stopMode")
         rc=$?
          super_ocf_log info "ACT: SAP HANA STOP: Stopping System $SID-$InstanceName: $output"
     fi
@@ -1603,11 +1613,22 @@ function saphana_stop() {
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     local output=""
+    super_ocf_log info "ACT: saphana_stop"
     if is_the_master_nameserver; then
+	    super_ocf_log info "ACT: saphana_stop: is_the_master_nameserver"
+        # Stop the entire SAP HANA site (StopSystem)
         saphana_stopSystem; rc=$?
     elif is_active_nameserver_slave && [ -z "$the_master" ]; then
+	    super_ocf_log info "ACT: saphana_stop: is_active_nameserver_slave and no master nameserver is available"
+        # Stop the entire SAP HANA site (StopSystem)
         saphana_stopSystem; rc=$?
+    elif is_lost_nameserver_slave && [ -z "$the_master" ]; then
+	    super_ocf_log info "ACT: saphana_stop: is_lost_nameserver_slave and no master nameserver is available"
+        # Stop ONLY the local SAP HANA instance to avoid an isolated SAP HANA nameserver slave does shutdown the entire site
+        saphana_stopSystem Stop rc=$?
     else
+	    is_active_nameserver_slave; is_slave_rc=$?
+	    super_ocf_log info "ACT: saphana_stop: NEITHER is_active_nameserver_slave (rc=$is_slave_rc) NOR is_the_master_nameserver debug: ($the_master) NOR is_lost_nameserver_slave"
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
     fi
@@ -2355,6 +2376,7 @@ function master_walk() {
 # function: is_active_nameserver_slave
 # params:   -
 # rc:       0: yes its an active nameserver slave (running)
+#           2: yes it is a configured but lost slave
 #           1: else
 # globals:
 #
@@ -2368,6 +2390,7 @@ is_active_nameserver_slave()
   read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
   case "$nNsConf:$nNsCurr" in
       slave:slave )
+	 # configured as slave and actual role also detected as slave
          rc=0
          ;;
       * )
@@ -2375,6 +2398,34 @@ is_active_nameserver_slave()
          ;;
   esac
   super_ocf_log info "DEC: is_active_nameserver_slave rc=$rc"
+  super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
+  return $rc
+}
+
+# function: is_lost_nameserver_slave
+# params:   -
+# rc:       0: yes it is a configured but lost slave
+#           1: else
+# globals:
+#
+# true, if the node has an active (runnig) master nameserver slave role
+#
+is_lost_nameserver_slave()
+{
+  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
+  local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
+  nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
+  IFS=: read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+  case "$nNsConf:$nNsCurr" in
+      slave: )
+	 # configured as slave but actual role could not be figured out - treat as is_lost_nameserver_slave
+         rc=0
+	 ;;
+      * )
+         rc=1
+         ;;
+  esac
+  super_ocf_log info "DEC: is_lost_nameserver_slave ($nNsConf:$nNsCurr) rc=$rc"
   super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
   return $rc
 }
@@ -2463,6 +2514,7 @@ function saphana_start_clone() {
                 saphana_start_secondary $lss; rc=$?
             fi
         else
+            # saphana_start_clone - WAITING4NODES handling
             super_ocf_log info "ACT: nr_site_worker < lss_worker- setting WAITING4NODES"
             set_hana_attribute ${NODENAME} "WAITING4NODES" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
             rc=$OCF_SUCCESS
@@ -2596,6 +2648,20 @@ function saphana_monitor_primary()
                 ;;
             # TODO: PRIO5: Implement WAITING4LPA WAITING4REG WAITING4PRIM WAITING4NODES
             # WAITING4LPA WAITING4REG WAITING4PRIM WAITING4NODES
+            # TODO: PRIO1: Implement WAITING4NODES in the same way as for secondary:
+#        1 ) # ERROR
+#            super_ocf_log debug "DBG: 012 * lpa_set_lpt 10 $sr_name"
+#            lpa_set_lpt  10 "$sr_name"
+#            # Hide this error, if we still in WAITING4NODES
+#            case "$promote_attr" in
+#                WAITING4NODES ) # hide error 
+#                                rc=$OCF_SUCCESS
+#                                ;;
+#                * )
+#                                rc=$OCF_NOT_RUNNING
+#                                ;;
+#            esac
+#            ;;
             WAITING* )
                 # DONE: lpa_check_lpt_status to come out of here :)
                 # DONE: PRIO2: CHECK IF THE FIX FOR COMING OUT OF WAITING IS CORRECT
@@ -2876,7 +2942,6 @@ function saphana_monitor_secondary()
                 promoted=0;
                 ;;
             # DONE: PRIO0 - Need to differ logs for different WAITING4*
-            # WAITING4LPA WAITING4REG WAITING4PRIM WAITING4NODES
             WAITING4PRIM ) # We are WAITING for PRIMARY so not testing the HANA engine now but check for a new start
                 if check_for_primary_master; then
                     super_ocf_log info "ACT: SECONDARY still in status WAITING - Primary now available - try a new start"
@@ -2888,7 +2953,8 @@ function saphana_monitor_secondary()
                 fi
                 promoted=0;
                 ;;
-            WAITING4NODES ) # TODO: PRIO1: HOW TO HANDLE WAITING4NODES IN DETAIL
+            WAITING4NODES ) # TODO: PRIO3: HOW TO HANDLE WAITING4NODES IN DETAIL - should we keep the resource running or restart and retry?
+                # saphana_monitor_secondary WAITING4NODES handling
                 super_ocf_log info "ACT: Site still in status WAITING4NODES."
                 saphana_start_clone
                 promoted=0;
@@ -2925,7 +2991,15 @@ function saphana_monitor_secondary()
         1 ) # ERROR
             super_ocf_log debug "DBG: 012 * lpa_set_lpt 10 $sr_name"
             lpa_set_lpt  10 "$sr_name"
-            rc=$OCF_NOT_RUNNING
+            # Hide this error, if we still in WAITING4NODES
+            case "$promote_attr" in
+                WAITING4NODES ) # hide error 
+                                rc=$OCF_SUCCESS
+                                ;;
+                * )
+                                rc=$OCF_NOT_RUNNING
+                                ;;
+            esac
             ;;
         2 | 3 | 4 ) # WARN INFO OK
             rc=$OCF_SUCCESS
@@ -3114,7 +3188,7 @@ function saphana_monitor_clone() {
                 #
                 # code for missing ALL master nameserver candidates
                 #
-                if is_active_nameserver_slave; then
+                if is_active_nameserver_slave || is_lost_nameserver_slave; then
                     #
                     # missing ALL master nameserver candidates, but local instance still running -> we need to trigger the cluster to take us down
                     #
