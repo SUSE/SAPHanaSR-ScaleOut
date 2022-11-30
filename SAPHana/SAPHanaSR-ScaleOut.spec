@@ -42,11 +42,13 @@ Group:          Productivity/Clustering/HA
 Conflicts:      SAPHanaSR-doc
 
 %description
-The resource agents SAPHana and SAPHanaTopology are responsible for controlling
-a SAP HANA Database which is running in system replication (SR) configuration.
+The resource agents SAPHanaController and SAPHanaTopology are responsible for
+controlling a SAP HANA Database which is running in system replication (SR)
+configuration.
 
 For SAP HANA Databases in System Replication only the described or referenced
-scenarios in the SAPHanaSR(7) man page included in this package are supported.
+scenarios in the SAPHanaSR-ScaleOut(7) man page included in this package are
+supported.
 For any scenario not matching the scenarios named or referenced in this man
 page please contact SUSE at SAP LinuxLab (sap-lab@suse.de).
 
@@ -61,7 +63,7 @@ Authors:
     Fabian Herschel
 
 %description doc
-This sub package includes the Setup-Guide for getting SAP HANA system replication under cluster control.
+This sub package points to the Setup-Guide for getting SAP HANA system replication under cluster control.
 
 %prep
 tar xf %{S:0}
