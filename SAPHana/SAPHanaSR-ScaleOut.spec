@@ -21,7 +21,7 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.183.1_TEST
+Version:        0.184.1
 Release:        0
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 Source0:        SAPHanaSR-ScaleOut-%{version}.tar.bz2
@@ -42,14 +42,18 @@ Group:          Productivity/Clustering/HA
 Conflicts:      SAPHanaSR-doc
 
 %description
-The resource agents SAPHana and SAPHanaTopology are responsible for controlling a SAP HANA Database which is
-running in system replication (SR) configuration.
+The resource agents SAPHanaController and SAPHanaTopology are responsible for
+controlling a SAP HANA Database which is running in system replication (SR)
+configuration.
 
-For SAP HANA Databases in System Replication only the described or referenced scenarios in the README file of
-this package are supported. For any scenario not matching the scenarios named or referenced in the README file
-please contact SUSE at SAP LinuxLab (sap-lab@suse.de).
+For SAP HANA Databases in System Replication only the described or referenced
+scenarios in the SAPHanaSR-ScaleOut(7) man page included in this package are
+supported.
+For any scenario not matching the scenarios named or referenced in this man
+page please contact SUSE at SAP LinuxLab (sap-lab@suse.de).
 
-The following SCN blog gives a first overwiew about running SAP HANA in system replication with our resource agents:
+The following SCN blog gives a first overwiew about running SAP HANA in system
+replication with our resource agents:
 http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 
 
@@ -59,7 +63,7 @@ Authors:
     Fabian Herschel
 
 %description doc
-This sub package includes the Setup-Guide for getting SAP HANA system replication under cluster control.
+This sub package points to the Setup-Guide for getting SAP HANA system replication under cluster control.
 
 %prep
 tar xf %{S:0}
