@@ -21,7 +21,7 @@ License:        GPL-2.0
 Group:          Productivity/Clustering/HA
 AutoReqProv:    on
 Summary:        Resource agents to control the HANA database in system replication setup
-Version:        0.181.0
+Version:        0.184.1
 Release:        0
 Url:            http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 Source0:        SAPHanaSR-ScaleOut-%{version}.tar.bz2
@@ -42,14 +42,18 @@ Group:          Productivity/Clustering/HA
 Conflicts:      SAPHanaSR-doc
 
 %description
-The resource agents SAPHana and SAPHanaTopology are responsible for controlling a SAP HANA Database which is
-running in system replication (SR) configuration.
+The resource agents SAPHanaController and SAPHanaTopology are responsible for
+controlling a SAP HANA Database which is running in system replication (SR)
+configuration.
 
-For SAP HANA Databases in System Replication only the described or referenced scenarios in the README file of
-this package are supported. For any scenario not matching the scenarios named or referenced in the README file
-please contact SUSE at SAP LinuxLab (sap-lab@suse.de).
+For SAP HANA Databases in System Replication only the described or referenced
+scenarios in the SAPHanaSR-ScaleOut(7) man page included in this package are
+supported.
+For any scenario not matching the scenarios named or referenced in this man
+page please contact SUSE at SAP LinuxLab (sap-lab@suse.de).
 
-The following SCN blog gives a first overwiew about running SAP HANA in system replication with our resource agents:
+The following SCN blog gives a first overwiew about running SAP HANA in system
+replication with our resource agents:
 http://scn.sap.com/community/hana-in-memory/blog/2014/04/04/fail-safe-operation-of-sap-hana-suse-extends-its-high-availability-solution
 
 
@@ -59,7 +63,7 @@ Authors:
     Fabian Herschel
 
 %description doc
-This sub package includes the Setup-Guide for getting SAP HANA system replication under cluster control.
+This sub package points to the Setup-Guide for getting SAP HANA system replication under cluster control.
 
 %prep
 tar xf %{S:0}
@@ -91,6 +95,8 @@ install -m 0444 man/*.8.gz %{buildroot}/usr/share/man/man8
 install -m 0555 bin/* %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-replay-archive %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-filter %{buildroot}/usr/sbin
+install -m 0555 test/SAPHanaSR-hookHelper %{buildroot}/usr/sbin
+install -m 0555 test/SAPHanaSR-manageProvider %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-show-hadr-runtimes %{buildroot}/usr/sbin
 install -m 0555 test/SAPHanaSR-show-hadr-log-coincidence %{buildroot}/usr/sbin
 install -Dm 0444 test/SAPHanaSRTools.pm %{buildroot}/usr/lib/%{name}/SAPHanaSRTools.pm
@@ -108,7 +114,10 @@ install -Dm 0444 wizard/workflows/90-SAPHanaSR-ScaleOut.xml  %{buildroot}/srv/ww
 # HANA hooks
 install -m 0644 srHook/SAPHanaSR.py %{buildroot}/usr/share/%{name}/
 install -m 0644 srHook/SAPHanaSrMultiTarget.py %{buildroot}/usr/share/%{name}/
+install -m 0644 srHook/susTkOver.py %{buildroot}/usr/share/%{name}/
+install -m 0644 srHook/susChkSrv.py %{buildroot}/usr/share/%{name}/
 install -m 0444 srHook/global.ini %{buildroot}/usr/share/%{name}/samples
+install -m 0444 srHook/global.ini_TakeoverBlocker %{buildroot}/usr/share/%{name}/samples
 install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 
 %files
@@ -125,6 +134,8 @@ install -m 0444 srHook/sudoers %{buildroot}/usr/share/%{name}/samples
 /usr/sbin/SAPHanaSR-manageAttr
 /usr/sbin/SAPHanaSR-replay-archive
 /usr/sbin/SAPHanaSR-filter
+/usr/sbin/SAPHanaSR-hookHelper
+/usr/sbin/SAPHanaSR-manageProvider
 /usr/sbin/SAPHanaSR-show-hadr-runtimes
 /usr/sbin/SAPHanaSR-show-hadr-log-coincidence
 %dir /srv/www/hawk
