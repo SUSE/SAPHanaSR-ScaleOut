@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSR.py 7 "02 Nov 2022" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSR.py 7 "27 Apr 2023" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSR.py \- Provider for SAP HANA srHook method srConnectionChanged().
@@ -153,23 +153,6 @@ execution_order = 1
 ha_dr_saphanasr = info
 .RE
 .PP
-* Example for creating the optional SAPHanaSR python object file manually. SID is SLE.
-.PP
-.RS 2
-# mkdir -p /hana/shared/srhook
-.br
-# chown sleadm.sapsys /hana/shared/srhook
-.br
-# su - sleadm
-.br
-# cd /hana/shared/srhook
-.br
-# python -m py_compile /usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
-.br
-# ls -l SAPHanaSR.pyc
-.\" TODO chmod 755?
-.RE
-.PP
 * Example for checking the system log for srHook setting its version in the CIB nodes section.
 .br
 When being loaded on the HANA master name server, the srHook writes its version as node attribute into the CIB. This action is logged in the system log.
@@ -218,9 +201,6 @@ If no log entry exists, either the srHook has not being loaded, or it did not ha
 .TP
 /usr/share/SAPHanaSR-ScaleOut/SAPHanaSR.py
  the hook provider, delivered with the RPM
-.TP
-/hana/shared/srhook/SAPHanaSR.pyc
- the hook provider, if pre-compiled for the particular HANA (optional)
 .TP
 /hana/shared/$SID/global/hdb/custom/config/global.ini
  the on-disk representation of HANA global system configuration

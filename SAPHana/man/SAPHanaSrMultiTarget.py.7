@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "02 Nov 2022" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "27 Apr 2023" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -114,6 +114,41 @@ sleadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_sle_*
 .\"sleadm ALL=(ALL) NOPASSWD: SOK, SFAIL
 .\".RE
 .\".PP
+* Example for very restricted sudo permission, e.g. /etc/sudoers.d/SAPHanaSR. HANA 2.0 Scale-Out multi-target aware and legacy. SID is PRD. Restricted patterns should be used with caution. They may interfere with new functionality in the future. Please double check before applying in production.
+.\" https://github.com/SUSE/suse-best-practices/issues/319
+.PP
+.RS 2
+# Comments need a blank after the hash.
+.br
+# SAPHanaSR-ScaleOut needs for /usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
+.br
+Cmnd_Alias GSH_QUERY      = /usr/sbin/crm_attribute -n hana_prd_gsh -G
+.br
+Cmnd_Alias GSH_UPDATE     = /usr/sbin/crm_attribute -n hana_prd_gsh -v 2.2 -l reboot
+.br
+# be compatible with non-multi-target mode
+.br
+Cmnd_Alias SOK_GLOB       = /usr/sbin/crm_attribute -n hana_prd_glob_srHook -v SOK -t crm_config -s SAPHanaSR
+.br
+Cmnd_Alias SFAIL_GLOB     = /usr/sbin/crm_attribute -n hana_prd_glob_srHook -v SOK -t crm_config -s SAPHanaSR
+.br
+# be compatible with multi-target mode
+.br
+Cmnd_Alias SOK_GLOB_MTS   = /usr/sbin/crm_attribute -n hana_prd_glob_mts -v SOK -t crm_config -s SAPHanaSR
+.br
+Cmnd_Alias SFAIL_GLOB_MTS = /usr/sbin/crm_attribute -n hana_prd_glob_mts -v SOK -t crm_config -s SAPHanaSR
+.br
+Cmnd_Alias SOK_SITEA      = /usr/sbin/crm_attribute -n hana_prd_site_srHook_Site1 -v SOK   -t crm_config -s SAPHanaSR
+.br
+Cmnd_Alias SFAIL_SITEA    = /usr/sbin/crm_attribute -n hana_prd_site_srHook_Site1 -v SFAIL -t crm_config -s SAPHanaSR
+.br
+Cmnd_Alias SOK_SITEB      = /usr/sbin/crm_attribute -n hana_prd_site_srHook_Site2 -v SOK   -t crm_config -s SAPHanaSR
+.br
+Cmnd_Alias SFAIL_SITEB    = /usr/sbin/crm_attribute -n hana_prd_site_srHook_Site2 -v SFAIL -t crm_config -s SAPHanaSR
+.br
+prdadm ALL=(ALL) NOPASSWD: GSH_QUERY, GSH_UPDATE, SOK_GLOB, SFAIL_GLOB, SOK_GLOB_MTS, SFAIL_GLOB_MTS, SOK_SITEA, SFAIL_SITEA, SOK_SITEB, SFAIL_SITEB
+.RE
+.PP
 * Example for looking up the sudo permission for the srHook script.
 .br
 All related files (/etc/sudoers and /etc/sudoers.d/*) are scanned.
@@ -184,24 +219,6 @@ roles_suse11 = worker
 .br
 roles_suse12 = worker
  ...
-.RE
-.PP
-* Example for creating the optional SAPHanaSrMultiTarget.pyc python object file manually. SID is SLE.
-.PP
-.RS 2
-# mkdir -p /hana/shared/srhook
-.br
-# chown sleadm.sapsys /hana/shared/srhook
-.br
-# su - sleadm
-.br
-# cd /hana/shared/srhook
-.br
-# python -m py_compile /usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
-.br
-# chmod 755 SAPHanaSrMultiTarget.pyc
-.br
-# ls -l SAPHanaSrMultiTarget.pyc
 .RE
 .PP
 * Example for checking the system log for srHook setting HANA system replication status in the CIB properties section. To be executed on respective HANA primary site's master nameserver.
@@ -290,9 +307,6 @@ the scale-out old-style hook provider, delivered with the RPM
 .TP
 /usr/share/SAPHanaSR-ScaleOut/SAPHanaSrMultiTarget.py
 the scale-out multi-target aware hook provider, delivered with the RPM
-.TP
-/hana/shared/srhook/SAPHanaSR.pyc
-the old-style hook provider, if pre-compiled for the particular HANA (optional)
 .TP
 /hana/shared/$SID/global/hdb/custom/config/global.ini
 the on-disk representation of HANA global system configuration
