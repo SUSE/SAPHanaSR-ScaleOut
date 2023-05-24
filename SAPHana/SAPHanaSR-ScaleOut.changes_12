@@ -1,4 +1,21 @@
 -------------------------------------------------------------------
+Tue May 23 17:47:00 UTC 2023 - abriel@suse.com
+
+- Version bump to 0.185.0
+  * avoid explicid and implicid usage of /tmp filesystem to keep
+    the SAPHanaSR resource agents working even in situations with
+    /tmp filesystem full.
+    (bsc#1210728)
+  * fix the path for the HA/DR provider hook in the global.ini
+    examples to be useful
+    (bsc#1210573)
+  * update man pages:
+    SAPHanaSR_maintenance_examples.7
+    SAPHanaSR-ScaleOut_basic_cluster.7
+    SAPHanaSrMultiTarget.py.7
+    SAPHanaSR.py.7
+
+-------------------------------------------------------------------
 Tue Nov 29 17:12:15 UTC 2022 - abriel@suse.com
 
 - Version bump to 0.184.1
@@ -11,7 +28,7 @@ Tue Nov 29 17:12:15 UTC 2022 - abriel@suse.com
   * add improvements from SAP to the RA scripts regarding the
     handling of the SAP tools 'HDB version', 'HDBSettings.sh' and
     'pycd' and the SAPHana log filter handling
-    (jsc#PED-1739)
+    (jsc#PED-1739, jsc#PED-2608)
   * fix SAPHanaSR-replay-archive to handle hb_report archives again
     (bsc#1198897)
   * fix for SAPHanaSR-monitor reporting "LPA status of one node is
@@ -109,11 +126,21 @@ Mon Aug  2 12:23:09 UTC 2021 - abriel@suse.com
 - handle 'leftover instances'
   if HANA is configured to have only one master name server, but
   no additional master name server candidates, there may be the
-  situation, where the master name serve died and so the landscape
+  situation, where the master name server died and so the landscape
   has no active name server anymore.
   But there are other instances running with active communication
   channels. To prevent data corruption or operations on outdated
   data, we identify and stop these 'leftover' instances.
+- add workaround for 'sapcontrol -function WaitforStopped'
+  terminating to early.
+  If the master name server dies and does not have a failover
+  candidate but there are still running worker nodes the command
+  'sapcontrol -function WaitforStopped' terminates to early and
+  does not wait till all the remaining worker nodes are down.
+  So the resource agent needs to wait during his 'stopSystem'
+  function till the last "partial" node is down before returning
+  a result to the cluster.
+  (bsc#1196650)
 - manual page updates:
   SAPHanaSR-ScaleOut.7 (bsc#1144442)
   SAPHanaSR-showAttr.8 (bsc#1144312)

@@ -95,21 +95,19 @@ function sht_usage() {
     local rc=0
     methods=$(sht_methods)
     methods=$(echo $methods | tr ' ' '|')
-  cat <<-!
-	usage: $0 ($methods)
+    echo "usage: $0 ($methods)
 
     $0 manages a SAP HANA Instance as an HA resource.
 
-    The 'start'        operation starts the HANA instance or bring the "instance" to a WAITING (for primary) status
+    The 'start'        operation starts the HANA instance or bring the \"instance\" to a WAITING (for primary) status
     The 'stop'         operation stops the HANA instance
     The 'status'       operation reports whether the HANA instance is running
     The 'monitor'      operation reports whether the HANA instance seems to be working in multi-state configuration it also needs to check the system replication status
     The 'notify'       operation always returns SUCCESS
     The 'validate-all' operation reports whether the parameters are valid
     The 'methods'      operation reports on the methods $0 supports
-
-	!
-	return $rc
+"
+    return $rc
 }
 
 #
@@ -120,10 +118,9 @@ function sht_usage() {
 function sht_meta_data() {
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
-	cat <<END
-<?xml version="1.0"?>
+    echo '<?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
-<resource-agent name="SAPHanaTopology" version="$SAPHanaTopologyVersion">
+<resource-agent name="SAPHanaTopology" version="'$SAPHanaTopologyVersion'">
     <version>1.0</version>
     <shortdesc lang="en">Analyzes SAP HANA System Replication Topology.</shortdesc>
     <longdesc lang="en">This RA analyzes the SAP HANA topology and "sends" all findings via the node status attributes to
@@ -172,8 +169,8 @@ SAPHanaTopology scans the output table of landscapeHostConfiguration.py to ident
         <content type="string" default="120" />
     </parameter>
     <parameter name="DIR_EXECUTABLE" unique="0" required="0">
-        <longdesc lang="en">Path to the SAP Hana Instance executable directory. If not set the RA tries /usr/sap/\$SID/\$InstanceName/exe.
-        While InstanceName is the string of "HDB" and \$InstanceNumber for SAP Hana databases.
+        <longdesc lang="en">Path to the SAP Hana Instance executable directory. If not set the RA tries /usr/sap/$SID/$InstanceName/exe.
+        While InstanceName is the string of "HDB" and $InstanceNumber for SAP Hana databases.
         </longdesc>
         <shortdesc lang="en">Path to the SAP Hana Instance executable directory.</shortdesc>
         <content type="string" default="" />
@@ -188,9 +185,8 @@ SAPHanaTopology scans the output table of landscapeHostConfiguration.py to ident
     <action name="meta-data" timeout="5" />
     <action name="methods" timeout="5" />
 </actions>
-</resource-agent>
-END
-return $rc
+</resource-agent>'
+    return $rc
 }
 
 #
@@ -267,21 +263,20 @@ function set_hana_attribute()
 # methods: What methods/operations do we support?
 #
 function sht_methods() {
-  super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
-  local rc=0
-  cat <<-!
-    start
-    stop
-    status
-    monitor
-    notify
-    validate-all
-    methods
-    meta-data
-    usage
-    admin-setup
-	!
-	return $rc
+    super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
+    local rc=0
+    echo "
+      start
+      stop
+      status
+      monitor
+      notify
+      validate-all
+      methods
+      meta-data
+      usage
+      admin-setup"
+    return $rc
 }
 
 #
@@ -365,9 +360,9 @@ function HANA_CALL()
                   ;;
         *       )
                   errExt=$(date '+%s%N')_${sid}adm
-                  su_err_log=/tmp/HANA_CALL_SU_TOP_${errExt}
-                  cmd_out_log=/tmp/HANA_CALL_CMD_TOP_OUT_${errExt}
-                  cmd_err_log=/tmp/HANA_CALL_CMD_TOP_${errExt}
+                  su_err_log=/run/HANA_CALL_SU_TOP_${errExt}
+                  cmd_out_log=/run/HANA_CALL_CMD_TOP_OUT_${errExt}
+                  cmd_err_log=/run/HANA_CALL_CMD_TOP_${errExt}
 
                   output=$(timeout "$timeOut" $pre_cmd "($pre_script; $cmd > $cmd_out_log) >& $cmd_err_log" 2>"$su_err_log"); rc=$?
 
@@ -741,8 +736,8 @@ function master_walk() {
               nSite=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_SITE[@]}")
               if [ "$site" = "$nSite" ]; then
                  # node of same site found
-                 nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
-                 read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+                 nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}")
+                 read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
                  super_ocf_log debug "DBG: site $site $nNsConf:$nNsCurr"
                  case "$nNsConf:$nNsCurr" in
                     master1:master  ) master1=$node; active_master=$node
@@ -775,7 +770,6 @@ function master_walk() {
              declare -a masters
              masters=( $master1 $master2 $master3 )
              best_cold_master=${masters[0]}
-             #read best_cold_master rest <<<$master1 $master2 $master3
           fi
           super_ocf_log info "ACT ===> priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
           ;;
@@ -786,7 +780,6 @@ function master_walk() {
     declare -a masters
     masters=( $active_master $best_cold_master )
     the_master=${masters[0]}
-#   read the_master rest <<<$active_master $best_cold_master
    super_ocf_log info "ACT ===> master_walk: the_master=$the_master; priorities for site $site master1=$master1 master2=$master2 master3=$master3 ==> active_master=$active_master best_cold_master=$best_cold_master"
 }
 
@@ -917,8 +910,8 @@ function sht_stop_clone() {
     if [ "$hanalrc" -ge 124 ]; then
         # timeout of HANA_CALL, set role to '$nNsConf:shtdown:shtdown:shtdown'
         # to get the saphana_demote_clone to fail and stop the resource
-        nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}" | tr ':' ' ')
-        read nNsConf nNsCurr nIsConf nIsCurr <<< $nRole
+        nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}")
+        read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
         set_hana_attribute "${NODENAME}" "$nNsConf:shtdown:shtdown:shtdown" "${ATTR_NAME_HANA_ROLES[@]}"
         # and exit with 1 to let the stop fail
         tout=1
