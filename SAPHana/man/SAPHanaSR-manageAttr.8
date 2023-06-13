@@ -43,10 +43,10 @@ use instance number of the SAP system
 .SH SUPPORTED PARAMETERS
 .TP
 \fBhana_${sid}_gra\fR = [ \fIgeneration\fR ]
-The resource agent (RA) generation attribute identifies which generation of the RA is running. It helps determing RA's capabilities and performing cluster-wide upgrades of RA and srHook. The generation should be same for both on all nodes of the Linux cluster after successful upgrade. See also hana_${sid}_gsh.
+The resource agent (RA) generation attribute identifies which generation of the RA is running. It helps determining RA's capabilities and performing cluster-wide upgrades of RA and srHook. The generation should be same for both on all nodes of the Linux cluster after successful upgrade. See also hana_${sid}_gsh.
 .TP
 \fBhana_${sid}_gsh\fR = [ \fIgeneration\fR ]
-The srHook generation attribute identifies which generation of the srHook is running. It helps determing srHook's capabilities and performing cluster-wide upgrades of RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out multi-target system replication, which needs replacement of the old SAPHanaSR.py by new SAPHanaSrMultiTarget.py. See also hana_${sid}_gra.
+The srHook generation attribute identifies which generation of the srHook is running. It helps determining srHook's capabilities and performing cluster-wide upgrades of RA and srHook. E.g. starting with generation 2.0 the RA supports scale-out multi-target system replication, which needs replacement of the old SAPHanaSR.py by new SAPHanaSrMultiTarget.py. See also hana_${sid}_gra.
 .TP
 \fBhana_${sid}_site_srHook_${SITE}\fR = [ SOK | SFAIL | SWAIT | SREG | PRIM ]
 The SAPHanaController and SAPHana RA recognize the effecting system replication status via srHook attributes in the CIB properties section. The scale-out multi-target aware attribute is site-specific. This attribute is used after successful upgrade or fresh installation into target state. See also SAPHanaSrMultiTarget.py(7). The SAP System Indentifier (sid) is given in lower case.
