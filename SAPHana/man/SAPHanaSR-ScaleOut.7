@@ -143,7 +143,7 @@ to repair a local failure.
 5. \fBRecovering from failure of master nameserver\fR
 .br
 If the master nameserver of an HANA database system fails, the HANA will start
-the nameserver on another node. Therefore usually up to two nodes are
+the nameserver on another node. Therefor usually up to two nodes are
 configured as additional nameserver candidates. At least one of them should be
 a standby node to optimize failover time. The Linux cluster will detect the
 change and move the IP address to the new active master nameserver.
@@ -213,7 +213,7 @@ cluster tests.
 .PP
 \fB*\fR Be patient. For detecting the overall HANA status, the Linux cluster
 needs a certain amount of time, depending on the HANA and the configured
-intervalls and timeouts.
+intervals and timeouts.
 .PP
 \fB*\fR Before doing anything, always check for the Linux cluster's idle status,
 left-over migration constraints, and resource failures as well as the HANA
@@ -311,7 +311,7 @@ Tennant-specific takeover groups are not supported. Sharing standby nodes
 across sites is not supported.
 .PP
 20. In MDC configurations the HANA database is treated as a single system
-including all database containers. Therefore, cluster takeover decisions are
+including all database containers. Therefor, cluster takeover decisions are
 based on the complete status independent of the status of individual containers.
 .PP
 21. If a third HANA site is connected by system replication, that HANA is not
