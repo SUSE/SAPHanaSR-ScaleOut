@@ -2,7 +2,7 @@
 #
 # SAPHanaTopology
 #
-# Description:	Clone resource to analyze SAPHana-Topology
+# Description: Clone resource to analyze SAPHana-Topology
 #
 ###################################################################################################################
 #
@@ -22,14 +22,14 @@
 # OCF instance parameters:
 #   OCF_RESKEY_SID            (LNX, NDB, SLE)
 #   OCF_RESKEY_InstanceNumber (00..99)
-#	OCF_RESKEY_DIR_EXECUTABLE   (optional, well known directories will be searched by default)
+#   OCF_RESKEY_DIR_EXECUTABLE   (optional, well known directories will be searched by default)
 #
 #######################################################################
 # DONE PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
-SAPHanaTopologyVersion="0.185.0"
+SAPHanaTopologyVersion="0.185.1"
 #
 # Initialization:
-timeB=$(date '+%s')
+timeB=${SECONDS}
 
 : ${OCF_FUNCTIONS_DIR=${OCF_ROOT}/lib/heartbeat}
 . ${OCF_FUNCTIONS_DIR}/ocf-shellfuncs
@@ -188,6 +188,7 @@ SAPHanaTopology scans the output table of landscapeHostConfiguration.py to ident
     <action name="reload" timeout="5" />
 </actions>
 </resource-agent>'
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -278,6 +279,7 @@ function sht_methods() {
       meta-data
       usage
       admin-setup"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -362,9 +364,9 @@ function HANA_CALL()
                   ;;
         *       )
                   errExt=$(date '+%s%N')_${sid}adm
-                  su_err_log=/run/HANA_CALL_SU_TOP_${errExt}
-                  cmd_out_log=/run/HANA_CALL_CMD_TOP_OUT_${errExt}
-                  cmd_err_log=/run/HANA_CALL_CMD_TOP_${errExt}
+                  su_err_log=${SAPHanaSR_RUN}/HANA_CALL_SU_TOP_${errExt}
+                  cmd_out_log=${SAPHanaSR_RUN}/HANA_CALL_CMD_TOP_OUT_${errExt}
+                  cmd_err_log=${SAPHanaSR_RUN}/HANA_CALL_CMD_TOP_${errExt}
 
                   output=$(timeout "$timeOut" $pre_cmd "($pre_script; $cmd > $cmd_out_log) >& $cmd_err_log" 2>"$su_err_log"); rc=$?
 
@@ -394,6 +396,7 @@ function HANA_CALL()
                  ;;
     esac
     echo "$output"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc;
 }
 
@@ -414,8 +417,6 @@ function sht_init() {
     local myInstanceName=""
     local rc=$OCF_SUCCESS
     local hdbANSWER=""
-    local siteID
-    local siteNAME
     SYSTEMCTL="/usr/bin/systemctl"
     systemd_unit_name="saphostagent.service"
     HOSTEXECNAME=saphostexec
@@ -431,8 +432,12 @@ function sht_init() {
     HANA_CALL_TIMEOUT="${OCF_RESKEY_HANA_CALL_TIMEOUT:-120}"
     export SAPSYSTEMNAME=$SID
     super_ocf_log debug "DBG: Used new method to get SID ($SID) and InstanceNr ($InstanceNr)"
-    sid=$(echo "$SID" | tr [:upper:] [:lower:])
+    sid="${SID,,}"
     sidadm="${sid}adm"
+    # create subdirectory in /run
+    SAPHanaSR_RUN="/run/SAPHanaSR_${sid}"
+    mkdir -p $SAPHanaSR_RUN
+    chown $sidadm $SAPHanaSR_RUN
     ocf_env=$(env | grep 'OCF_RESKEY_CRM')
     super_ocf_log debug "DBG: OCF: $ocf_env"
     ATTR_NAME_HANA_SYNC_STATUS=("hana_${sid}_sync_state" "reboot")  # SOK, SFAIL, UNKNOWN?
@@ -493,10 +498,11 @@ function sht_init() {
     esac
     #### SAP-CALL
     # hdbnsutil was a bit unstable in some tests so we recall the tool, if it fails to report the srmode
+    srmode=""
     for i in  1 2 3; do
         hdbANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null); RC_hdbnsutil=$?
         super_ocf_log debug "DBG: hdbANSWER=$hdbANSWER"
-        srmode=$(echo "$hdbANSWER" | awk -F= '$1 == "mode" {print $2}')
+        [[ "$hdbANSWER" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && srmode=${BASH_REMATCH[2]}
         case "$srmode" in
             primary | syncmem | sync | async | none )
               # we can leave the loop as we already got a result
@@ -509,11 +515,10 @@ function sht_init() {
         esac
     done
     # TODO PRIO3: Implement a file lookup, if we did not get a result
-    siteID=$(echo "$hdbANSWER" | awk -F= '/site id/ {print $2}')
-    siteNAME=$(echo "$hdbANSWER" | awk -F= '/site name/ {print $2}')
-    site=$siteNAME
-    srmode=$(echo "$hdbANSWER" | awk -F= '/mode/ {print $2}')
-    MAPPING=$(echo "$hdbANSWER" | awk -F[=/] '$1 == "mapping" && $2 == myhost && $3 != site { print $4 }' site=$site myhost=$HOSTNAME)
+    [[ "$hdbANSWER" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"site"."name="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && site=${BASH_REMATCH[2]}
+    [[ "$hdbANSWER" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && srmode=${BASH_REMATCH[2]}
+
+    MAPPING=$(echo "$hdbANSWER" | awk -F[=/] '$1 == "mapping" && $2 == myhost && $3 != site { print $4 }' site="$site" myhost=$HOSTNAME)
     super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING"
     #
     # filter all non-cluster mappings
@@ -560,7 +565,7 @@ function check_for_primary() {
               #### SAP-CALL
               #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
               node_full_status=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null )
-              node_status=$(echo "$node_full_status" | awk -F= '$1=="mode" {print $2}')
+              [[ "$node_full_status" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && node_status=${BASH_REMATCH[2]}
               super_ocf_log info "DEC: check_for_primary: loop=$i: node_status=$node_status"
               # TODO: PRIO5: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
        esac;
@@ -588,6 +593,7 @@ function chk4systemdsupport() {
             rc=1
         fi
     fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -662,6 +668,7 @@ function check_saphostagent()
         #       or should we use ${HOSTEXEC_PATH} instead?
         pgrep -f /usr/sap/hostctrl/exe/saphostexec; rc=$?
     fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -818,6 +825,7 @@ function sht_status() {
     local rc=0
 
     sht_monitor; rc=$?
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -831,13 +839,13 @@ function sht_status() {
 function sht_validate() {
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_SUCCESS
-    if [ $(echo "$SID" | grep -c '^[A-Z][A-Z0-9][A-Z0-9]$') -ne 1 ]
+    if [[ ! "$SID" =~ ^[A-Z][A-Z0-9][A-Z0-9]$ ]]
     then
         super_ocf_log err "ACT: Parsing instance profile name: '$SID' is not a valid SID!"
         rc=$OCF_ERR_ARGS
     fi
 
-    if [ $(echo "$InstanceNr" | grep -c '^[0-9][0-9]$') -ne 1 ]
+    if [[ ! "$InstanceNr" =~ ^[0-9][0-9]$ ]]
     then
         super_ocf_log err "ACT: Parsing instance profile name: '$InstanceNr' is not a valid instance number!"
         rc=$OCF_ERR_ARGS
@@ -857,6 +865,7 @@ function sht_start_clone() {
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$OCF_NOT_RUNNING
     sht_start; rc=$?
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -936,6 +945,7 @@ function sht_stop_clone() {
         # timeout of landscapeHostConfiguration.py - let stop fail
         rc=$OCF_ERR_GENERIC
     fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -948,26 +958,26 @@ function sht_stop_clone() {
 function sht_monitor_clone() {
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     #
-	local rc=$OCF_ERR_GENERIC
-	local promoted=0
+    local rc=$OCF_ERR_GENERIC
+    local promoted=0
     local init_attribute=0
 
 
-	if ocf_is_probe; then
-		super_ocf_log debug "DBG: PROBE ONLY"
+    if ocf_is_probe; then
+        super_ocf_log debug "DBG: PROBE ONLY"
         sht_monitor; rc=$?
-	else
-		super_ocf_log debug "DBG: REGULAR MONITOR"
+    else
+        super_ocf_log debug "DBG: REGULAR MONITOR"
         if ! check_saphostagent; then
              start_saphostagent
         fi
-	#
-	# First check, if we are PRIMARY or SECONDARY
-	#
-    super_ocf_log debug "DBG: HANA SID $SID"
-    super_ocf_log debug "DBG: HANA InstanceName $InstanceName"
-    super_ocf_log debug "DBG: HANA InstanceNr $InstanceNr"
-	check_for_primary; primary_status=$?
+        #
+        # First check, if we are PRIMARY or SECONDARY
+        #
+        super_ocf_log debug "DBG: HANA SID $SID"
+        super_ocf_log debug "DBG: HANA InstanceName $InstanceName"
+        super_ocf_log debug "DBG: HANA InstanceNr $InstanceNr"
+        check_for_primary; primary_status=$?
     if [ $primary_status -eq $HANA_STATE_PRIMARY ]; then
         hanaPrim="P"
         super_ocf_log debug "DBG: HANA IS PRIMARY"
@@ -1071,6 +1081,7 @@ function sht_notify() {
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=0
     super_ocf_log info "RA ==== end action $ACTION$CLACT (${n_type}/${n_op})===="
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1162,7 +1173,7 @@ case "$ACTION" in
         ra_rc=$OCF_ERR_UNIMPLEMENTED
         ;;
 esac
-timeE=$(date '+%s')
+timeE=${SECONDS}
 (( timeR = timeE - timeB ))
 super_ocf_log info "RA ==== end action $ACTION$CLACT with rc=${ra_rc} ($SAPHanaTopologyVersion) (${timeR}s)===="
 exit ${ra_rc}

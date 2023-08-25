@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.185.0"
+SAPHanaControllerVersion="0.185.1"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -277,6 +277,7 @@ The resource agent uses the following four interfaces provided by SAP:
     <action name="reload" timeout="5" />
 </actions>
 </resource-agent>'
+super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
 return $rc
 }
 
@@ -292,6 +293,7 @@ function saphana_methods() {
     for m in start stop status monitor promote demote notify validate-all methods meta-data usage reload; do
         echo "$m"
     done
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -372,7 +374,7 @@ function get_saphana_waitfor_timeout() {
     else
         super_ocf_log info "DEC: SAP HANA $hanaAction timeout is '$timeout', was default '$stdTimeOut'"
     fi
-    super_ocf_log info "FLOW $FUNCNAME"
+    super_ocf_log info "FLOW ${FUNCNAME[0]}"
     echo $timeout
 }
 
@@ -539,6 +541,7 @@ function set_crm_master()
        super_ocf_log debug "DBG: LET crm master: $score"
        rc=0
     fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -585,6 +588,7 @@ function get_crm_master()
   super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=0
    ${HA_SBIN_DIR}/crm_master -G -q -l reboot; rc=$?
+   super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
    return $rc
 }
 
@@ -637,9 +641,9 @@ function HANA_CALL()
                   ;;
         *       )
                   errExt=$(date '+%s%N')_${sid}adm
-                  su_err_log=/run/HANA_CALL_SU_RA_${errExt}
-                  cmd_out_log=/run/HANA_CALL_CMD_RA_OUT_${errExt}
-                  cmd_err_log=/run/HANA_CALL_CMD_RA_${errExt}
+                  su_err_log=${SAPHanaSR_RUN}/HANA_CALL_SU_RA_${errExt}
+                  cmd_out_log=${SAPHanaSR_RUN}/HANA_CALL_CMD_RA_OUT_${errExt}
+                  cmd_err_log=${SAPHanaSR_RUN}/HANA_CALL_CMD_RA_${errExt}
 
                   output=$(timeout --foreground -s 9 "$timeOut" $pre_cmd "($pre_script; timeout -s 9 $timeOut $cmd > $cmd_out_log) >& $cmd_err_log" 2>"$su_err_log"); rc=$?
 
@@ -670,6 +674,7 @@ function HANA_CALL()
     esac
     super_ocf_log debug "DBG: HANA_CALL '$cmd' rc=$rc output=$output"
     echo "$output"
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc;
 }
 
@@ -784,8 +789,12 @@ function saphana_init() {
     export SAPSYSTEMNAME=$SID
     HANA_CALL_TIMEOUT="${OCF_RESKEY_HANA_CALL_TIMEOUT:-120}"
     super_ocf_log debug "DBG: Used new method to get SID ($SID) and InstanceNr ($InstanceNr)"
-    sid=$(echo "$SID" | tr [:upper:] [:lower:])
+    sid="${SID,,}"
     sidadm="${sid}adm"
+    # create subdirectory in /run
+    SAPHanaSR_RUN="/run/SAPHanaSR_${sid}"
+    mkdir -p $SAPHanaSR_RUN
+    chown $sidadm $SAPHanaSR_RUN
     # TODO PRIO3: Do we need a parameter for the RA to be able to adjust hdbSrQueryTimeout?
     hdbSrQueryTimeout=180
     # DONE: PRIO4: SAPVIRHOST might be different to NODENAME
@@ -1070,7 +1079,7 @@ function saphana_init() {
     #              This limits us to only have sites A => B inside of the cluster and completely "ignore" site C
     #
     for clN in "${otherNodes[@]}"; do
-	    nodeSite=$(get_hana_attribute $clN "${ATTR_NAME_HANA_SITE[@]}")
+        nodeSite=$(get_hana_attribute $clN "${ATTR_NAME_HANA_SITE[@]}")
         super_ocf_log info "TOP: clN=$clN, nodeSite=$nodeSite"
         if [ -n "$nodeSite" -a "$nodeSite" != "$site" ]; then
             remSite=$nodeSite
@@ -1152,6 +1161,7 @@ function chk4systemdsupport() {
             rc=1
         fi
     fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1250,6 +1260,7 @@ function check_sapstartsrv() {
             fi
         fi
     fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1276,7 +1287,8 @@ function check_for_primary() {
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=$HANA_STATE_DEFECT
     node_full_status=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null )
-    node_status=$(echo "$node_full_status" | awk -F= '$1=="mode" {print $2}')
+    [[ "$node_full_status" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && node_status=${BASH_REMATCH[2]}
+
     super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
     # TODO: PRIO2: Maybe we need to use a fallback interface when hdbnsitil does not answer properly -> lookup in config files?
     #              This might also solve some problems when we could not figure-out the local or remote site name
@@ -1296,7 +1308,7 @@ function check_for_primary() {
                dump=$( echo $node_status | hexdump -C );
                super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
                node_full_status=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null )
-               node_status=$(echo "$node_full_status" | awk -F= '$1=="mode" {print $2}')
+               [[ "$node_full_status" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && node_status=${BASH_REMATCH[2]}
                super_ocf_log debug "DEC: check_for_primary: loop=$i: node_status=$node_status"
                # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
        esac;
@@ -1388,6 +1400,7 @@ function get_hana_landscape_status()
            rc=0
         fi
     fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc;
 }
 
@@ -1460,6 +1473,7 @@ function saphana_status() {
     local binDeam="hdb.sap${SIDInstanceName}" rc=0
     binDeam=${binDeam:0:15}   # Process name is limited to the first 15 characters
     if pgrep $binDeam 1>/dev/null; then rc=$OCF_SUCCESS; else rc=$OCF_NOT_RUNNING; fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -1584,7 +1598,7 @@ function saphana_stopSystem() {
                 fi
             fi
         done
-	    # DONE PRIO1: RC restore!!
+        # DONE PRIO1: RC restore!!
         if [ "$rcWfS" -eq 0 ]; then
             super_ocf_log info "ACT: SAP HANA: System $SID-$InstanceName stopped: $output"
             rc="$OCF_SUCCESS"
@@ -1596,6 +1610,7 @@ function saphana_stopSystem() {
         super_ocf_log err "ACT: SAP HANA: System $SID-$InstanceName stop failed: $output, rc=$rc"
         rc="$OCF_ERR_GENERIC"
     fi
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return "$rc"
 }
 
@@ -1611,20 +1626,20 @@ function saphana_stop() {
     local output=""
     super_ocf_log info "ACT: saphana_stop"
     if is_the_master_nameserver; then
-	    super_ocf_log info "ACT: saphana_stop: is_the_master_nameserver"
+        super_ocf_log info "ACT: saphana_stop: is_the_master_nameserver"
         # Stop the entire SAP HANA site (StopSystem)
         saphana_stopSystem; rc=$?
     elif is_active_nameserver_slave && [ -z "$the_master" ]; then
-	    super_ocf_log info "ACT: saphana_stop: is_active_nameserver_slave and no master nameserver is available"
+        super_ocf_log info "ACT: saphana_stop: is_active_nameserver_slave and no master nameserver is available"
         # Stop the entire SAP HANA site (StopSystem)
         saphana_stopSystem; rc=$?
     elif is_lost_nameserver_slave && [ -z "$the_master" ]; then
-	    super_ocf_log info "ACT: saphana_stop: is_lost_nameserver_slave and no master nameserver is available"
+        super_ocf_log info "ACT: saphana_stop: is_lost_nameserver_slave and no master nameserver is available"
         # Stop ONLY the local SAP HANA instance to avoid an isolated SAP HANA nameserver slave does shutdown the entire site
         saphana_stopSystem Stop rc=$?
     else
-	    is_active_nameserver_slave; is_slave_rc=$?
-	    super_ocf_log info "ACT: saphana_stop: NEITHER is_active_nameserver_slave (rc=$is_slave_rc) NOR is_the_master_nameserver debug: ($the_master) NOR is_lost_nameserver_slave"
+        is_active_nameserver_slave; is_slave_rc=$?
+        super_ocf_log info "ACT: saphana_stop: NEITHER is_active_nameserver_slave (rc=$is_slave_rc) NOR is_the_master_nameserver debug: ($the_master) NOR is_lost_nameserver_slave"
         # TODO: PRIO1: Do we need to set a clone state here?
         rc=$OCF_SUCCESS
     fi
@@ -1644,7 +1659,7 @@ function saphana_validate() {
   #
   # SID is Alpha-AlphaNumeric-Alphanumeric?
   #
-  if [ $(echo "$SID" | grep -c '^[A-Z][A-Z0-9][A-Z0-9]$') -ne 1 ]
+  if [[ ! "$SID" =~ ^[A-Z][A-Z0-9][A-Z0-9]$ ]]
   then
     super_ocf_log err "ACT: Parsing instance profile name: '$SID' is not a valid SID!"
     rc=$OCF_ERR_ARGS
@@ -1652,7 +1667,7 @@ function saphana_validate() {
   #
   # InstanceNr is a two-Digit?
   #
-  if [ $(echo "$InstanceNr" | grep -c '^[0-9][0-9]$') -ne 1 ]
+  if [[ ! "$InstanceNr" =~ ^[0-9][0-9]$ ]]
   then
     super_ocf_log err "ACT: Parsing instance profile name: '$InstanceNr' is not a valid instance number!"
     rc=$OCF_ERR_ARGS
@@ -2386,7 +2401,7 @@ is_active_nameserver_slave()
   read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
   case "$nNsConf:$nNsCurr" in
       slave:slave )
-	 # configured as slave and actual role also detected as slave
+         # configured as slave and actual role also detected as slave
          rc=0
          ;;
       * )
@@ -2414,9 +2429,9 @@ is_lost_nameserver_slave()
   read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
   case "$nNsConf:$nNsCurr" in
       slave: )
-	 # configured as slave but actual role could not be figured out - treat as is_lost_nameserver_slave
+         # configured as slave but actual role could not be figured out - treat as is_lost_nameserver_slave
          rc=0
-	 ;;
+         ;;
       * )
          rc=1
          ;;
@@ -2560,6 +2575,7 @@ function saphana_stop_clone() {
         lpa_set_lpt  10 "$sr_name"
     fi
     saphana_stop; rc=$?
+    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
     return $rc
 }
 
@@ -3006,8 +3022,7 @@ function saphana_monitor_secondary()
             # TODO: PRIO 3: check, if using getParameter.py is the best option to analyze the set operationMode
             # TODO: DONE 3: Should we default to logreplay for SAP HANA >= SPS11 ?
             hanaOut1=$(HANA_CALL --timeout 10 --use-su --cmd "python getParameter.py --key=global.ini/system_replication/operation_mode --sapcontrol=1")
-            hanaFilter1=$(echo "$hanaOut1" | awk -F/ 'BEGIN {out=0} /^SAPCONTROL-OK: <begin>/ { out=1 } /^SAPCONTROL-OK: <end>/ { out=0 } /=/ {if (out==1) {print $3} }')
-            hanaOM=$(echo "$hanaFilter1" | awk -F= '$1=="operation_mode" {print $2}')
+            [[ "$hanaOut1" =~ "SAPCONTROL-OK: <begin>".*"/operation_mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && hanaOM=${BASH_REMATCH[1]}
             set_hana_attribute ${NODENAME} "$hanaOM" "${ATTR_NAME_HANA_OPERATION_MODE[@]}"
             super_ocf_log debug "DBG: sync_attr=$sync_attr"
             case "$sync_attr" in
@@ -3131,7 +3146,7 @@ function saphana_monitor_clone() {
                         * )         rc=$OCF_NOT_RUNNING;;
                     esac
             else
-	            case "$nState" in
+                case "$nState" in
                         DEMOTED )   rc=$OCF_NOT_RUNNING;;
                         PROMOTED )  rc=$OCF_NOT_RUNNING;; ## TODO: PRIO 3: FAILED_MASTER?
                         UNDEFINED ) rc=$OCF_NOT_RUNNING;;
