@@ -1,4 +1,22 @@
 -------------------------------------------------------------------
+Mon Aug 25 16:24:32 UTC 2023 - abriel@suse.com
+
+- Version bump to 0.185.1
+  * improve supportability by providing the current process ID of
+    the RA, which is logged in the RA outputs, to HANA tracefiles
+    too.
+    This allows a mapping of the SAP related command invocations
+    from the RA and the HANA executions which might have a delay
+    in between.
+    (bsc#1214613)
+  * modify /tmp full fix
+    (bsc#1210728)
+  * update man pages:
+    SAPHanaSR-ScaleOut.7
+  * add improvements from SAP to the RA scripts, part II
+    (jsc#PED-1739, jsc#PED-2608)
+
+-------------------------------------------------------------------
 Thu Jul 13 14:56:44 UTC 2023 - abriel@suse.com
 
 - Version bump to 0.185.0
