@@ -106,6 +106,7 @@ function sht_usage() {
     The 'notify'       operation always returns SUCCESS
     The 'validate-all' operation reports whether the parameters are valid
     The 'methods'      operation reports on the methods $0 supports
+    The 'reload'       operation allows to adapt resource parameters
 "
     return $rc
 }
@@ -184,6 +185,7 @@ SAPHanaTopology scans the output table of landscapeHostConfiguration.py to ident
     <action name="validate-all" timeout="5" />
     <action name="meta-data" timeout="5" />
     <action name="methods" timeout="5" />
+    <action name="reload" timeout="5" />
 </actions>
 </resource-agent>'
     return $rc
@@ -1085,7 +1087,6 @@ InstanceName=""
 InstanceNr=""
 DIR_EXECUTABLE=""
 declare -u SAPHanaFilter='ra-act-dec-lpa'
-NODENAME=$(crm_node -n)
 
 if [ $# -ne 1 ]
 then
@@ -1108,8 +1109,11 @@ case "$ACTION" in
                     exit $OCF_SUCCESS;;
     admin-setup)    admin-setup
                     exit $OCF_SUCCESS;;
+    reload)
+                    exit $OCF_SUCCESS ;;
     *);;
 esac
+NODENAME=$(crm_node -n)
 sht_init
 
 if ! ocf_is_root
