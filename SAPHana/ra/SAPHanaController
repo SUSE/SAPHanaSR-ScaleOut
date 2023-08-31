@@ -2329,8 +2329,8 @@ function master_walk() {
                 super_ocf_log debug "DBG: Filter node by cluster node standby mode"
             else
                 nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}")
-                read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
-                super_ocf_log debug "DBG: site $site $nNsConf:$nNsCurr"
+                IFS=: read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole})
+                super_ocf_log debug "DBG: site $site $nNsConf:$nNsCurr $nIsConf:$nIsCurr"
                 case "$nNsConf:$nNsCurr" in
                     master1:master  ) master1=$node; active_master=$node
                         super_ocf_log debug "DBG: roles $nRole match master1:master"
@@ -2398,7 +2398,7 @@ is_active_nameserver_slave()
   super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
   nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-  read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
+  IFS=: read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole})
   case "$nNsConf:$nNsCurr" in
       slave:slave )
          # configured as slave and actual role also detected as slave
@@ -2426,7 +2426,7 @@ is_lost_nameserver_slave()
   super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
   local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
   nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-  read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
+  IFS=: read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole})
   case "$nNsConf:$nNsCurr" in
       slave: )
          # configured as slave but actual role could not be figured out - treat as is_lost_nameserver_slave
@@ -2454,7 +2454,7 @@ function is_master_nameserver()
     super_ocf_log info "FLOW ${FUNCNAME[0]} ($*)"
     local rc=1 nRole="" nLsc=""  nSrmode="" nNsConf="" nNsCurr="" nIsConf="" nIsCurr=""
     nRole=$(get_hana_attribute ${NODENAME} "${ATTR_NAME_HANA_ROLES[@]}")
-    read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
+    IFS=: read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole})
     case "$nNsConf:$nNsCurr" in
         master[123]:master )
            rc=0
@@ -2526,7 +2526,7 @@ function saphana_start_clone() {
             fi
         else
             # saphana_start_clone - WAITING4NODES handling
-            super_ocf_log info "ACT: nr_site_worker < lss_worker- setting WAITING4NODES"
+            super_ocf_log info "ACT: nr_site_worker ($nr_site_node) < lss_worker ($lss_worker) - setting WAITING4NODES"
             set_hana_attribute ${NODENAME} "WAITING4NODES" "${ATTR_NAME_HANA_CLONE_STATE[@]}"
             rc=$OCF_SUCCESS
         fi
