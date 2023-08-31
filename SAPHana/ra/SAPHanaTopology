@@ -746,7 +746,7 @@ function master_walk() {
               if [ "$site" = "$nSite" ]; then
                  # node of same site found
                  nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}")
-                 read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
+                 IFS=: read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole})
                  super_ocf_log debug "DBG: site $site $nNsConf:$nNsCurr"
                  case "$nNsConf:$nNsCurr" in
                     master1:master  ) master1=$node; active_master=$node
@@ -922,7 +922,7 @@ function sht_stop_clone() {
         # timeout of HANA_CALL, set role to '$nNsConf:shtdown:shtdown:shtdown'
         # to get the saphana_demote_clone to fail and stop the resource
         nRole=$(get_hana_attribute ${node} "${ATTR_NAME_HANA_ROLES[@]}")
-        read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole//:/ })
+        IFS=: read nNsConf nNsCurr nIsConf nIsCurr < <(echo ${nRole})
         set_hana_attribute "${NODENAME}" "$nNsConf:shtdown:shtdown:shtdown" "${ATTR_NAME_HANA_ROLES[@]}"
         # and exit with 1 to let the stop fail
         tout=1
