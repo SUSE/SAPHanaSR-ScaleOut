@@ -232,7 +232,15 @@ try:
                     self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
                     logTimestamp(episode, "send result to log")
                     #
-                    if rc != 0:
+                    fallback_file_name = "../.crm_attribute.stage.{0}".format(mySite)
+                    if rc == 0:
+                        # cluster attribute set was successfull - delete pending fallback file, if existing
+                        try:
+                            os.remove(fallback_file_name)
+                            logTimestamp(episode, "new event - pending fallback file {0} deleted".format(fallback_file_name))
+                        except FileNotFoundError:
+                            pass
+                    else:
                         logTimestamp(episode, "update cluster attribute failed, enter fallback")
                         #
                         # FALLBACK
@@ -245,7 +253,7 @@ try:
                         #     however we go one level up (..) to have the file accessible for all SAP HANA swarm nodes
                         #
                         logTimestamp(episode, "prepare fallback attribute file (stage)")
-                        fallbackFileObject = open("../.crm_attribute.stage.{0}".format(mySite), "w")
+                        fallbackFileObject = open(fallback_file_name, "w")
                         fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format(mysid, mySite, mySRS))
                         fallbackFileObject.close()
                         logTimestamp(episode, "created fallback attribute file (stage)")
