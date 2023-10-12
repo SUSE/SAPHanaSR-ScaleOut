@@ -39,10 +39,11 @@ def getEpisode():
     episode = "{0}-{1}".format( datetime.now().strftime('%s') , random.randrange(10000,20000))
     return episode
 
+# TODO: need to move logTimestamp() into the class, because it uses self.tracer.info()
 def logTimestamp(episode, outputMessage):
     traceFilepath = os.path.join(os.environ['SAP_RETRIEVAL_PATH'], 'trace', 'nameserver_saphanasr_multitarget_hook.trc')
     try:
-        with open(traceFilepath, "a") as saphanasr_multitarget_file:
+        with open(traceFilepath, "a", encoding='utf-8') as saphanasr_multitarget_file:
             currentTimeStr = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f ')
             outputMessage = "{0} [{2}] {1}".format(currentTimeStr,outputMessage, episode)
             saphanasr_multitarget_file.write(outputMessage + "\n")
@@ -54,7 +55,9 @@ def logTimestamp(episode, outputMessage):
 
 try:
     class SAPHanaSrMultiTarget(HADRBase):
-
+        """
+        SAPHanaSrMultiTarget implements the handling of the srConnectionChanged event
+        """
 
         def __init__(self, *args, **kwargs):
             episode = getEpisode()
@@ -163,6 +166,9 @@ try:
                 return 0
 
         def srConnectionChanged(self, ParamDict, **kwargs):
+            """
+            srConnectionChanged() handles the SAP HANA HA/DR event for system replication status changes
+            """
             method = "srConnectionChanged"
             startTime = datetime.now()
             episode = getEpisode()
@@ -232,7 +238,16 @@ try:
                     self.tracer.info("{0}.{1}() {2}\n".format(self.__class__.__name__, method, myMSG))
                     logTimestamp(episode, "send result to log")
                     #
-                    if rc != 0:
+                    fallback_file_name = "../.crm_attribute.{0}".format(mySite)
+                    fallback_stage_file_name = "../.crm_attribute.stage.{0}".format(mySite)
+                    if rc == 0:
+                        # cluster attribute set was successfull - delete pending fallback file, if existing
+                        try:
+                            os.remove(fallback_file_name)
+                            logTimestamp(episode, "new event - pending fallback file {0} deleted".format(fallback_file_name))
+                        except FileNotFoundError:
+                            pass
+                    else:
                         logTimestamp(episode, "update cluster attribute failed, enter fallback")
                         #
                         # FALLBACK
@@ -245,17 +260,16 @@ try:
                         #     however we go one level up (..) to have the file accessible for all SAP HANA swarm nodes
                         #
                         logTimestamp(episode, "prepare fallback attribute file (stage)")
-                        fallbackFileObject = open("../.crm_attribute.stage.{0}".format(mySite), "w")
-                        fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format(mysid, mySite, mySRS))
-                        fallbackFileObject.close()
+                        with open(fallback_stage_file_name, "w", encoding='utf-8') as fallbackFileObject:
+                            fallbackFileObject.write("hana_{0}_site_srHook_{1} = {2}".format(mysid, mySite, mySRS))
                         logTimestamp(episode, "created fallback attribute file (stage)")
                         #
                         # release the stage file to the original name (move is used to be atomic)
                         #      .crm_attribute.stage.<site> is renamed to .crm_attribute.<site>
                         #
                         logTimestamp(episode, "move fallback attribute file stage to live")
-                        os.rename("../.crm_attribute.stage.{0}".format(mySite), "../.crm_attribute.{0}".format(mySite))
-                        logTimestamp(episode, "ready to move fallback attribute file stage to live")
+                        os.rename(fallback_stage_file_name, fallback_file_name)
+                        logTimestamp(episode, "moved fallback attribute file stage to live")
             logTimestamp(episode, "srConnectionChanged exit")
             return 0
 except NameError as e:
