@@ -1,6 +1,6 @@
 .\" Version: 0.185.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "24 Jul 2023" "" "SAPHanaSR"
+.TH SAPHanaSR-ScaleOut 7 "31 Oct 2023" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -178,7 +178,7 @@ this additional pieces are not managed by the cluster. Therefor in multi-target
 setups, the AUTOMATED_REGISTER feature needs the register_secondaries_on_takeover
 feature of HANA.
 .PP
-The HANA HADR provider is used for detecting system replication status changes.
+The HANA HA/DR provider is used for detecting system replication status changes.
 .PP
 A common STONITH mechanism is set up for all nodes across all the sites.
 .PP
@@ -220,7 +220,7 @@ left-over migration constraints, and resource failures as well as the HANA
 landscape status, and the HANA SR status.
 .PP
 \fB*\fR Manually activating an HANA primary creates risk of a dual-primary
-situation. The user is responsible for data integrity.
+situation. The user is responsible for data integrity. See also susTkOver.py(7).
 .PP
 .\"
 .SH REQUIREMENTS
@@ -242,19 +242,21 @@ the Linux system. If users are resolved by remote service, local caching is
 neccessary. Substitute user (su) to sidadm needs to work reliable and without
 customized actions or messages. Supported shell is bash.
 .PP
-3. Strict time synchronization between the cluster nodes, e.g. NTP.
+3. Strict time synchronization between the cluster nodes, e.g. NTP. All nodes of
+the Linux cluster have configured the same timezone.
 .PP
 4. For scale-out there is no other SAP HANA system (like QA) on the nodes
 which needs to be stopped during takeover. Both HANA database systems are
 running memory-preload. Also MCOS is currently not supported for scale-out.
 .PP
-5. Only one system replication between the two SAP HANA database systems in
-the Linux cluster. Maximum one system replication to an HANA database outside
-the Linux cluster. See also item 9 below.
+5. Only one system replication between the two SAP HANA databases in the Linux
+cluster. Maximum one system replication to an HANA database outside the Linux
+cluster. See also item 9 below.
 .PP
-6. The replication mode is either sync or syncmem. Replication mode async is
-not supported. The operation modes delta_datashipping, logreplay and
-logreplay_readaccess are supported.
+6. The replication mode is either sync or syncmem for the controlled replication.
+Replication mode async is not supported. The operation modes delta_datashipping,
+logreplay and logreplay_readaccess are supported. The operation mode logreplay
+is default.
 .PP
 7. Both SAP HANA database systems have the same SAP Identifier (SID) and
 Instance Number (INO).
@@ -296,7 +298,8 @@ being written into CIB attributes. The current HANA SR status might differ
 from CIB srHook attribute after cluster maintenance.
 .PP
 15. Once an HANA system replication site is known to the Linux cluster, that
-exact site name has to be used whenever the site is registered manually.
+exact site name has to be used whenever the site is registered manually. At any
+time only one site is configured as primary replication source.
 .PP
 16. In two-node HANA scale-out systems only one master nameserver candidate is
 configured.
