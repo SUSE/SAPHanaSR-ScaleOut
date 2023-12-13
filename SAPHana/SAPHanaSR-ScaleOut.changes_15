@@ -1,4 +1,28 @@
 -------------------------------------------------------------------
+Wed Dec 13 18:38:57 UTC 2023 - abriel@suse.com
+
+- Version bump to 0.185.2
+  * fix cluster state in SAPHanaSR-manageAttr by supporting the
+    different behaviour of 'crmadmin -q -S' in different pacemaker
+    versions
+    (bsc#1217830)
+  * inside SAPHanaSR-hookHelper use the full path for the cibadmin
+    command to support non root users in special user environments
+    (bsc#1216484)
+  * if the SAPHanaSrMultiTarget hook has successfully reported a
+    SR event to the cluster a still existing fall-back state file
+    will be removed to prevent an override of an already reported
+    SR state.
+    (bsc#1215693)
+  * update man pages:
+    SAPHanaSR-ScaleOut.7
+    SAPHanaSR-ScaleOut_basic_cluster.7
+    SAPHanaSR_maintenance_examples.7
+    ocf_suse_SAPHanaTopology.7
+    ocf_suse_SAPHanaController.7
+    SAPHanaSR-showAttr.8
+
+-------------------------------------------------------------------
 Mon Aug 25 16:24:32 UTC 2023 - abriel@suse.com
 
 - Version bump to 0.185.1

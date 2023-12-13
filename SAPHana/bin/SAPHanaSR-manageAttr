@@ -1043,7 +1043,17 @@ chk_cluster_health() {
         wr_info -eh "Could not detect the Designated Controller, please check cluster health."
         chk=1
     else
+        # Note: crmadmin in Pacemaker versions before 2.1.2 printed the
+        # --quiet result (S_IDLE) on stderr instead of stdout
+        # on stdout there was an additonal, more chatty message like
+        # Status of crmd@hana01: S_IDLE (ok)
+        # as I'm not sure, which other messages may appear on stdout for all
+        # the 'old' pacemaker versions, I will check the stderr output first.
+        #
         istate=$(crmadmin -q -S "$DC" 2>&1 1>/dev/null) || ret=$?
+        if [ -z "$istate" ]; then
+            istate=$(crmadmin -q -S "$DC" 2>/dev/null) || ret=$?
+        fi
     fi
     if [ -z "$istate" ] || [ "$ret" != 0 ]; then
         wr_info -eh "Cluster state 'unknown'. Please check."
