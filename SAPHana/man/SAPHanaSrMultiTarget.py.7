@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "27 Apr 2023" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "04 Jan 2024" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -321,7 +321,7 @@ the sudo permission configuration
 the directory with HANA trace files
 .TP
 /usr/sap/$SID/HDB$nr/.crm_attribute.$SITE
-the internal cache for srHook status changes while Linux cluster is down, file is owned by ${SID}adm and must never be touched
+the internal cache for srHook status changes while Linux cluster is down, file is owned and read/write by ${sid}adm and must never be touched
 .PP
 .\"
 .SH REQUIREMENTS 
@@ -340,17 +340,20 @@ not documented contradictingly.
 .PP
 3. The user ${sid}adm needs execution permission as user root for the command crm_attribute.
 .PP
-4. The hook provider needs to be added to the HANA global configuration,
+4. The user ${sid}adm needs ownership and read/write permission on the internal
+cache file /usr/sap/$SID/HDB$nr/.crm_attribute.$SITE and its parent directory.
+.PP
+5. The hook provider needs to be added to the HANA global configuration,
 in memory and on disk (in persistence).
 .PP
-5. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA has to be used.
+6. If the hook provider should be pre-compiled, the particular Python version that comes with SAP HANA has to be used.
 .PP
-6. The Linux cluster needs to be up and running to allow HA/DR provider events being written into CIB attributes. The current HANA SR status might differ from CIB srHook attribute after Linux cluster maintenance.
+7. The Linux cluster needs to be up and running to allow HA/DR provider events being written into CIB attributes. The current HANA SR status might differ from CIB srHook attribute after Linux cluster maintenance.
 .PP
-7. The srHook script runtime almost completely depends on call-outs to OS and
+8. The srHook script runtime almost completely depends on call-outs to OS and
 Linux cluster.
 .PP
-8. Running srHook script and RA need to be of same or compatible generation. This is indicated by node attributes.
+9. Running srHook script and RA need to be of same or compatible generation. This is indicated by node attributes.
 .PP
 .\"
 .SH BUGS
@@ -397,7 +400,7 @@ A.Briel, F.Herschel, L.Pinne.
 .PP
 .\"
 .SH COPYRIGHT
-(c) 2020-2022 SUSE LLC
+(c) 2020-2024 SUSE LLC
 .br
 SAPHanaSrMultiTarget.py comes with ABSOLUTELY NO WARRANTY.
 .br
