@@ -1305,13 +1305,16 @@ function check_for_primary() {
                return $HANA_STATE_STANDALONE;;
            * )
                super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: <$node_status>"
-               dump=$( echo $node_status | hexdump -C );
-               super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
+               if [ -n "$node_status" ]; then
+                   dump=$( echo $node_status | hexdump -C );
+                   super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
+               fi
                node_full_status=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null )
                [[ "$node_full_status" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && node_status=${BASH_REMATCH[2]}
                super_ocf_log debug "DEC: check_for_primary: loop=$i: node_status=$node_status"
                # TODO: PRIO1: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
-       esac;
+               ;;
+       esac
        sleep 20
     done
     super_ocf_log info "FLOW ${FUNCNAME[0]} rc=$rc"
