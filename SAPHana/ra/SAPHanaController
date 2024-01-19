@@ -12,7 +12,7 @@
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2013,2014 SUSE Linux Products GmbH
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
-# Copyright:    (c) 2017-2022 SUSE LLC
+# Copyright:    (c) 2017-2024 SUSE LLC
 #
 # An example usage:
 #      See usage() function below for more details...
@@ -34,7 +34,7 @@
 #     systemReplicationStatus.py (>= SPS090)
 #
 #######################################################################
-SAPHanaControllerVersion="0.185.1"
+SAPHanaControllerVersion="0.185.3"
 # Resource Agent Generation
 RAG="2.0"
 
@@ -1306,7 +1306,7 @@ function check_for_primary() {
            * )
                super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: <$node_status>"
                if [ -n "$node_status" ]; then
-                   dump=$( echo $node_status | hexdump -C );
+                   dump=$( echo -n $node_status | hexdump -C );
                    super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP <$dump>"
                fi
                node_full_status=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null )

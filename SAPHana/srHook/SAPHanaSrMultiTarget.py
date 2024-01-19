@@ -3,7 +3,7 @@
 # Author:       Fabian Herschel, 2015
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2015-2016 SUSE Linux GmbH
-# Copyright:    (c) 2017-2021 SUSE LLC
+# Copyright:    (c) 2017-2024 SUSE LLC
 
 SAPHanaSrMultiTarget needs SAP HANA 2.0 SPS4 (2.00.040.00) as minimum version
 """
@@ -28,7 +28,7 @@ To use this HA/DR hook provide please add the following lines (or similar) to yo
     [trace]
     ha_dr_saphanasr = info
 """
-fhSRHookVersion = "0.181.0.0216.1706"
+fhSRHookVersion = "0.185.0.0922.1901"
 srHookGen = "2.2"
 cib_access_dflt = "all-on"
 startTime = 0
