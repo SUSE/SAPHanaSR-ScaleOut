@@ -324,13 +324,13 @@ the directory with HANA trace files
 the internal cache for srHook status changes while Linux cluster is down, file is owned and read/write by ${sid}adm and must never be touched
 .PP
 .\"
-.SH REQUIREMENTS 
-1. SAP HANA starting with version 1.0 SPS11 patch level 112.02.
-Older versions do not provide the srHook method srConnectionChanged().
-With the mentioned HANA versions uni-directional chained system replication is
-possible. With HANA 2.0 SPS04 and later multi-target system replication is
-possible as well. See also SAPHanaSR-ScaleOut(7) for supported API versions and
-scenarios.
+.SH REQUIREMENTS
+1. SAP HANA 2.0 SPS05 rev.059 or later provides Python 3 as well as the HA/DR
+provider hook method srConnectionChanged() with multi-target aware parameters.
+SAP HANA 1.0 does not provide them.
+The Python 3 and multi-target aware parameters are needed for the SAPHanaSR-ScalOut
+package.
+See also SAPHanaSR-ScaleOut(7) for supported API versions and scenarios.
 .\" TODO check HANA 2.0 SPS
 .PP
 2. No other HADR provider hook script should be configured for the
