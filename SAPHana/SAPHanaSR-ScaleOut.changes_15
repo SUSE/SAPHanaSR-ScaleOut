@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Wed Jan 19 08:23:30 UTC 2024 - abriel@suse.com
+
+- Version bump to 0.185.3
+  * Fix the hexdump log for empty node states
+  * Fix exception handling in function 'logTimestamp' of HA/DR
+    provider SAPHanaSrMultiTarget.py (bsc#1218901)
+
+-------------------------------------------------------------------
 Wed Dec 13 18:38:57 UTC 2023 - abriel@suse.com
 
 - Version bump to 0.185.2

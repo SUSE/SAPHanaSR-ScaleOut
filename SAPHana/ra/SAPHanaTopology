@@ -14,7 +14,7 @@
 # License:      GNU General Public License (GPL)
 # Copyright:    (c) 2014 SUSE Linux Products GmbH
 #               (c) 2015-2016 SUSE Linux GmbH
-#               (c) 2017-2022 SUSE LLC
+#               (c) 2017-2024 SUSE LLC
 #
 # An example usage:
 #      See usage() function below for more details...
@@ -26,7 +26,7 @@
 #
 #######################################################################
 # DONE PRIO 1: AFTER(!) SAP HANA SPS12 is available we could use hdbnsutil --sr_stateConfiguration
-SAPHanaTopologyVersion="0.185.1"
+SAPHanaTopologyVersion="0.185.3"
 #
 # Initialization:
 timeB=${SECONDS}
@@ -560,15 +560,19 @@ function check_for_primary() {
            * )
               # TODO: PRIO3: Should we set SFAIL?
               # TODO: PRIO4: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
-              dump=$( echo $node_status | hexdump -C );
-              super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP: <$dump>"
+              super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: <$node_status>"
+              if [ -n "$node_status" ]; then
+                  dump=$( echo -n $node_status | hexdump -C );
+                  super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP: <$dump>"
+              fi
               #### SAP-CALL
               #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
               node_full_status=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null )
               [[ "$node_full_status" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && node_status=${BASH_REMATCH[2]}
               super_ocf_log info "DEC: check_for_primary: loop=$i: node_status=$node_status"
               # TODO: PRIO5: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
-       esac;
+              ;;
+       esac
        sleep 20
    done
    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=HANA_STATE_DEFECT"
