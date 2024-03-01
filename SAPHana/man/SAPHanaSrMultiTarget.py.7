@@ -1,6 +1,6 @@
 .\" Version: 0.180.0
 .\"
-.TH SAPHanaSrMultiTarget.py 7 "23 Jan 2024" "" "SAPHanaSR-ScaleOut"
+.TH SAPHanaSrMultiTarget.py 7 "01 Mar 2024" "" "SAPHanaSR-ScaleOut"
 .\"
 .SH NAME
 SAPHanaSrMultiTarget.py \- Provider for multi-target aware SAP HANA srHook
@@ -156,6 +156,14 @@ Example SID is HA1.
 .PP
 .RS 2
 # sudo -U ha1adm -l | grep "NOPASSWD.*crm_attribute.*hana_ha1" 
+.RE
+.PP
+* Example for checking HANA´s python version.
+.br
+This might be done before installing HADR provider hook scripts. SID is HA1.
+.PP
+.RS 2
+# su - ha1adm -c "python --version"
 .RE
 .PP
 * Example for entry in SAP HANA 2.0 global configuration
