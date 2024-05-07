@@ -1,5 +1,5 @@
 -------------------------------------------------------------------
-Feb 02 10:16:20 UTC 2024 - abriel@suse.com
+Tue May  7 16:50:57 UTC 2024 - abriel@suse.com
 
 - Version bump to 0.185.3
   * Fix the hexdump log for empty node states
@@ -9,7 +9,10 @@ Feb 02 10:16:20 UTC 2024 - abriel@suse.com
     SAPHanaSR-ScaleOut.7
     SAPHanaSR.py.7
     SAPHanaSrMultiTarget.py.7
+    SAPHanaSR_maintenance_examples.7
+    SAPHanaSR_upgrade_to_angi.7
     SAPHanaSR-showAttr.8
+    SAPHanaSR-manageProvider.8
 
 -------------------------------------------------------------------
 Wed Dec 13 18:38:57 UTC 2023 - abriel@suse.com
