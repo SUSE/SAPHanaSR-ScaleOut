@@ -1024,12 +1024,12 @@ function sht_monitor_clone() {
     setRole=true
     hanaANSWER=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
     # landscape timeout - retry command
-    if [ "$hanalrc" -eq 124 ]; then
-        super_ocf_log warn "RA: HANA_CALL timed out after $HANA_CALL_TIMEOUT seconds running command 'landscapeHostConfiguration.py --sapcontrol=1'. Retrying..."
+    if [ "$hanalrc" -ge 124 ]; then
+        super_ocf_log warn "RA: HANA_CALL failed with rc=${hanalrc} while running command 'landscapeHostConfiguration.py --sapcontrol=1'. Retrying..."
         hanaANSWER=$(HANA_CALL --timeout "$HANA_CALL_TIMEOUT" --cmd "python landscapeHostConfiguration.py --sapcontrol=1" 2>/dev/null); hanalrc="$?"
-        # if the second try again run into a timeout, log an error and do not set hanarole but keep the previous settings.
+        # if the second try again run into an error, log it as an error and do not set hanarole but keep the previous settings.
         if [ "$hanalrc" -ge 124 ]; then
-            super_ocf_log err "RA: HANA_CALL Operation timeout after $HANA_CALL_TIMEOUT seconds running command 'landscapeHostConfiguration.py --sapcontrol=1'."
+            super_ocf_log err "RA: HANA_CALL failed with rc=${hanalrc} while running command 'landscapeHostConfiguration.py --sapcontrol=1'. Roles will not be updated."
                 setRole=false
         fi
     fi
@@ -1054,7 +1054,7 @@ function sht_monitor_clone() {
     # TODO PRIO2: COULD/SHOULD WE LIMIT THE SET OF THE LSS/SRR ATTRIBUTE TO ONLY THE_MASTER nodes?
     # ignore timeout (124) and "ignore" (5) as return code from the landscapeHostConfiguration call
     super_ocf_log info "DEC: site=$site; hanalrc=$hanalrc"
-    if [ -n "$site" -a "$hanalrc" != "124" ]; then
+    if [ -n "$site" -a "$hanalrc" -lt "124" ]; then
         ATTR=(${ATTR_NAME_HANA_LSS[@]}); ATTR[0]="${ATTR[0]}_$site"
         set_hana_attribute "X" "$hanalrc" "${ATTR[@]}"
         super_ocf_log info "DEC: set_hana_attribute X $hanalrc ${ATTR[0]}"
