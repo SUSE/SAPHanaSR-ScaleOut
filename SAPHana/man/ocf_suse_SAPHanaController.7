@@ -26,7 +26,7 @@ Only if the HANA landscape status indicates that HANA can not recover from the f
 As an exception, the Linux cluster will react if HANA moves the master nameserver role to another candidate. 
 SAPHanaController is also able to restart former failed worker nodes as standby. In addition to the SAPHanaTopology RA, the SAPHanaSR-ScaleOut solution uses a "HA/DR provider" API provided by HANA to get informed about the current state of the system replication.
 .PP
-On initial cluster start, the cluster needs to detect a valid HANA system replication setup, including system replication status (SOK) and last primary timestamp (LPT). This is neccessary to ensure data integrity.
+On initial cluster start, the cluster needs to detect a valid HANA system replication setup, including system replication status (SOK) and last primary timestamp (LPT). This is necessary to ensure data integrity.
 .PP
 The SAPHanaController resource agent (RA) performs the actual check of the SAP HANA database instances and is configured as a multi-state resource.
 The Linux cluster resource's master status will follow the HANA's active master name server role. Resources (e.g. IP address) that need to run on the same node with that HANA role should be co-located with the master target.
