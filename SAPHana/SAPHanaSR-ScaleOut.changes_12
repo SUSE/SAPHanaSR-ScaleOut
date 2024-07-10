@@ -1,4 +1,18 @@
 -------------------------------------------------------------------
+Wed Jul 10 09:23:59 UTC 2024 - abriel@suse.com
+
+- Version bump to 0.185.4
+  * Fix SAPHanaSR-hookHelper by using full pathnames for commands.
+    This will fix the failing fencing with hook susChkSrv.
+    (bsc#1216918)
+  * Fix handling of HANA_CALL timeout return values
+  * update man pages:
+    SAPHanaSR-ScaleOut.7
+    SAPHanaSR_maintenance_examples.7
+    SAPHanaSR_upgrade_to_angi.7
+    ocf_suse_SAPHanaController.7
+
+-------------------------------------------------------------------
 Tue May  7 16:50:57 UTC 2024 - abriel@suse.com
 
 - Version bump to 0.185.3
