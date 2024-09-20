@@ -1,6 +1,6 @@
 .\" Version: 0.185.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "04 Jan 2024" "" "SAPHanaSR"
+.TH SAPHanaSR-ScaleOut 7 "20 Sep 2024" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -342,15 +342,20 @@ Please refer to SAP documentation for details.
 .PP
 27. The Linux user root´s shell is /bin/bash, or completely compatible.
 .PP
+28. No manual actions must be performed on the HANA database while it is controlled
+by the Linux cluster. All administrative actions need to be aligned with the cluster.
+See also SAPHanaSR_maintenance_examples(7).
+.PP
 .\"
 .SH BUGS
-.\" TODO
+.PP
 In case of any problem, please use your favourite SAP support process to open
 a request for the component BC-OP-LNX-SUSE.
 Please report any other feedback and suggestions to feedback@suse.com.
 .PP
 .\"
 .SH SEE ALSO
+.PP
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBocf_heartbeat_IPaddr2\fP(7) , \fBSAPHanaSR-ScaleOut_basic_cluster\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR.py\fP(7) ,
@@ -383,7 +388,7 @@ https://blogs.sap.com/2020/01/30/sap-hana-and-persistent-memory/
 .\" TODO SAP notes 3007062 ...
 .PP
 .SH AUTHORS
-.br
+.PP
 A.Briel, F.Herschel, L.Pinne.
 .PP
 .\"
