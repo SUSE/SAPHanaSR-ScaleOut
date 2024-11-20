@@ -1,4 +1,4 @@
-.\" Version: 1.2 
+.\" Version: 1.2
 .\"
 .TH SAPHanaSR_upgrade_to_angi 7 "20 Nov 2024" "" "SAPHanaSR"
 .\"
@@ -75,8 +75,8 @@ hana_<sid>_site_opMode_<site>
 hana_<sid>_site_srMode_<site>
 .br
 hana_<sid>_site_srPoll_<site>
-.br
-TODO vhost remoteHost
+.\" .br
+.\" TODO vhost remoteHost
 .RE
 .PP
 \fB*\fR What will be changed for SAP HANA scale-out scenarios?
@@ -94,18 +94,21 @@ c. Tools are placed in /usr/bin/ instead of /usr/sbin/.
 .br
 d. Node attributes will be removed.
 .RS 4
-gra
+hana_<sid>_gra
 .br
-gsh
-TODO
+hana_<sid>_gsh
 .RE
 e. Site and global attributes will be removed from property SAPHanaSR.
 .RS 4
-mts
-upd
+hana_<sid>_glob_mts
+.br
+hana_<sid>_glob_upd
+.br
 hana_<sid>_glob_sync_state
+.br
+hana_<sid>_glob_srmode
+.br
 hana_<sid>_glob_srHook (in case of obsolete scale-out SAPHanaSR.py)
-TODO
 .RE
 f. Site and global attributes will be added to property SAPHanaSR.
 .RS 4
@@ -122,15 +125,13 @@ hana_<sid>_site_srr_<site>
 hana_<sid>_site_srMode_<site>
 .br
 hana_<sid>_site_srPoll_<site>
-.br
-TODO
 .RE
 .PP
 \fB*\fR How does the upgrade procedure look like at a glance?
 .PP
 The upgrade procedure consists of four phases: preparing, removing, adding,
 finalising. Linux cluster and HANA are kept running. However, resource
-management is disabled and the system goes thru fragiles states during the
+management is disabled and the system goes thru fragile states during the
 upgrade. 
 .PP
 .RS 2
@@ -162,6 +163,8 @@ upgrade.
 .\" TODO set whole cluster maintenance and restart cluster, to cleanup CIB?
 .br
 3.5 Add SAPHanaFilesystem resource (optional)
+.br
+3.6 Add SAPHanaSR-alert-fencing agent (optional, scale-out)
 .br
 4.1 Check for sane state of cluster, HANA and system replication
 .br
