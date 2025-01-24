@@ -3,10 +3,10 @@
 # 
 # (c) 2014 SUSE Linux Products GmbH, Nuremberg, Germany
 # (c) 2015-2016 SUSE Linux GmbH, Nuremberg, Germany
-# (c) 2016-2024 SUSE LLC
+# (c) 2016-2025 SUSE LLC
 # Author: Fabian Herschel <fabian.herschel@suse.com>
 # License: GPL v2+
-my $Version="0.17.2024.12.12.1";
+my $Version="0.18.2025.01.23.1";
 #
 ##################################################################
 #
@@ -23,6 +23,10 @@ my $ClusterNodes=0;
 my $ClusterPrimaries=1;
 my $ClusterSecondaries=1;
 
+#my $varlib='/var/lib/SAPHanaTD';
+#my $testfile='SAPHanaTD.status';
+#my $testcount=0;
+#my $first_test=1;
 my $sid="";
 my @sids;
 my $ino="";
@@ -30,30 +34,26 @@ my $sortBy="";
 # my $table_titleH = "Host";
 my %Name;
 my %Host;
-my $help;
 my $version;
-my $cibFile="";
 my $host = hostname();
 
-#my $varlib='/var/lib/SAPHanaTD';
-#my $testfile='SAPHanaTD.status';
-#my $testcount=0;
-#my $first_test=1;
 my $Format="txt";
 my $Continuous="no";
 my $HtmlPage="/srv/www/hawk/public/SAPHanaSR/index.html";
 my $Interval=10;
+my $cibFile="";
+my $help;
 
-sub init() 
+sub init()
 {
 	my $result = GetOptions ("sid=s" => \@sids,
 	                      "sort=s" => \$sortBy,
 	                      "format=s" => \$Format,
 	                      "cont=s" => \$Continuous,
                           "out=s" => \$HtmlPage,
+	                      "cib=s" => \$cibFile,
                           "interval=s" => \$Interval,
                           "nodes=s" => \$ClusterNodes,
-	                      "cib=s" => \$cibFile,
                           "version" => \$version,
                           "help" => \$help,
 	);
@@ -123,6 +123,7 @@ EOF
 </head>
 <body class="">
 <table cellpadding=5>
+  <!-- ################## AREA SID-STATUS ################# -->
   <tr><td valign="top" bgcolor="$sid_color"><h2>$sid</h2></td>
       <td valign="top"><b>SAPHanaSR-monitor $mydate</b>
           <table cellpadding=1>
