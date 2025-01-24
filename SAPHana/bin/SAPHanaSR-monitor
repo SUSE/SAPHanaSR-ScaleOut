@@ -233,9 +233,9 @@ sub processMonitor() {
         exit 1;
     }
     my $crm_out="CRM: TODO <==========="; # crm_mon -1D
-    my $attr_out1=print_host_attr(\%Global, \%GName, "Global", "");
-	my $attr_out2=print_host_attr(\%Site,   \%SName, "Sites",  "");
-    my $attr_out3=print_host_attr(\%Host,   \%HName, "Hosts",  $sortBy);
+    my $attr_out1=host_attr2string(\%Global, \%GName, "Global", "");
+	my $attr_out2=host_attr2string(\%Site,   \%SName, "Sites",  "");
+    my $attr_out3=host_attr2string(\%Host,   \%HName, "Hosts",  $sortBy);
     my $attr_out="$attr_out1\n$attr_out2\n$attr_out3";
     my $score_out="";
     my $log_out=`grep 'SAPHana.*INFO: RA' /var/log/messages | tail -20`; # TODO: Do we need to optimize the runtime of this command?
