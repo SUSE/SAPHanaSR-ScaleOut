@@ -6,7 +6,7 @@
 # Copyright:    (c) 2017-2022 SUSE LLC
 # Author: Fabian Herschel
 # License: Check if we publish that under GPL v2+
-# Version: 0.27.2024.12.12
+# Version: 0.28.2025.01.23
 #
 ##################################################################
 
@@ -24,42 +24,41 @@ use vars qw(@ISA @EXPORT @EXPORT_OK);
 @ISA = qw(Exporter);
 # Init immediately so their contents can be used in the 'use vars' below.
 @EXPORT    = qw(
-    check_lpa_status
     check_all_ok
+    check_lpa_status
     check_node_status
     check_node_mode
+    get_HANA_nodes
     get_hana_attributes
     get_hana_sync_state
-    get_lpa_by_host
-    get_nodes_online
-    get_node_status
-    get_sid_and_InstNr
-    get_number_primary
-    get_number_secondary
     get_host_primary
     get_host_secondary
-    get_new_attribute_model
-    get_number_HANA_standby
-    get_HANA_nodes
-    get_node_list
+    get_lpa_by_host
     get_master_nameserver
+    get_new_attribute_model
+    get_node_list
+    get_node_status
+    get_nodes_online
+    get_number_HANA_standby
+    get_number_primary
+    get_number_secondary
+    get_sid_and_InstNr
     get_site_by_host
     host_attr2string
     insertAttribute
     max
-    max get_nodes_online
-    mysyslog
+    get_nodes_online
     mysyslog
     path_to_table
     print_host_attr
-    set_new_attribute_model
-    set_cibFile
-    set_Host
     set_GName
     set_HName
+    set_Host
     set_SName
     set_Site
     set_Global
+    set_cibFile
+    set_new_attribute_model
 );
 
 
@@ -457,11 +456,12 @@ sub get_secondary_score
     my $result="-";
     if ( $newAttributeModel == 1 ) {
         foreach my $s ( keys(%{$$refSName{"srr"}}) ) {
-# TODO
-            $result="-";
-            #if ( ( $$refSName{"srr"}->{$s} =~ /P/ ) && ( $$refSName{"lss"}->{$s} =~ /[$lss]/ )) {
-            #   $rc++;
-            #}
+            my $srr = $$refSName{"srr"}->{$s};
+            if ( ( $srr eq "S" ) ) {
+                my $mns = $$refSName{"mns"}->{$s};
+                my $score = $$refHName{"score"}->{$mns};
+                $result = $score
+            }
         }
     } else  {
         foreach my $h ( keys(%{$$refHName{"roles"}}) ) {
@@ -536,7 +536,6 @@ sub check_node_status
     my $h=shift;
     if ( $newAttributeModel == 1 ) {
         my $site1=$$refHName{"site"}{$h};
-        # my $value=$$refSite{$site1}->{lss};
         if ( $$refSName{"lss"}{$site1} =~ /^[$lss]/ ) {
             return 1;
         }
@@ -780,6 +779,26 @@ sub check_all_ok
 #	return 0;
 #}
 
+sub referenced_hash2string
+{
+    my ($ref, $level) = @_;
+    my $string = sprintf("Level %s\n", $level);
+    my $ref_ref = ref($ref);
+    my %aHash = %{$ref};
+    if (%aHash) {
+        $string.="HASH is empty\n";
+    }
+    foreach my $key (keys(%aHash)) {
+        my $val=$aHash{$key};
+        my $val_ref = ref($val);
+        $string.=sprintf("%s", "($level): key: $key, value: $val, var_ref: $val_ref\n");
+        if ($val_ref eq "HASH") {
+            $string.=referenced_hash2string($val, $level+1);
+        }
+    }
+    return $string
+}
+
 sub host_attr2string
 {
     my $string="";
@@ -795,6 +814,19 @@ sub host_attr2string
     if ( ! defined $format) {
         $format="script"
     }
+    # 
+    # fh - for debug purposes an internal format 'duump'
+    #
+    if ( $format eq "dump" ) {
+        my $dump=sprintf("Hashes for area %s\n", $title );
+        my %dumpHash1 = %{$refH};
+        my %dumpHash2 = %{$refN};
+        $dump.=sprintf("Hash H\n");
+        $dump.=referenced_hash2string($refH, 1);
+        $dump.=sprintf("Hash N\n");
+        $dump.=referenced_hash2string($refN, 1);
+        return $dump;     
+    }
     if ( $format eq "tables" ) {
         $hclen=max($$refN{_hosts}->{_length}, length($title));
 	    $line_len=$hclen+1;
@@ -808,9 +840,9 @@ sub host_attr2string
                 $line_len=$line_len+$len+1;
 
                 if ( $AKey eq $sort ) {
-                    $string.=sprintf "*%-$len.${len}s ", $$refN{$AKey}->{_title};
+                   $string.=sprintf "*%-$len.${len}s ", $$refN{$AKey}->{_title};
                 } else {
-                    $string.=sprintf "%-$len.${len}s ", "$$refN{$AKey}->{_title}";
+                   $string.=sprintf "%-$len.${len}s ", "$$refN{$AKey}->{_title}";
                 }
             }
 	    }
@@ -840,13 +872,13 @@ sub host_attr2string
             }
         }
     } else {
-        # try to sort by site (other attrs to follow)
-        # first try to get a ordered list of attribute values assigned host names
-        my $sortVal;
-        my %GroupedHosts;
-        foreach my $HKey (sort keys %$refH) {
-            $sortVal = $$refH{$HKey} -> {$sort};
-            push(@{$GroupedHosts{$sortVal}}, $HKey);
+       # try to sort by site (other attrs to follow)
+       # first try to get a ordered list of attribute values assigned host names
+       my $sortVal;
+       my %GroupedHosts;
+       foreach my $HKey (sort keys %$refH) {
+           $sortVal = $$refH{$HKey} -> {$sort};
+           push(@{$GroupedHosts{$sortVal}}, $HKey);
         }
         # not ready so far only print the grouped hosts
         foreach my $sortV (sort keys %GroupedHosts) {
