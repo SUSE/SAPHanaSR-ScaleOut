@@ -1,6 +1,6 @@
 .\" Version: 0.185.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "20 Sep 2024" "" "SAPHanaSR"
+.TH SAPHanaSR-ScaleOut 7 "28 Jan 2025" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -263,7 +263,10 @@ Instance Number (INO).
 .PP
 8. Besides SAP HANA you need SAP hostagent installed and started on your systems.
 For SystemV style, the sapinit script needs to be active.
-For systemd style, the services saphostagent and SAP${SID}_${INO} can stay enabled. The systemd enabled saphostagent and instance´s sapstartsrv is supported from SAPHanaSR-ScaleOut 0.181 onwards. Please refer to the OS documentation for the systemd version. Please refer to SAP documentation for the SAP HANA version.
+For systemd style, the services saphostagent and SAP${SID}_${INO} can stay enabled.
+The systemd enabled saphostagent and instance´s sapstartsrv is supported from
+SAPHanaSR-ScaleOut 0.181 onwards. Please refer to the OS documentation for the
+systemd version. Please refer to SAP documentation for the SAP HANA version.
 Combining systemd style hostagent with SystemV style instance is allowed.
 However, all nodes in one Linux cluster have to use the same style.
 .PP
@@ -356,6 +359,7 @@ Please report any other feedback and suggestions to feedback@suse.com.
 .\"
 .SH SEE ALSO
 .PP
+\fBSAPHanaSR-ScaleOut-scenarios(7)\fP ,
 \fBocf_suse_SAPHanaTopology\fP(7) , \fBocf_suse_SAPHanaController\fP(7) ,
 \fBocf_heartbeat_IPaddr2\fP(7) , \fBSAPHanaSR-ScaleOut_basic_cluster\fP(7) ,
 \fBSAPHanaSR-monitor\fP(8) , \fBSAPHanaSR-showAttr\fP(8) , \fBSAPHanaSR.py\fP(7) ,
@@ -395,7 +399,7 @@ A.Briel, F.Herschel, L.Pinne.
 .SH COPYRIGHT
 (c) 2015-2017 SUSE Linux GmbH, Germany.
 .br
-(c) 2018-2024 SUSE LLC
+(c) 2018-2025 SUSE LLC
 .br
 The package SAPHanaSR-ScaleOut comes with ABSOLUTELY NO WARRANTY.
 .br
