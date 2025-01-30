@@ -1,0 +1,9 @@
+
+[ha_dr_provider_saphanasrmultitarget]
+provider = SAPHanaSrMultiTarget
+path = /usr/share/SAPHanaSR-ScaleOut
+cib_access = all-on
+execution_order = 2
+
+[trace]
+ha_dr_saphanasrmultitarget = info
