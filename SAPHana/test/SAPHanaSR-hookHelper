@@ -135,7 +135,7 @@ stopSystemAndWait() {
 ##### main
 
 # variables
-version="202208091454"
+version="202407091234"
 exe="$0"
 cmd=$(basename "$exe")
 
