@@ -1,6 +1,6 @@
 .\" Version: 0.185.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "28 Jan 2025" "" "SAPHanaSR"
+.TH SAPHanaSR-ScaleOut 7 "07 Feb 2025" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -287,7 +287,7 @@ of the Linux cluster. See also item 5 above.
 that one does not interfere with the Linux cluster. All three clusters
 (HANA, storage, Linux) have to be aligned.
 .PP
-12. The RAs SAPHanaController and SAPHanaToplogy need to be installed on all
+12. The RAs SAPHanaController and SAPHanaTopology need to be installed on all
 cluster nodes, even the majority maker.
 .PP
 13. Colocation constraints between the SAPHanaController or SAPHana RA and
@@ -333,6 +333,7 @@ memory can be used, as long as they are transparent to SUSE HA.
 .PP
 24. The SAP HANA site name is from 2 up to 32 characters long. It starts with a
 character or number. Subsequent characters may contain dash and underscore.
+However, underscore should be avoided.
 .PP
 25. The SAPHanaController RA, the SUSE HA cluster and several SAP components
 need read/write access and sufficient space in the Linux /tmp filesystem.
