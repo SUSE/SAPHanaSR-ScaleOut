@@ -516,8 +516,7 @@ function sht_init() {
     done
     # TODO PRIO3: Implement a file lookup, if we did not get a result
     [[ "$hdbANSWER" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"site"."name="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && site=${BASH_REMATCH[2]}
-    [[ "$hdbANSWER" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && srmode=${BASH_REMATCH[2]}
-
+    
     MAPPING=$(echo "$hdbANSWER" | awk -F[=/] '$1 == "mapping" && $2 == myhost && $3 != site { print $4 }' site="$site" myhost=$HOSTNAME)
     super_ocf_log debug "DBG: site=$site, mode=$srmode, MAPPING=$MAPPING"
     #
@@ -544,7 +543,6 @@ function check_for_primary() {
     local rc=0
     node_status=$srmode
     super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
-    super_ocf_log debug "DBG: check_for_primary: node_status=$node_status"
     for i in  1 2 3; do
         case "$node_status" in
            primary )
@@ -566,6 +564,7 @@ function check_for_primary() {
                   super_ocf_log err "ACT: check_for_primary:  we didn't expect node_status to be: DUMP: <$dump>"
               fi
               #### SAP-CALL
+              sleep 20
               #node_full_status=$(su - ${sidadm} -c "hdbnsutil -sr_state" 2>/dev/null )
               node_full_status=$(HANA_CALL --timeout $HANA_CALL_TIMEOUT --cmd "hdbnsutil -sr_stateConfiguration --sapcontrol=1" 2>/dev/null )
               [[ "$node_full_status" =~ "SAPCONTROL-OK: <begin>".*(^|$'\n')"mode="([^$'\n']*).*"SAPCONTROL-OK: <end>" ]] && node_status=${BASH_REMATCH[2]}
@@ -573,7 +572,6 @@ function check_for_primary() {
               # TODO: PRIO5: Maybe we need to keep the old value for P/S/N, if hdbnsutil just crashes
               ;;
        esac
-       sleep 20
    done
    super_ocf_log info "FLOW ${FUNCNAME[0]} rc=HANA_STATE_DEFECT"
    return $HANA_STATE_DEFECT
