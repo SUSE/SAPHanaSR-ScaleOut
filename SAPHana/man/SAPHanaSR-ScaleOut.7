@@ -1,6 +1,6 @@
 .\" Version: 0.185.0
 .\"
-.TH SAPHanaSR-ScaleOut 7 "07 Feb 2025" "" "SAPHanaSR"
+.TH SAPHanaSR-ScaleOut 7 "26 Jun 2025" "" "SAPHanaSR"
 .\"
 .SH NAME
 SAPHanaSR-ScaleOut \- Tools for automating SAP HANA system replication in
@@ -349,6 +349,15 @@ Please refer to SAP documentation for details.
 28. No manual actions must be performed on the HANA database while it is controlled
 by the Linux cluster. All administrative actions need to be aligned with the cluster.
 See also SAPHanaSR_maintenance_examples(7).
+.PP
+29. No firewall rules must block any needed port. For a potential local firewall,
+see also firewalld(8).
+.PP
+30. No SELinux rules must block any needed action. See also selinux(8).
+.PP
+31. Sizing of both HANA sites needs to be done according to SAP rules. The scale-out
+performace optimized scenario requires both sites prepared for running the primary
+HANA database.
 .PP
 .\"
 .SH BUGS
